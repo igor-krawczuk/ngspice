@@ -274,9 +274,9 @@ char nanmessage [12];
 
 double m;
 
-for (; model != NULL; model = model->B3SOIFDnextModel)
-{    for (here = model->B3SOIFDinstances; here != NULL; 
-          here = here->B3SOIFDnextInstance)
+for (; model != NULL; model = B3SOIFDnextModel(model))
+{    for (here = B3SOIFDinstances(model); here != NULL; 
+          here = B3SOIFDnextInstance(here))
      {
           Check = 0;
           ByPass = 0;
@@ -1066,8 +1066,8 @@ fprintf(stderr, "Bypass for %s...\n", here->B3SOIFDname);
                      else
                         dVbs0teff_dT = 0.0;
 
-			/* Calculate nfb */
-			T3 = 1 / (K1 * K1);
+                     /* Calculate nfb */
+                     T3 = 1 / (K1 * K1);
 			T4 = pParam->B3SOIFDkb3 * Cbox / model->B3SOIFDcox;
 			T8 = sqrt(phi - Vbs0mos);
 			T5 = sqrt(1 + 4 * T3 * (phi + K1 * T8 - Vbs0mos));

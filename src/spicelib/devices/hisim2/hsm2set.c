@@ -120,7 +120,7 @@ int HSM2setup(
 #endif
 
   /*  loop through all the HSM2 device models */
-  for ( ;model != NULL ;model = model->HSM2nextModel ) {
+  for ( ;model != NULL ;model = HSM2nextModel(model)) {
     /* Default value Processing for HSM2 MOSFET Models */
     if ( !model->HSM2_type_Given )
       model->HSM2_type = NMOS ;
@@ -172,13 +172,13 @@ int HSM2setup(
 
     if ( model->HSM2_codep_Given ) {
       if( model->HSM2_codep != 0 && model->HSM2_codep != 1 ) {
-        printf("warning(HiSIM): Invalid CODEP  (%d) was specified, resetted to 0.\n",model->HSM2_codep);
+        printf("warning(HiSIM): Invalid CODEP  (%d) was specified, reset to 0.\n",model->HSM2_codep);
         model->HSM2_codep = 0 ;
       }
     }
     if ( model->HSM2_coddlt_Given ) {
       if( model->HSM2_coddlt != 0 && model->HSM2_coddlt != 1 ) {
-        printf("warning(HiSIM): Invalid CODDLT (%d) was specified, resetted to 0.\n",model->HSM2_coddlt);
+        printf("warning(HiSIM): Invalid CODDLT (%d) was specified, reset to 0.\n",model->HSM2_coddlt);
         model->HSM2_coddlt = 0 ;
       }
     }
@@ -765,6 +765,11 @@ int HSM2setup(
     if (!model->HSM2vdsMaxGiven) model->HSM2vdsMax = 1e99;
     if (!model->HSM2vbsMaxGiven) model->HSM2vbsMax = 1e99;
     if (!model->HSM2vbdMaxGiven) model->HSM2vbdMax = 1e99;
+    if (!model->HSM2vgsrMaxGiven) model->HSM2vgsrMax = 1e99;
+    if (!model->HSM2vgdrMaxGiven) model->HSM2vgdrMax = 1e99;
+    if (!model->HSM2vgbrMaxGiven) model->HSM2vgbrMax = 1e99;
+    if (!model->HSM2vbsrMaxGiven) model->HSM2vbsrMax = 1e99;
+    if (!model->HSM2vbdrMaxGiven) model->HSM2vbdrMax = 1e99;
 
     if ( model->HSM2_codep ) {
       RANGERESET(model->HSM2_ndepm,      5e15,   2e17,  "NDEPM" ) ;
@@ -772,15 +777,15 @@ int HSM2setup(
       RANGECHECK(model->HSM2_depleak,    0.0,   10.0,   "DEPLEAK" ) ;
 
       if( model->HSM2_corecip )  {
-        printf("warning(HiSIM): CORECIP is not supported yet in depletion mode MOSFET, resetted to 0.\n");
+        printf("warning(HiSIM): CORECIP is not supported yet in depletion mode MOSFET, reset to 0.\n");
         model->HSM2_corecip = 0;
       }
       if( model->HSM2_copprv )  {
-        printf("warning(HiSIM): COPPRV is not supported yet in depletion mode MOSFET, resetted to 0.\n");
+        printf("warning(HiSIM): COPPRV is not supported yet in depletion mode MOSFET, reset to 0.\n");
         model->HSM2_copprv = 0;
       }
       if( model->HSM2_corsrd == 1 )  {
-        printf("warning(HiSIM): CORSRD=1 is not supported yet in depletion mode MOSFET, resetted to -1.\n");
+        printf("warning(HiSIM): CORSRD=1 is not supported yet in depletion mode MOSFET, reset to -1.\n");
         model->HSM2_corsrd = -1;
       }
       if( model->HSM2_coisti )  {
@@ -806,8 +811,8 @@ int HSM2setup(
     modelMKS = &model->modelMKS ;
 
     /* loop through all the instances of the model */
-    for ( here = model->HSM2instances ;here != NULL ;
-	  here = here->HSM2nextInstance ) {
+    for ( here = HSM2instances(model);here != NULL ;
+	  here = HSM2nextInstance(here)) {
       /* allocate a chunk of the state vector */
       here->HSM2states = *states;
       if (model->HSM2_conqs)
@@ -1147,8 +1152,6 @@ do { if((here->ptr = SMPmakeElt(matrix,here->first,here->second))==(double *)NUL
       pParam->HSM2_nsubpsti1  = pParam->HSM2_nsubpsti1 / C_m2cm ;
       pParam->HSM2_nsubcsti1  = pParam->HSM2_nsubcsti1 / C_m2cm ;
       pParam->HSM2_muesti1    = pParam->HSM2_muesti1 / C_m2cm ;
-      pParam->HSM2_ndep       = pParam->HSM2_ndep ;
-      pParam->HSM2_ninv       = pParam->HSM2_ninv ;
 
       pParam->HSM2_vmax       = pParam->HSM2_vmax   / C_m2cm ;
       pParam->HSM2_wfc        = pParam->HSM2_wfc    * C_m2cm_p2 ;
@@ -1262,30 +1265,32 @@ do { if((here->ptr = SMPmakeElt(matrix,here->first,here->second))==(double *)NUL
     /* loop through all the HSM2 device models
        to count the number of instances */
 
-    for ( ; model != NULL; model = model->HSM2nextModel )
+    for ( ; model != NULL; model = HSM2nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->HSM2instances; here != NULL ;
-             here = here->HSM2nextInstance)
+        for (here = HSM2instances(model); here != NULL ;
+             here = HSM2nextInstance(here))
         {
             InstCount++;
         }
+        model->HSM2InstCount = 0;
+        model->HSM2InstanceArray = NULL;
     }
     InstArray = TMALLOC(HSM2instance*, InstCount);
     model = (HSM2model*)inModel;
+    /* store this in the first model only */
+    model->HSM2InstCount = InstCount;
+    model->HSM2InstanceArray = InstArray;
     idx = 0;
-    for ( ; model != NULL; model = model->HSM2nextModel )
+    for ( ; model != NULL; model = HSM2nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->HSM2instances; here != NULL ;
-             here = here->HSM2nextInstance)
+        for (here = HSM2instances(model); here != NULL ;
+             here = HSM2nextInstance(here))
         {
             InstArray[idx] = here;
             idx++;
         }
-        /* set the array pointer and instance count into each model */
-        model->HSM2InstCount = InstCount;
-        model->HSM2InstanceArray = InstArray;
     }
 #endif
 
@@ -1302,47 +1307,40 @@ HSM2unsetup(
     HSM2instance *here;
  
     for (model = (HSM2model *)inModel; model != NULL;
-            model = model->HSM2nextModel)
+            model = HSM2nextModel(model))
     {
-        for (here = model->HSM2instances; here != NULL;
-                here=here->HSM2nextInstance)
+        for (here = HSM2instances(model); here != NULL;
+                here=HSM2nextInstance(here))
         {
-            if (here->HSM2dNodePrime
-                    && here->HSM2dNodePrime != here->HSM2dNode)
-            {
-                CKTdltNNum(ckt, here->HSM2dNodePrime);
-                here->HSM2dNodePrime = 0;
-            }
-            if (here->HSM2sNodePrime
-                    && here->HSM2sNodePrime != here->HSM2sNode)
-            {
-                CKTdltNNum(ckt, here->HSM2sNodePrime);
-                here->HSM2sNodePrime = 0;
-            }
-            if (here->HSM2gNodePrime
-                    && here->HSM2gNodePrime != here->HSM2gNode)
-            {
-                CKTdltNNum(ckt, here->HSM2gNodePrime);
-                here->HSM2gNodePrime = 0;
-            }
-            if (here->HSM2bNodePrime
-                    && here->HSM2bNodePrime != here->HSM2bNode)
-            {
-                CKTdltNNum(ckt, here->HSM2bNodePrime);
-                here->HSM2bNodePrime = 0;
-            }
-            if (here->HSM2dbNode
-                    && here->HSM2dbNode != here->HSM2bNode)
-            {
-                CKTdltNNum(ckt, here->HSM2dbNode);
-                here->HSM2dbNode = 0;
-            }
-            if (here->HSM2sbNode
+            if (here->HSM2sbNode > 0
                     && here->HSM2sbNode != here->HSM2bNode)
-            {
                 CKTdltNNum(ckt, here->HSM2sbNode);
-                here->HSM2sbNode = 0;
-            }
+            here->HSM2sbNode = 0;
+
+            if (here->HSM2bNodePrime > 0
+                    && here->HSM2bNodePrime != here->HSM2bNode)
+                CKTdltNNum(ckt, here->HSM2bNodePrime);
+            here->HSM2bNodePrime = 0;
+
+            if (here->HSM2dbNode > 0
+                    && here->HSM2dbNode != here->HSM2bNode)
+                CKTdltNNum(ckt, here->HSM2dbNode);
+            here->HSM2dbNode = 0;
+
+            if (here->HSM2gNodePrime > 0
+                    && here->HSM2gNodePrime != here->HSM2gNode)
+                CKTdltNNum(ckt, here->HSM2gNodePrime);
+            here->HSM2gNodePrime = 0;
+
+            if (here->HSM2sNodePrime > 0
+                    && here->HSM2sNodePrime != here->HSM2sNode)
+                CKTdltNNum(ckt, here->HSM2sNodePrime);
+            here->HSM2sNodePrime = 0;
+
+            if (here->HSM2dNodePrime > 0
+                    && here->HSM2dNodePrime != here->HSM2dNode)
+                CKTdltNNum(ckt, here->HSM2dNodePrime);
+            here->HSM2dNodePrime = 0;
         }
     }
 #endif

@@ -1,6 +1,6 @@
 /**********
 Copyright 1992 Regents of the University of California.  All rights reserved.
-Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
+Author: 1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 **********/
 
 /*
@@ -10,27 +10,17 @@ Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 
 #include "ngspice/ngspice.h"
 #include "nbjtdefs.h"
+#include "../../../ciderlib/oned/onedext.h"
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
-int
-NBJTdelete(GENmodel *inModel, IFuid name, GENinstance **kill)
-{
-  NBJTmodel *model = (NBJTmodel *) inModel;
-  NBJTinstance **fast = (NBJTinstance **) kill;
-  NBJTinstance **prev = NULL;
-  NBJTinstance *inst;
 
-  for (; model; model = model->NBJTnextModel) {
-    prev = &(model->NBJTinstances);
-    for (inst = *prev; inst; inst = *prev) {
-      if (inst->NBJTname == name || (fast && inst == *fast)) {
-	*prev = inst->NBJTnextInstance;
-	FREE(inst);
-	return (OK);
-      }
-      prev = &(inst->NBJTnextInstance);
-    }
-  }
-  return (E_NODEV);
+int
+NBJTdelete(GENinstance *gen_inst)
+{
+    NBJTinstance *inst = (NBJTinstance *) gen_inst;
+
+    ONEdestroy(inst->NBJTpDevice);
+
+    return OK;
 }

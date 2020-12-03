@@ -38,8 +38,7 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
 
     NG_IGNORE(select);
 
-    switch(param) {
-
+    switch (param) {
         case VSRC_DC:
             here->VSRCdcValue = value->rValue;
             here->VSRCdcGiven = TRUE;
@@ -58,13 +57,17 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
             break;
 
         case VSRC_AC:
-            switch(value->v.numValue) {
+            /* FALLTHROUGH added to suppress GCC warning due to
+             * -Wimplicit-fallthrough flag */
+            switch (value->v.numValue) {
                 case 2:
                     here->VSRCacPhase = *(value->v.vec.rVec+1);
                     here->VSRCacPGiven = TRUE;
+                    /* FALLTHROUGH */
                 case 1:
                     here->VSRCacMag = *(value->v.vec.rVec);
                     here->VSRCacMGiven = TRUE;
+                    /* FALLTHROUGH */
                 case 0:
                     here->VSRCacGiven = TRUE;
                     break;
@@ -120,6 +123,14 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
 
         case VSRC_R: {
             double end_time;
+            /* Parameter r of pwl may now be parameterized:
+               if r == -1, no repetition done.
+               if r == 0, repeat forever.
+               if r == xx, repeat from time xx to last time point given. */
+            if (value->rValue < -0.5) {
+                here->VSRCrGiven = FALSE;
+                break;
+            }
             here->VSRCr = value->rValue;
             here->VSRCrGiven = TRUE;
 
@@ -161,7 +172,7 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
         case VSRC_D_F1:
             here->VSRCdF1given = TRUE;
             here->VSRCdGiven = TRUE;
-            switch(value->v.numValue) {
+            switch (value->v.numValue) {
             case 2:
                 here->VSRCdF1phase = *(value->v.vec.rVec+1);
                 here->VSRCdF1mag = *(value->v.vec.rVec);
@@ -182,7 +193,7 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
         case VSRC_D_F2:
             here->VSRCdF2given = TRUE;
             here->VSRCdGiven = TRUE;
-            switch(value->v.numValue) {
+            switch (value->v.numValue) {
             case 2:
                 here->VSRCdF2phase = *(value->v.vec.rVec+1);
                 here->VSRCdF2mag = *(value->v.vec.rVec);
@@ -230,6 +241,9 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
             if (here->VSRCfunctionOrder > 6 && RTSAM != 0.0)
                 RTSEMT = here->VSRCcoeffs[6]; // RTS trap emission time
 
+            /* after an 'alter' command to the TRNOISE voltage source the state gets re-written
+               with the new parameters. So free the old state first. */
+            trnoise_state_free(here->VSRCtrnoise_state);
             here->VSRCtrnoise_state =
                 trnoise_state_init(NA, TS, NALPHA, NAMP, RTSAM, RTSCAPT, RTSEMT);
         }
@@ -256,6 +270,9 @@ VSRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
             if (here->VSRCfunctionOrder > 4)
                 PARAM2 = here->VSRCcoeffs[4]; // second parameter
 
+            /* after an 'alter' command to the TRRANDOM voltage source the state gets re-written
+               with the new parameters. So free the old state first. */
+            tfree(here->VSRCtrrandom_state);
             here->VSRCtrrandom_state =
                 trrandom_state_init(rndtype, TS, TD, PARAM1, PARAM2);
         }

@@ -43,7 +43,7 @@ extern void cp_ccom(wordlist *wlist, char *buf, bool esc);
 extern void cp_ccon(bool on);
 extern void cp_ccrestart(bool kwords);
 extern void cp_remcomm(char *word);
-extern void cp_remkword(int kw_class, char *word);
+extern void cp_remkword(int kw_class, const char *word);
 extern void cp_destroy_keywords(void);
 
 extern wordlist *cp_cctowl(struct ccom *stuff);
@@ -57,6 +57,7 @@ extern FILE *cp_curin;
 extern FILE *cp_curout;
 extern FILE *cp_curerr;
 extern bool cp_debug;
+extern bool cp_no_histsubst; /* controlled by "no_histsubst" true/false */
 extern char cp_amp;
 extern char cp_gt;
 extern char cp_lt;
@@ -71,15 +72,14 @@ extern bool cp_dounixcom;
 extern char *cp_csep;
 extern char * get_alt_prompt(void);
 extern int cp_evloop(char *string);
-extern void cp_resetcontrol(void);
+extern void cp_resetcontrol(bool warn);
 extern void cp_toplevel(void);
 extern void cp_popcontrol(void);
 extern void cp_pushcontrol(void);
 
 /* glob.c */
 
-extern bool cp_globmatch(char *p, char *s);
-extern char *cp_tildexpand(char *string);
+extern char *cp_tildexpand(const char *string);
 extern char cp_cbrac;
 extern char cp_ccurl;
 extern char cp_comma;
@@ -98,7 +98,6 @@ extern char cp_hat;
 extern int cp_maxhistlength;
 extern struct histent *cp_lastone;
 extern void cp_addhistent(int event, wordlist *wlist);
-void cp_hprint(int eventhi, int eventlo, bool rev);
 extern wordlist *cp_histsubst(wordlist *wlist);
 
 /* lexical.c */
@@ -108,7 +107,6 @@ extern bool cp_bqflag;
 extern bool cp_interactive;
 extern char *cp_altprompt;
 extern char *cp_promptstring;
-extern char cp_hash;
 extern int cp_event;
 extern wordlist *cp_lexer(char *string);
 extern int inchar(FILE *fp);
@@ -135,12 +133,7 @@ extern void out_send(char *string);
 
 /* quote.c */
 
-extern char *cp_unquote(char *string);
-extern void cp_quoteword(char *str);
-extern void cp_striplist(wordlist *wlist);
-extern void cp_wstrip(char *str);
-
-
+extern char *cp_unquote(const char *string);
 
 /* unixcom.c */
 
@@ -164,14 +157,14 @@ extern bool cp_noglob;
 extern bool cp_nonomatch;
 extern char cp_dol;
 extern void cp_remvar(char *varname);
-extern void cp_vset(char *varname, enum cp_types type, void *value);
+void cp_vset(const char *varname, enum cp_types type, const void *value);
 extern struct variable *cp_setparse(wordlist *wl);
 extern wordlist *vareval(char *string);
 extern char *span_var_expr(char *t);
 
 /* var2.c */
 extern void cp_vprint(void);
-extern bool cp_getvar(char *name, enum cp_types type, void *retval);
+extern bool cp_getvar(char *name, enum cp_types type, void *retval, size_t rsize);
 
 /* cpinterface.c etc -- stuff CP needs from FTE */
 
@@ -182,8 +175,8 @@ extern void cp_periodic(void);
 extern void ft_cpinit(void);
 extern struct comm *cp_coms;
 extern char *cp_program;
-extern struct variable *cp_enqvar(char *word);
-extern void cp_usrvars(struct variable **v1, struct variable **v2);
+extern struct variable *cp_enqvar(const char *word, int *tbfreed);
+extern struct variable *cp_usrvars(void);
 int cp_usrset(struct variable *var, bool isset);
 extern void fatal(void);
 

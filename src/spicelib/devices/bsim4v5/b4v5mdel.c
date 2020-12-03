@@ -13,34 +13,24 @@
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
+
 int
-BSIM4v5mDelete(
-GENmodel **inModel,
-IFuid modname,
-GENmodel *kill)
+BSIM4v5mDelete(GENmodel *gen_model)
 {
-BSIM4v5model **model = (BSIM4v5model**)inModel;
-BSIM4v5model *modfast = (BSIM4v5model*)kill;
-BSIM4v5instance *here;
-BSIM4v5instance *prev = NULL;
-BSIM4v5model **oldmod;
+    BSIM4v5model *model = (BSIM4v5model*) gen_model;
 
-    oldmod = model;
-    for (; *model ; model = &((*model)->BSIM4v5nextModel)) 
-    {    if ((*model)->BSIM4v5modName == modname || 
-             (modfast && *model == modfast))
-	     goto delgot;
-         oldmod = model;
-    }
-    return(E_NOMOD);
+#ifdef USE_OMP
+    FREE(model->BSIM4v5InstanceArray);
+#endif
 
-delgot:
-    *oldmod = (*model)->BSIM4v5nextModel; /* cut deleted device out of list */
-    for (here = (*model)->BSIM4v5instances; here; here = here->BSIM4v5nextInstance)
-    {    if(prev) FREE(prev);
-         prev = here;
+    struct bsim4v5SizeDependParam *p = model->pSizeDependParamKnot;
+    while (p) {
+        struct bsim4v5SizeDependParam *next_p = p->pNext;
+        FREE(p);
+        p = next_p;
     }
-    if(prev) FREE(prev);
-    FREE(*model);
-    return(OK);
+
+    FREE(model->BSIM4v5version);
+
+    return OK;
 }

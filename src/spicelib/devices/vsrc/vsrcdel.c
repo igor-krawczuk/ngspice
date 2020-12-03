@@ -2,33 +2,22 @@
 Copyright 1990 Regents of the University of California.  All rights reserved.
 Author: 1985 Thomas L. Quarles
 **********/
-/*
- */
 
 #include "ngspice/ngspice.h"
 #include "vsrcdefs.h"
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
+#include "ngspice/1-f-code.h"
 
 
 int
-VSRCdelete(GENmodel *inModel, IFuid name, GENinstance **inst)
+VSRCdelete(GENinstance *gen_inst)
 {
-    VSRCmodel *model = (VSRCmodel *) inModel;
-    VSRCinstance **fast = (VSRCinstance **) inst;
-    VSRCinstance **prev = NULL;
-    VSRCinstance *here;
+    VSRCinstance *inst = (VSRCinstance *) gen_inst;
 
-    for( ; model ; model = model->VSRCnextModel) {
-        prev = &(model->VSRCinstances);
-        for(here = *prev; here ; here = *prev) {
-            if(here->VSRCname == name || (fast && here==*fast) ) {
-                *prev= here->VSRCnextInstance;
-                FREE(here);
-                return(OK);
-            }
-            prev = &(here->VSRCnextInstance);
-        }
-    }
-    return(E_NODEV);
+    FREE(inst->VSRCcoeffs);
+    trnoise_state_free(inst->VSRCtrnoise_state);
+    FREE(inst->VSRCtrrandom_state);
+
+    return OK;
 }

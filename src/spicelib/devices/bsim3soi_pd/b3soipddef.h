@@ -25,15 +25,21 @@ Modified by Paolo Nenzi 2002
 
 typedef struct sB3SOIPDinstance
 {
-    struct sB3SOIPDmodel *B3SOIPDmodPtr;
-    struct sB3SOIPDinstance *B3SOIPDnextInstance;
-    IFuid B3SOIPDname;
-    int B3SOIPDstates;     /* index into state table for this device */
 
-    int B3SOIPDdNode;
-    int B3SOIPDgNode;
-    int B3SOIPDsNode;
-    int B3SOIPDeNode;
+    struct GENinstance gen;
+
+#define B3SOIPDmodPtr(inst) ((struct sB3SOIPDmodel *)((inst)->gen.GENmodPtr))
+#define B3SOIPDnextInstance(inst) ((struct sB3SOIPDinstance *)((inst)->gen.GENnextInstance))
+#define B3SOIPDname gen.GENname
+#define B3SOIPDstates gen.GENstate
+
+    const int B3SOIPDdNode;
+    const int B3SOIPDgNode;
+    const int B3SOIPDsNode;
+    const int B3SOIPDeNode;
+    const int B3SOIPDbNodeExt;
+    const int B3SOIPDtempNodeExt;
+    const int B3SOIPDpNodeExt;
     int B3SOIPDpNode;
     int B3SOIPDbNode;
     int B3SOIPDtempNode;
@@ -584,12 +590,13 @@ struct b3soipdSizeDependParam
 
 typedef struct sB3SOIPDmodel 
 {
-    int B3SOIPDmodType;
-    struct sB3SOIPDmodel *B3SOIPDnextModel;
-    B3SOIPDinstance *B3SOIPDinstances;
-    IFuid B3SOIPDmodName; 
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define B3SOIPDmodType gen.GENmodType
+#define B3SOIPDnextModel(inst) ((struct sB3SOIPDmodel *)((inst)->gen.GENnextModel))
+#define B3SOIPDinstances(inst) ((B3SOIPDinstance *)((inst)->gen.GENinstances))
+#define B3SOIPDmodName gen.GENmodName
 
     int B3SOIPDtype;
 

@@ -16,26 +16,26 @@ Modified: 2004 Paolo Nenzi - (ng)spice integration
 
 
 
-#define VECTOR_ALLOC(vec, n) { \
-        vec = TMALLOC(double *, n); \
+#define VECTOR_ALLOC(type, vec, n) {            \
+        vec = TMALLOC(type *, n);               \
 }
 
-#define MATRIX_ALLOC(mat, m, j) { \
-        int k; \
-        mat = TMALLOC(double **, m); \
-        for (k = 0; k < m; k++) {  \
-                VECTOR_ALLOC(mat[k], j); \
-        } \
+#define MATRIX_ALLOC(type, mat, m, j) {         \
+        int k;                                  \
+        mat = TMALLOC(type **, m);              \
+        for (k = 0; k < m; k++) {               \
+            VECTOR_ALLOC(type, mat[k], j);      \
+        }                                       \
 }
 
-#define VECTOR_FREE(vec) free(vec)
+#define VECTOR_FREE(vec) tfree(vec)
 
-#define MATRIX_FREE(mat, m, j) { \
-        int k; \
-        for (k = 0; k < m; k++) {  \
-                free(mat[k]); \
-        } \
-        free(mat); \
+#define MATRIX_FREE(mat, m, j) {                \
+        int k;                                  \
+        for (k = 0; k < m; k++) {               \
+            tfree(mat[k]);                       \
+        }                                       \
+        tfree(mat);                              \
 }
 
 #define MAX_DEG 8
@@ -147,7 +147,7 @@ CPLsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *state)
     NG_IGNORE(state);
 
     /*  loop through all the models */
-    for( ; model != NULL; model = model->CPLnextModel ) {
+    for( ; model != NULL; model = CPLnextModel(model)) {
 
         if (!model->Rmgiven) {
             SPfrontEnd->IFerrorf (ERR_FATAL,
@@ -176,8 +176,8 @@ CPLsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *state)
         }
 
         /* loop through all the instances of the model */
-        for (here = model->CPLinstances; here != NULL ;
-                here=here->CPLnextInstance) {
+        for (here = CPLinstances(model); here != NULL ;
+                here=CPLnextInstance(here)) {
 
             if (!here->CPLlengthGiven)
                 here->CPLlength=0.0;
@@ -195,21 +195,21 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
             here->CPLibr1 = TMALLOC(int, noL);
             here->CPLibr2 = TMALLOC(int, noL);
 
-            VECTOR_ALLOC(here->CPLibr1Ibr1, noL);
-            VECTOR_ALLOC(here->CPLibr2Ibr2, noL);
-            VECTOR_ALLOC(here->CPLposIbr1, noL);
-            VECTOR_ALLOC(here->CPLnegIbr2, noL);
-            VECTOR_ALLOC(here->CPLposPos, noL);
-            VECTOR_ALLOC(here->CPLnegNeg, noL);
-            VECTOR_ALLOC(here->CPLnegPos, noL);
-            VECTOR_ALLOC(here->CPLposNeg, noL);
+            VECTOR_ALLOC(double, here->CPLibr1Ibr1Ptr, noL);
+            VECTOR_ALLOC(double, here->CPLibr2Ibr2Ptr, noL);
+            VECTOR_ALLOC(double, here->CPLposIbr1Ptr, noL);
+            VECTOR_ALLOC(double, here->CPLnegIbr2Ptr, noL);
+            VECTOR_ALLOC(double, here->CPLposPosPtr, noL);
+            VECTOR_ALLOC(double, here->CPLnegNegPtr, noL);
+            VECTOR_ALLOC(double, here->CPLnegPosPtr, noL);
+            VECTOR_ALLOC(double, here->CPLposNegPtr, noL);
 
-            MATRIX_ALLOC(here->CPLibr1Pos, noL, noL);
-            MATRIX_ALLOC(here->CPLibr2Neg, noL, noL);
-            MATRIX_ALLOC(here->CPLibr1Neg, noL, noL);
-            MATRIX_ALLOC(here->CPLibr2Pos, noL, noL);
-            MATRIX_ALLOC(here->CPLibr1Ibr2, noL, noL);
-            MATRIX_ALLOC(here->CPLibr2Ibr1, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr1PosPtr, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr2NegPtr, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr1NegPtr, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr2PosPtr, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr1Ibr2Ptr, noL, noL);
+            MATRIX_ALLOC(double, here->CPLibr2Ibr1Ptr, noL, noL);
 
 
             branchname = TMALLOC(char *, here->dimension);
@@ -225,7 +225,7 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
                 }
                 here->CPLibr1Given = 1;
             }
-            free(branchname);
+            tfree(branchname);
             branchname = TMALLOC(char *, here->dimension);
             if (! here->CPLibr2Given) {
                 for (m = 0; m < here->dimension; m++) {
@@ -239,7 +239,7 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
                 }
                 here->CPLibr2Given = 1;
             }
-            free(branchname);
+            tfree(branchname);
 
             for (m = 0; m < here->dimension; m++) {
                 for (node = ckt->CKTnodes; node; node = node->next) {
@@ -259,23 +259,23 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
             }
 
             for (m = 0; m < here->dimension; m++) {
-                TSTALLOC(CPLibr1Ibr1[m],CPLibr1[m],CPLibr1[m]);
-                TSTALLOC(CPLibr2Ibr2[m],CPLibr2[m],CPLibr2[m]);
-                TSTALLOC(CPLposIbr1[m],CPLposNodes[m],CPLibr1[m]);
-                TSTALLOC(CPLnegIbr2[m],CPLnegNodes[m],CPLibr2[m]);
-                TSTALLOC(CPLposPos[m],CPLposNodes[m],CPLposNodes[m]);
-                TSTALLOC(CPLnegNeg[m],CPLnegNodes[m],CPLnegNodes[m]);
-                TSTALLOC(CPLnegPos[m],CPLnegNodes[m],CPLposNodes[m]);
-                TSTALLOC(CPLposNeg[m],CPLposNodes[m],CPLnegNodes[m]);
+                TSTALLOC(CPLibr1Ibr1Ptr[m],CPLibr1[m],CPLibr1[m]);
+                TSTALLOC(CPLibr2Ibr2Ptr[m],CPLibr2[m],CPLibr2[m]);
+                TSTALLOC(CPLposIbr1Ptr[m],CPLposNodes[m],CPLibr1[m]);
+                TSTALLOC(CPLnegIbr2Ptr[m],CPLnegNodes[m],CPLibr2[m]);
+                TSTALLOC(CPLposPosPtr[m],CPLposNodes[m],CPLposNodes[m]);
+                TSTALLOC(CPLnegNegPtr[m],CPLnegNodes[m],CPLnegNodes[m]);
+                TSTALLOC(CPLnegPosPtr[m],CPLnegNodes[m],CPLposNodes[m]);
+                TSTALLOC(CPLposNegPtr[m],CPLposNodes[m],CPLnegNodes[m]);
 
                 for (p = 0; p < here->dimension; p++) {
 
-                    TSTALLOC(CPLibr1Pos[m][p],CPLibr1[m],CPLposNodes[p]);
-                    TSTALLOC(CPLibr2Neg[m][p],CPLibr2[m],CPLnegNodes[p]);
-                    TSTALLOC(CPLibr1Neg[m][p],CPLibr1[m],CPLnegNodes[p]);
-                    TSTALLOC(CPLibr2Pos[m][p],CPLibr2[m],CPLposNodes[p]);
-                    TSTALLOC(CPLibr1Ibr2[m][p],CPLibr1[m],CPLibr2[p]);
-                    TSTALLOC(CPLibr2Ibr1[m][p],CPLibr2[m],CPLibr1[p]);
+                    TSTALLOC(CPLibr1PosPtr[m][p],CPLibr1[m],CPLposNodes[p]);
+                    TSTALLOC(CPLibr2NegPtr[m][p],CPLibr2[m],CPLnegNodes[p]);
+                    TSTALLOC(CPLibr1NegPtr[m][p],CPLibr1[m],CPLnegNodes[p]);
+                    TSTALLOC(CPLibr2PosPtr[m][p],CPLibr2[m],CPLposNodes[p]);
+                    TSTALLOC(CPLibr1Ibr2Ptr[m][p],CPLibr1[m],CPLibr2[p]);
+                    TSTALLOC(CPLibr2Ibr1Ptr[m][p],CPLibr2[m],CPLibr1[p]);
 
                 }
             }
@@ -299,36 +299,29 @@ CPLunsetup(GENmodel *inModel, CKTcircuit *ckt)
     int noL;
 
     for (model = (CPLmodel *) inModel; model != NULL;
-            model = model->CPLnextModel) {
-        for (here = model->CPLinstances; here != NULL;
-                here = here->CPLnextInstance) {
+            model = CPLnextModel(model)) {
+        for (here = CPLinstances(model); here != NULL;
+                here = CPLnextInstance(here)) {
 
             noL = here->dimension;
 
-            VECTOR_FREE(here->CPLibr1Ibr1);
-            VECTOR_FREE(here->CPLibr2Ibr2);
-            VECTOR_FREE(here->CPLposIbr1);
-            VECTOR_FREE(here->CPLnegIbr2);
-            VECTOR_FREE(here->CPLposPos);
-            VECTOR_FREE(here->CPLnegNeg);
-            VECTOR_FREE(here->CPLnegPos);
-            VECTOR_FREE(here->CPLposNeg);
+            VECTOR_FREE(here->CPLibr1Ibr1Ptr);
+            VECTOR_FREE(here->CPLibr2Ibr2Ptr);
+            VECTOR_FREE(here->CPLposIbr1Ptr);
+            VECTOR_FREE(here->CPLnegIbr2Ptr);
+            VECTOR_FREE(here->CPLposPosPtr);
+            VECTOR_FREE(here->CPLnegNegPtr);
+            VECTOR_FREE(here->CPLnegPosPtr);
+            VECTOR_FREE(here->CPLposNegPtr);
 
 
-            MATRIX_FREE(here->CPLibr1Pos, noL, noL);
-            MATRIX_FREE(here->CPLibr2Neg, noL, noL);
-            MATRIX_FREE(here->CPLibr1Neg, noL, noL);
-            MATRIX_FREE(here->CPLibr2Pos, noL, noL);
-            MATRIX_FREE(here->CPLibr1Ibr2, noL, noL);
-            MATRIX_FREE(here->CPLibr2Ibr1, noL, noL);
+            MATRIX_FREE(here->CPLibr1PosPtr, noL, noL);
+            MATRIX_FREE(here->CPLibr2NegPtr, noL, noL);
+            MATRIX_FREE(here->CPLibr1NegPtr, noL, noL);
+            MATRIX_FREE(here->CPLibr2PosPtr, noL, noL);
+            MATRIX_FREE(here->CPLibr1Ibr2Ptr, noL, noL);
+            MATRIX_FREE(here->CPLibr2Ibr1Ptr, noL, noL);
 
-
-            for (m = 0; m < noL; m++) {
-                if (here->CPLibr1[m]) {
-                    CKTdltNNum(ckt, here->CPLibr1[m]);
-                    here->CPLibr1[m] = 0;
-                }
-            }
 
             for (m = 0; m < noL; m++) {
                 if (here->CPLibr2[m]) {
@@ -337,10 +330,17 @@ CPLunsetup(GENmodel *inModel, CKTcircuit *ckt)
                 }
             }
 
-            free(here->CPLposNodes);
-            free(here->CPLnegNodes);
-            free(here->CPLibr1);
-            free(here->CPLibr2);
+            for (m = 0; m < noL; m++) {
+                if (here->CPLibr1[m]) {
+                    CKTdltNNum(ckt, here->CPLibr1[m]);
+                    here->CPLibr1[m] = 0;
+                }
+            }
+
+            tfree(here->CPLposNodes);
+            tfree(here->CPLnegNodes);
+            tfree(here->CPLibr1);
+            tfree(here->CPLibr2);
 
             /* reset switches */
             here->CPLdcGiven=0;
@@ -418,18 +418,18 @@ ReadCpL(CPLinstance *here, CKTcircuit *ckt)
                 C_m[i][j] = C_m[j][i];
                 L_m[i][j] = L_m[j][i];
             } else {
-                f = here->CPLmodPtr->Rm[counter];
-                R_m[i][j] = here->CPLmodPtr->Rm[counter] = MAX(f, 1.0e-4);
-                G_m[i][j] = here->CPLmodPtr->Gm[counter];
-                L_m[i][j] = here->CPLmodPtr->Lm[counter];
-                C_m[i][j] = here->CPLmodPtr->Cm[counter];
+                f = CPLmodPtr(here)->Rm[counter];
+                R_m[i][j] = CPLmodPtr(here)->Rm[counter] = MAX(f, 1.0e-4);
+                G_m[i][j] = CPLmodPtr(here)->Gm[counter];
+                L_m[i][j] = CPLmodPtr(here)->Lm[counter];
+                C_m[i][j] = CPLmodPtr(here)->Cm[counter];
                 counter++;
             }
         }
     }
     if (here->CPLlengthGiven)
         length = here->CPLlength;
-    else length = here->CPLmodPtr->length;
+    else length = CPLmodPtr(here)->length;
 
     for (i = 0; i < noL; i++)
         lines[i]->g = 1.0 / (R_m[i][i] * length);
@@ -583,8 +583,8 @@ static void
 free_vector(double *v, int nl, int nh)
 {
     NG_IGNORE(nh);
-
-    free(v + nl);
+    double *freev = v + nl;
+    tfree(freev);
 }
 
 static void
@@ -1061,14 +1061,14 @@ loop_ZY(int dim, double y)
 
 static void
 poly_matrix(
-    double *A[MAX_DIM][MAX_DIM],
+    double *A_in[MAX_DIM][MAX_DIM],
     int dim, int deg)
 {
     int i, j;
 
     for (i = 0; i < dim; i++)
         for (j = 0; j < dim; j++)
-            match(deg, A[i][j], frequency, A[i][j]);
+            match(deg, A_in[i][j], frequency, A_in[i][j]);
 }
 
 /***
@@ -1464,10 +1464,9 @@ mult_p(double *p1, double *p2, double *p3, int d1, int d2, int d3)
 }
 
 
-static void
-matrix_p_mult(
-    double  *A[MAX_DIM][MAX_DIM],
-    double  *D[MAX_DIM],
+static void matrix_p_mult(
+    double  *A_in[MAX_DIM][MAX_DIM],
+    double  *D1[MAX_DIM],
     double  *B[MAX_DIM][MAX_DIM],
     int dim, int deg, int deg_o,
     Mult_Out  X[MAX_DIM][MAX_DIM])
@@ -1480,14 +1479,14 @@ matrix_p_mult(
     for (i  = 0; i < dim; i++)
         for (j = 0; j < dim; j++) {
             p = T[i][j] = (double *) calloc((size_t) (deg_o+1), sizeof(double));
-            mult_p(B[i][j], D[i], p, deg, deg_o, deg_o);
+            mult_p(B[i][j], D1[i], p, deg, deg_o, deg_o);
         }
     for (i  = 0; i < dim; i++)
         for (j = 0; j < dim; j++)
             for (k = 0; k < dim; k++) {
                 p = X[i][j].Poly[k] =
                         (double *) calloc((size_t) (deg_o+1), sizeof(double));
-                mult_p(A[i][k], T[k][j], p, deg, deg_o, deg_o);
+                mult_p(A_in[i][k], T[k][j], p, deg, deg_o, deg_o);
                 t1 = X[i][j].C_0[k] = p[0];
                 if (t1 != 0.0) {
                     p[0] = 1.0;
@@ -1523,7 +1522,7 @@ matrix_p_mult(
  ***/
 
 static double
-approx_mode(double *X, double *b, double length)
+approx_mode(double *X, double *b, double length_in)
 {
     double w0, w1, w2, w3, w4, w5;
     double a[8];
@@ -1545,7 +1544,7 @@ approx_mode(double *X, double *b, double length)
     y5 = 60.0 * w5 - 5.0 * y1 * y4 -10.0 * y2 * y3;
     y6 = -10.0 * y3 * y3 - 15.0 * y2 * y4 - 6.0 * y1 * y5;
 
-    delay = sqrt(w0) * length / Scaling_F;
+    delay = sqrt(w0) * length_in / Scaling_F;
     atten = exp(- delay * y1);
 
     a[1] = y2 / 2.0;
@@ -1760,7 +1759,7 @@ find_roots(double a1, double a2, double a3, double *x1, double *x2, double *x3)
        if (q != 0.0) {
           t = atan(sqrt((double)-t)/q);
           if (t < 0.0)
-             t += 3.141592654;
+             t += M_PI;
           t /= 3.0;
           x = 2.0 * pow(p, 0.16666667) * cos(t) - a1 / 3.0;
        } else {
@@ -2080,8 +2079,7 @@ diag(int dims)
      rotate()      rotation of the Jacobi's method
  ****************************************************************/
 
-static int
-rotate(int dim, int p, int q)
+static int rotate(int dim_in, int p, int q)
 {
     int j;
     double co, si;
@@ -2095,12 +2093,12 @@ rotate(int dim, int p, int q)
     co = sqrt((ve + ABS(mu)) / (2.0 * ve));
     si = SGN(mu) * ld / (2.0 * ve * co);
 
-    for (j = p+1; j < dim; j++)
+    for (j = p+1; j < dim_in; j++)
         T[j] = ZY[p][j];
     for (j = 0; j < p; j++)
         T[j] = ZY[j][p];
 
-    for (j = p+1; j < dim; j++) {
+    for (j = p+1; j < dim_in; j++) {
         if (j == q)
             continue;
         if (j > q)
@@ -2108,7 +2106,7 @@ rotate(int dim, int p, int q)
         else
             ZY[p][j] = T[j] * co - ZY[j][q] * si;
     }
-    for (j = q+1; j < dim; j++) {
+    for (j = q+1; j < dim_in; j++) {
         if (j == p)
             continue;
         ZY[q][j] = T[j] * si + ZY[q][j] * co;
@@ -2133,12 +2131,12 @@ rotate(int dim, int p, int q)
     {
         double R[MAX_DIM];
 
-        for (j = 0; j < dim; j++) {
+        for (j = 0; j < dim_in; j++) {
             T[j] = Sv[j][p];
             R[j] = Sv[j][q];
         }
 
-        for (j = 0; j < dim; j++) {
+        for (j = 0; j < dim_in; j++) {
             Sv[j][p] = T[j] * co - R[j] * si;
             Sv[j][q] = T[j] * si + R[j] * co;
         }

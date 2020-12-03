@@ -3,10 +3,10 @@
 
 FILE d_osc/cfunc.mod
 
-Copyright 1991
-Georgia Tech Research Corporation, Atlanta, Ga. 30332
-All Rights Reserved
+Public Domain
 
+Georgia Tech Research Corporation
+Atlanta, Georgia 30332
 PROJECT A-8503-405
                
 
@@ -286,6 +286,7 @@ void cm_d_osc(ARGS)
             y = (double *) calloc((size_t) freq_size, sizeof(double));
             if (!y) {
                 cm_message_send(d_osc_allocation_error);  
+                if(x) free(x);
                 return;
             }
         

@@ -35,11 +35,11 @@ CAPload(GENmodel *inModel, CKTcircuit *ckt)
               || ( ( ckt->CKTmode & MODEUIC) &&
                    ( ckt->CKTmode & MODEINITTRAN) ) ) ;
         /*  loop through all the capacitor models */
-        for( ; model != NULL; model = model->CAPnextModel ) {
+        for( ; model != NULL; model = CAPnextModel(model)) {
 
             /* loop through all the instances of the model */
-            for (here = model->CAPinstances; here != NULL ;
-                    here=here->CAPnextInstance) {
+            for (here = CAPinstances(model); here != NULL ;
+                    here=CAPnextInstance(here)) {
 
                 m = here->CAPm;
 
@@ -71,10 +71,10 @@ CAPload(GENmodel *inModel, CKTcircuit *ckt)
                         *(ckt->CKTstate1+here->CAPccap) =
                             *(ckt->CKTstate0+here->CAPccap);
                     }
-                    *(here->CAPposPosptr) += m * geq;
-                    *(here->CAPnegNegptr) += m * geq;
-                    *(here->CAPposNegptr) -= m * geq;
-                    *(here->CAPnegPosptr) -= m * geq;
+                    *(here->CAPposPosPtr) += m * geq;
+                    *(here->CAPnegNegPtr) += m * geq;
+                    *(here->CAPposNegPtr) -= m * geq;
+                    *(here->CAPnegPosPtr) -= m * geq;
                     *(ckt->CKTrhs+here->CAPposNode) -= m * ceq;
                     *(ckt->CKTrhs+here->CAPnegNode) += m * ceq;
                 } else

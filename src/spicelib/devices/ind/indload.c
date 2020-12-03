@@ -24,19 +24,17 @@ INDload(GENmodel *inModel, CKTcircuit *ckt)
     double m;
     int error;
 
-#ifdef MUTUAL
     MUTinstance *muthere;
     MUTmodel *mutmodel;
     int ktype;
     int itype;
-#endif
 
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->INDnextModel ) {
+    for( ; model != NULL; model = INDnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->INDinstances; here != NULL ;
-                here=here->INDnextInstance) {
+        for (here = INDinstances(model); here != NULL ;
+                here=INDnextInstance(here)) {
 
             m = (here->INDm);
 
@@ -49,42 +47,49 @@ INDload(GENmodel *inModel, CKTcircuit *ckt)
                                                         *(ckt->CKTrhsOld + here->INDbrEq);
                 }
             }
-#ifdef MUTUAL
         }
     }
     ktype = CKTtypelook("mutual");
     mutmodel = (MUTmodel *)(ckt->CKThead[ktype]);
     /*  loop through all the mutual inductor models */
-    for( ; mutmodel != NULL; mutmodel = mutmodel->MUTnextModel ) {
+    for( ; mutmodel != NULL; mutmodel = MUTnextModel(mutmodel)) {
 
         /* loop through all the instances of the model */
-        for (muthere = mutmodel->MUTinstances; muthere != NULL ;
-                muthere=muthere->MUTnextInstance) {
+        for (muthere = MUTinstances(mutmodel); muthere != NULL ;
+                muthere=MUTnextInstance(muthere)) {
 
             if(!(ckt->CKTmode& (MODEDC|MODEINITPRED))) {
-                *(ckt->CKTstate0 + muthere->MUTind1->INDflux)  +=
-                    muthere->MUTfactor * *(ckt->CKTrhsOld +
-                                           muthere->MUTind2->INDbrEq);
+                /* set initial conditions for mutual inductance here, if uic is set */
+                if (ckt->CKTmode & MODEUIC && ckt->CKTmode & MODEINITTRAN) {
+                   *(ckt->CKTstate0 + muthere->MUTind1->INDflux) +=
+                        muthere->MUTfactor * muthere->MUTind2->INDinitCond;
 
-                *(ckt->CKTstate0 + muthere->MUTind2->INDflux)  +=
-                    muthere->MUTfactor * *(ckt->CKTrhsOld +
-                                           muthere->MUTind1->INDbrEq);
+                   *(ckt->CKTstate0 + muthere->MUTind2->INDflux) +=
+                        muthere->MUTfactor * muthere->MUTind1->INDinitCond;
+                }
+                else {
+                    *(ckt->CKTstate0 + muthere->MUTind1->INDflux) +=
+                        muthere->MUTfactor * *(ckt->CKTrhsOld +
+                            muthere->MUTind2->INDbrEq);
+
+                    *(ckt->CKTstate0 + muthere->MUTind2->INDflux) +=
+                        muthere->MUTfactor * *(ckt->CKTrhsOld +
+                            muthere->MUTind1->INDbrEq);
+                }
             }
-
-            *(muthere->MUTbr1br2) -= muthere->MUTfactor*ckt->CKTag[0];
-            *(muthere->MUTbr2br1) -= muthere->MUTfactor*ckt->CKTag[0];
+            *(muthere->MUTbr1br2Ptr) -= muthere->MUTfactor*ckt->CKTag[0];
+            *(muthere->MUTbr2br1Ptr) -= muthere->MUTfactor*ckt->CKTag[0];
         }
     }
     itype = CKTtypelook("Inductor");
     model = (INDmodel *)(ckt->CKThead[itype]);
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->INDnextModel ) {
+    for( ; model != NULL; model = INDnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->INDinstances; here != NULL ;
-                here=here->INDnextInstance) {
+        for (here = INDinstances(model); here != NULL ;
+                here=INDnextInstance(here)) {
 
-#endif /*MUTUAL*/
             if(ckt->CKTmode & MODEDC) {
                 req = 0.0;
                 veq = 0.0;
@@ -116,11 +121,11 @@ INDload(GENmodel *inModel, CKTcircuit *ckt)
                     *(ckt->CKTstate0+here->INDvolt);
             }
 
-            *(here->INDposIbrptr) +=  1;
-            *(here->INDnegIbrptr) -=  1;
-            *(here->INDibrPosptr) +=  1;
-            *(here->INDibrNegptr) -=  1;
-            *(here->INDibrIbrptr) -=  req;
+            *(here->INDposIbrPtr) +=  1;
+            *(here->INDnegIbrPtr) -=  1;
+            *(here->INDibrPosPtr) +=  1;
+            *(here->INDibrNegPtr) -=  1;
+            *(here->INDibrIbrPtr) -=  req;
         }
     }
     return(OK);

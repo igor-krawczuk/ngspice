@@ -23,7 +23,7 @@ RESsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit*ckt, int *state)
     NG_IGNORE(ckt);
 
     /*  loop through all the resistor models */
-    for( ; model != NULL; model = model->RESnextModel ) {
+    for( ; model != NULL; model = RESnextModel(model)) {
 
         /* Default Value Processing for Resistor Models */
         if(!model->REStnomGiven) model->REStnom         = ckt->CKTnomTemp;
@@ -45,8 +45,8 @@ RESsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit*ckt, int *state)
             model->RESbv_max = 1e99;
 
         /* loop through all the instances of the model */
-        for (here = model->RESinstances; here != NULL ;
-                here=here->RESnextInstance) {
+        for (here = RESinstances(model); here != NULL ;
+                here=RESnextInstance(here)) {
 
             if(!here->RESwidthGiven)   here->RESwidth  = model->RESdefWidth;
             if(!here->RESlengthGiven)  here->RESlength = model->RESdefLength;
@@ -58,8 +58,8 @@ RESsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit*ckt, int *state)
                 here->RESbv_max = model->RESbv_max;
 
             if((here->RESwidthGiven)||(here->RESlengthGiven))
-                here->RESeffNoiseArea = pow((here->RESlength-model->RESshort),model->RESlf)
-                                       *pow((here->RESwidth-model->RESnarrow),model->RESwf);
+                here->RESeffNoiseArea = pow(here->RESlength - 2 * model->RESshort, model->RESlf)
+                                       *pow(here->RESwidth - 2 * model->RESnarrow, model->RESwf);
             else
                 here->RESeffNoiseArea = 1.0;
 
@@ -69,10 +69,10 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(RESposPosptr, RESposNode, RESposNode);
-            TSTALLOC(RESnegNegptr, RESnegNode, RESnegNode);
-            TSTALLOC(RESposNegptr, RESposNode, RESnegNode);
-            TSTALLOC(RESnegPosptr, RESnegNode, RESposNode);
+            TSTALLOC(RESposPosPtr, RESposNode, RESposNode);
+            TSTALLOC(RESnegNegPtr, RESnegNode, RESnegNode);
+            TSTALLOC(RESposNegPtr, RESposNode, RESnegNode);
+            TSTALLOC(RESnegPosPtr, RESnegNode, RESposNode);
         }
     }
     return(OK);

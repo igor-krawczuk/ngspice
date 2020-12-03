@@ -21,14 +21,12 @@ Author: 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
 #include <sys/ioctl.h>
 #endif
 
-#if 0
-/* Bad interaction with bool type in bool.h because curses also
-   defines this symbol. */
+
 #ifdef HAVE_TERMCAP
 #include <curses.h>
 #include <term.h>
 #endif
-#endif
+
 
 #ifdef HAVE_TERMCAP_H
 #include <termcap.h>
@@ -73,7 +71,7 @@ out_init(void)
 
     noprint = nopause = FALSE;
 
-    if (cp_getvar("moremode", CP_BOOL, NULL))
+    if (cp_getvar("moremode", CP_BOOL, NULL, 0))
         out_moremode = TRUE;
     else
         out_moremode = FALSE;
@@ -99,9 +97,9 @@ out_init(void)
 #endif
 
     if (!xsize)
-        (void) cp_getvar("width", CP_NUM, &xsize);
+        (void) cp_getvar("width", CP_NUM, &xsize, 0);
     if (!ysize)
-        (void) cp_getvar("height", CP_NUM, &ysize);
+        (void) cp_getvar("height", CP_NUM, &ysize, 0);
 
     if (!xsize)
         xsize = DEF_SCRWIDTH;
@@ -305,14 +303,14 @@ tcap_init(void)
         if ((s = getenv("COLS")) != NULL)
             xsize = atoi(s);
         if (xsize <= 0)
-            xsize = 0;
+            xsize = DEF_SCRWIDTH;
     }
 
     if (!ysize) {
         if ((s = getenv("LINES")) != NULL)
             ysize = atoi(s);
         if (ysize <= 0)
-            ysize = 0;
+            ysize = DEF_SCRHEIGHT;
     }
 }
 

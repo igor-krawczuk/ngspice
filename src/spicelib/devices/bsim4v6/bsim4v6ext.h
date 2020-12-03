@@ -8,12 +8,10 @@ File: bsim4v6ext.h
 extern int BSIM4v6acLoad(GENmodel *,CKTcircuit*);
 extern int BSIM4v6ask(CKTcircuit *,GENinstance*,int,IFvalue*,IFvalue*);
 extern int BSIM4v6convTest(GENmodel *,CKTcircuit*);
-extern int BSIM4v6delete(GENmodel*,IFuid,GENinstance**);
-extern void BSIM4v6destroy(GENmodel**);
 extern int BSIM4v6getic(GENmodel*,CKTcircuit*);
 extern int BSIM4v6load(GENmodel*,CKTcircuit*);
 extern int BSIM4v6mAsk(CKTcircuit*,GENmodel *,int, IFvalue*);
-extern int BSIM4v6mDelete(GENmodel**,IFuid,GENmodel*);
+extern int BSIM4v6mDelete(GENmodel*);
 extern int BSIM4v6mParam(int,IFvalue*,GENmodel*);
 extern void BSIM4v6mosCap(CKTcircuit*, double, double, double, double,
         double, double, double, double, double, double, double,

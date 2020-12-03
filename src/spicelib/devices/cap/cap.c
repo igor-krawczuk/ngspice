@@ -11,8 +11,8 @@ Modified: September 2003 - Paolo Nenzi
 
 IFparm CAPpTable[] = { /* parameters */
     IOPAP("capacitance", CAP_CAP,             IF_REAL, "Device capacitance"),
-    IOPAP("cap",         CAP_CAP,             IF_REAL, "Device capacitance"),
-    IOPAP("c",           CAP_CAP,             IF_REAL, "Device capacitance"),
+    IOPAPR("cap",        CAP_CAP,             IF_REAL, "Device capacitance"),
+    IOPAPR("c",          CAP_CAP,             IF_REAL, "Device capacitance"),
     IOPAU("ic",          CAP_IC,              IF_REAL, "Initial capacitor voltage"),
     IOPZU("temp",        CAP_TEMP,            IF_REAL, "Instance operating temperature"),
     IOPZ( "dtemp",       CAP_DTEMP,           IF_REAL,
@@ -39,13 +39,13 @@ IFparm CAPpTable[] = { /* parameters */
 IFparm CAPmPTable[] = { /* names of model parameters */
     IOPA( "cap",    CAP_MOD_CAP,      IF_REAL, "Model capacitance"),
     IOPA( "cj",     CAP_MOD_CJ,       IF_REAL, "Bottom Capacitance per area"),
-    IOPR( "cox",    CAP_MOD_CJ,       IF_REAL, "Bottom Capacitance per area"),
+    IOPAR( "cox",   CAP_MOD_CJ,       IF_REAL, "Bottom Capacitance per area"),
     IOPA( "cjsw",   CAP_MOD_CJSW,     IF_REAL, "Sidewall capacitance per meter"),
-    IOPR( "capsw",  CAP_MOD_CJSW,     IF_REAL, "Sidewall capacitance per meter"),
+    IOPAR( "capsw", CAP_MOD_CJSW,     IF_REAL, "Sidewall capacitance per meter"),
     IOPX( "defw",   CAP_MOD_DEFWIDTH, IF_REAL, "Default width"),
-    IOPR( "w",      CAP_MOD_DEFWIDTH, IF_REAL, "Default width"),
+    IOPXR( "w",     CAP_MOD_DEFWIDTH, IF_REAL, "Default width"),
     IOPX( "defl",   CAP_MOD_DEFLENGTH,IF_REAL, "Default length"),
-    IOPR( "l",      CAP_MOD_DEFLENGTH,IF_REAL, "Default length"),
+    IOPXR( "l",     CAP_MOD_DEFLENGTH,IF_REAL, "Default length"),
     IOPA( "narrow", CAP_MOD_NARROW,   IF_REAL, "width correction factor"),
     IOPA( "short",  CAP_MOD_SHORT,    IF_REAL, "length correction factor"),
     IOPA( "del",    CAP_MOD_DEL,      IF_REAL, "length and width correction factor"),

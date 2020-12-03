@@ -92,16 +92,16 @@ static int finddev_special(CKTcircuit *ckt, char *name, GENinstance **devptr, GE
 /* Input a single deck, and return a pointer to the circuit. */
 
 CKTcircuit *
-if_inpdeck(struct line *deck, INPtables **tab)
+if_inpdeck(struct card *deck, INPtables **tab)
 {
     CKTcircuit *ckt;
     int err, i;
-    struct line *ll;
+    struct card *ll;
     IFuid taskUid;
     IFuid optUid;
     int which = -1;
 
-    for (i = 0, ll = deck; ll; ll = ll->li_next)
+    for (i = 0, ll = deck; ll; ll = ll->nextcard)
         i++;
     *tab = INPtabInit(i);
     ft_curckt->ci_symtab = *tab;
@@ -160,16 +160,16 @@ if_inpdeck(struct line *deck, INPtables **tab)
 
     /* reset the model table, will be filled in anew in INPpas1() */
     modtab = NULL;
-    INPpas1(ckt, (card *) deck->li_next, *tab);
+    INPpas1(ckt, deck->nextcard, *tab);
     /* store the new model table in the current circuit */
     ft_curckt->ci_modtab = modtab;
-    INPpas2(ckt, (card *) deck->li_next, *tab, ft_curckt->ci_defTask);
+    INPpas2(ckt, deck->nextcard, *tab, ft_curckt->ci_defTask);
 
     /* INPpas2 has been modified to ignore .NODESET and .IC
      * cards. These are left till INPpas3 so that we can check for
      * nodeset/ic of non-existant nodes.  */
 
-    INPpas3(ckt, (card *) deck->li_next,
+    INPpas3(ckt, deck->nextcard,
             *tab, ft_curckt->ci_defTask, ft_sim->nodeParms,
             ft_sim->numNodeParms);
 
@@ -197,7 +197,7 @@ int
 if_run(CKTcircuit *ckt, char *what, wordlist *args, INPtables *tab)
 {
     int err;
-    struct line deck;
+    struct card deck;
     char buf[BSIZE_SP];
     int which = -1;
     IFuid specUid, optUid;
@@ -226,10 +226,10 @@ if_run(CKTcircuit *ckt, char *what, wordlist *args, INPtables *tab)
         s = wl_flatten(args); /* va: tfree char's tmalloc'ed in wl_flatten */
         (void) sprintf(buf, ".%s", s);
         tfree(s);
-        deck.li_next = deck.li_actual = NULL;
-        deck.li_error = NULL;
-        deck.li_linenum = 0;
-        deck.li_line = buf;
+        deck.nextcard = deck.actualLine = NULL;
+        deck.error = NULL;
+        deck.linenum = 0;
+        deck.line = buf;
 
         /*CDHW Delete any previous special task CDHW*/
 
@@ -300,10 +300,10 @@ if_run(CKTcircuit *ckt, char *what, wordlist *args, INPtables *tab)
 
         /*CDHW ci_curTask and ci_specTask point to the interactive task AAA CDHW*/
 
-        INPpas2(ckt, (card *) &deck, tab, ft_curckt->ci_specTask);
+        INPpas2(ckt, &deck, tab, ft_curckt->ci_specTask);
 
-        if (deck.li_error) {
-            fprintf(cp_err, "Warning: %s\n", deck.li_error);
+        if (deck.error) {
+            fprintf(cp_err, "Warning: %s\n", deck.error);
             return 2;
         }
     }
@@ -393,7 +393,7 @@ if_option(CKTcircuit *ckt, char *name, enum cp_types type, void *value)
 {
     IFvalue pval;
     int err;
-    char **vv;
+    char **vv, *sfree = NULL;
     int which = -1;
     IFparm *if_parm;
 
@@ -405,6 +405,9 @@ if_option(CKTcircuit *ckt, char *name, enum cp_types type, void *value)
         return 0;
     } else if (eq(name, "noinit")) {
         ft_noinitprint = TRUE;
+        return 0;
+    } else if (eq(name, "norefvalue")) {
+        ft_norefprint = TRUE;
         return 0;
     } else if (eq(name, "list")) {
         ft_listprint = TRUE;
@@ -466,7 +469,7 @@ if_option(CKTcircuit *ckt, char *name, enum cp_types type, void *value)
         break;
     case IF_STRING:
         if (type == CP_STRING)
-            pval.sValue = copy((char*) value);
+            sfree = pval.sValue = copy((char*) value);
         else
             goto badtype;
         break;
@@ -502,6 +505,7 @@ if_option(CKTcircuit *ckt, char *name, enum cp_types type, void *value)
                                         if_parm->id, &pval,
                                         NULL)) != OK)
         ft_sperror(err, "setAnalysisParm(options) ci_curOpt");
+    tfree(sfree);
     return 1;
 #endif
 
@@ -659,7 +663,7 @@ spif_getparam_special(CKTcircuit *ckt, char **name, char *param, int ind, int do
                     {
                         char *x = tv->va_name;
                         tv->va_name = tprintf("%s [%s]", tv->va_name, device->instanceParms[i].keyword);
-                        free(x);
+                        tfree(x);
                     }
                     if (vv)
                         tv->va_next = vv;
@@ -704,7 +708,7 @@ spif_getparam_special(CKTcircuit *ckt, char **name, char *param, int ind, int do
                     {
                         char *x = tv->va_name;
                         tv->va_name = tprintf("%s [%s]", tv->va_name, device->modelParms[i].keyword);
-                        free(x);
+                        tfree(x);
                     }
                     /* tv->va_string = device->modelParms[i].keyword;   Put the name of the variable */
                     if (vv)
@@ -898,7 +902,7 @@ if_setparam_model(CKTcircuit *ckt, char **name, char *val)
                 INPgetMod(ckt, mods->GENmodName, &inpmod, ft_curckt->ci_symtab);
                 if (curMod != nghash_delete(ckt->MODnameHash, curMod->GENmodName))
                     fprintf(stderr, "ERROR, ouch nasal daemons ...\n");
-                FREE(mods);
+                GENmodelFree(mods);
 
                 inpmod->INPmodfast = NULL;
                 break;
@@ -1300,7 +1304,7 @@ if_getstat(CKTcircuit *ckt, char *name)
                                           if_parm->id, &parm,
                                           NULL) == -1)
             {
-                fprintf(cp_err, "if_getstat: Internal Error: can't get %s\n", name);
+                fprintf(cp_err, "if_getstat: Internal Error: can't get a name\n");
                 return (NULL);
             }
 
@@ -1382,7 +1386,11 @@ void com_snload(wordlist *wl)
         return;
     }
 
-    fread(&tmpI, sizeof(int), 1, file);
+    if (fread(&tmpI, sizeof(int), 1, file) != 1) {
+        (void) fprintf(cp_err, "Unable to read spice version from snapshot.\n");
+        fclose(file);
+        return;
+    }
     if (tmpI != sizeof(CKTcircuit)) {
         fprintf(cp_err, "loaded num: %d, expected num: %ld\n", tmpI, (long)sizeof(CKTcircuit));
         fprintf(cp_err, "Error: snapshot saved with different version of spice\n");
@@ -1392,7 +1400,11 @@ void com_snload(wordlist *wl)
 
     my_ckt = TMALLOC(CKTcircuit, 1);
 
-    fread(my_ckt, sizeof(CKTcircuit), 1, file);
+    if (fread(my_ckt, sizeof(CKTcircuit), 1, file) != 1) {
+        (void) fprintf(cp_err, "Unable to read spice circuit from snapshot.\n");
+        fclose(file);
+        return;
+    }
 
 #define _t(name) ckt->name = my_ckt->name
 #define _ta(name, size)                                                 \
@@ -1410,6 +1422,8 @@ void com_snload(wordlist *wl)
     _t(CKTmaxOrder);
     _t(CKTintegrateMethod);
     _t(CKTxmu);
+    _t(CKTindverbosity);
+    _t(CKTepsmin);
 
     _t(CKTniState);
 
@@ -1478,17 +1492,24 @@ void com_snload(wordlist *wl)
 #define _foo(name, type, _size)                                         \
     do {                                                                \
         int __i;                                                        \
-        fread(&__i, sizeof(int), 1, file);                              \
-        if (__i) {                                                      \
-            if (name)                                                   \
-                tfree(name);                                            \
-            name = (type *)tmalloc((size_t) __i);                       \
-            fread(name, 1, (size_t) __i, file);                         \
-        } else {                                                        \
+        if (fread(&__i, sizeof(int), 1, file) == 1 && __i > 0) {        \
+            if (name) {                                                 \
+                txfree(name);                                           \
+            }                                                           \
+            name = (type *) tmalloc((size_t) __i);                      \
+            if (fread(name, 1, (size_t) __i, file) != (size_t) __i) {   \
+                (void) fprintf(cp_err,                                  \
+                        "Unable to read vector " #name "\n");           \
+                break;                                                  \
+            }                                                           \
+        }                                                               \
+        else {                                                          \
             fprintf(cp_err, "size for vector " #name " is 0\n");        \
         }                                                               \
-        if ((_size) != -1 && __i != (_size) * (int)sizeof(type)) {      \
-            fprintf(cp_err, "expected %ld, but got %d for "#name"\n", (_size)*(long)sizeof(type), __i); \
+        if ((_size) != -1 && __i !=                                     \
+                (int) (_size) * (int) sizeof(type)) {                   \
+            fprintf(cp_err, "expected %ld, but got %d for "#name"\n",   \
+                    (_size)*(long)sizeof(type), __i);                   \
         }                                                               \
     } while(0)
 

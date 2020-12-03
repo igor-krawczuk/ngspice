@@ -3,11 +3,10 @@ FILE    MIFutil.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -69,6 +68,86 @@ MIFgettok treats ( and ) like whitespace.
 char  *MIFgettok(char **s)
 {
 
+    char    *ret_str;   /* storage for returned string */
+    char *end;
+    char *beg;
+
+    /* skip over white spaces, '=', '(', ')', and ',' up to next token */
+    while (isspace_c(**s) || (**s == '=') ||
+        (**s == '(') || (**s == ')') || (**s == ','))
+        (*s)++;
+
+    /* isolate the next token */
+
+    switch (**s) {
+
+    case '\0':
+        return(NULL);
+
+    case '<':
+    case '>':
+    case '[':
+    case ']':
+    case '~':
+    case '%':
+        beg = *s;
+        (*s)++;
+        ret_str = copy_substring(beg, *s);
+
+        /* skip over white spaces, '=', '(', ')', and ',' up to next token */
+        while (isspace_c(**s) || (**s == '=') ||
+            (**s == '(') || (**s == ')') || (**s == ','))
+            (*s)++;
+
+        return ret_str;
+        break;
+
+    default:
+        /* if first character is a quote, read until the closing */
+        /* quote, or the end of string, discarding the quotes */
+        if (**s == '"') {
+            (*s)++;
+            ret_str = gettok_char(s, '"', FALSE, FALSE);
+
+            if (**s == '"')
+                (*s)++;
+
+            /* skip over white spaces, '=', '(', ')', and ',' up to next token */
+            while (isspace_c(**s) || (**s == '=') ||
+                (**s == '(') || (**s == ')') || (**s == ','))
+                (*s)++;
+
+            return ret_str;
+        }
+        /* else, read until the next delimiter */
+        else {
+            beg = *s;
+            while ((**s != '\0') &&
+                (!(isspace_c(**s) || (**s == '=') || (**s == '%') ||
+                (**s == '(') || (**s == ')') || (**s == ',') ||
+                    (**s == '[') || (**s == ']') ||
+                    (**s == '<') || (**s == '>') || (**s == '~')
+                    ))) {
+                (*s)++;
+            }
+            end = *s;
+
+            /* skip over white spaces, '=', '(', ')', and ',' up to next token */
+            while (isspace_c(**s) || (**s == '=') ||
+                (**s == '(') || (**s == ')') || (**s == ','))
+                (*s)++;
+
+            return (copy_substring(beg, end));
+        }
+        break;
+    }
+}
+
+#if 0
+/* preliminary fix */
+char  *MIFgettok(char **s)
+{
+
     char    *buf;       /* temporary storage to copy token into */
     char    *ret_str;   /* storage for returned string */
 
@@ -76,7 +155,8 @@ char  *MIFgettok(char **s)
 
     /* allocate space big enough for the whole string */
 
-    buf = TMALLOC(char, strlen(*s) + 1);
+    buf = TMALLOC(char, strlen(*s) + 2);
+    /* FIXME, not yet understood why +1 leads to spurious crash in tfree, if optimized code for Windows*/
 
     /* skip over any white space */
 
@@ -148,7 +228,7 @@ char  *MIFgettok(char **s)
 
     return(ret_str);
 }
-
+#endif
 
 
 

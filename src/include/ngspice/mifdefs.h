@@ -44,16 +44,20 @@ NON-STANDARD FEATURES
 
 
 #include  "ngspice/mifcmdat.h"
+#include  "ngspice/gendefs.h"
 #include "ngspice/ifsim.h"
 
 
 /* The per-instance data structure */
 
-typedef struct sMIFinstance {
+struct MIFinstance {
 
-    struct sMIFmodel    *MIFmodPtr;       /* backpointer to model */
-    struct sMIFinstance *MIFnextInstance; /* pointer to next instance of current model */
-    IFuid               MIFname;          /* pointer to character string naming this instance */
+    struct GENinstance gen;
+
+#define MIFmodPtr(inst) ((struct MIFmodel *)((inst)->gen.GENmodPtr))
+#define MIFnextInstance(inst) ((struct MIFinstance *)((inst)->gen.GENnextInstance))
+#define MIFname gen.GENname
+#define MIFstates gen.GENstate
 
     int                 num_conn;         /* number of connections on the code model */
     Mif_Conn_Data_t     **conn;           /* array of data structures for each connection */
@@ -79,21 +83,22 @@ typedef struct sMIFinstance {
     Mif_Boolean_t       event_driven;     /* true if this inst is event-driven or hybrid type */
 
     int                 inst_index;       /* Index into inst_table in evt struct in ckt */
+    Mif_Callback_t      callback;         /* instance callback function */
 
-} MIFinstance ;
+};
 
 
 
 /* The per model data structure */
 
-typedef struct sMIFmodel {
+struct MIFmodel {
 
-    int              MIFmodType;      /* type index of this device type */
-    struct sMIFmodel *MIFnextModel;   /* pointer to next possible model in linked list */
-    MIFinstance      *MIFinstances;   /* pointer to list of instances that have this model */
-    IFuid            MIFmodName;      /* pointer to character string naming this model */
+    struct GENmodel gen;
 
-    /* --- end of generic struct GENmodel --- */
+#define MIFmodType gen.GENmodType
+#define MIFnextModel(inst) ((struct MIFmodel *)((inst)->gen.GENnextModel))
+#define MIFinstances(inst) ((struct MIFinstance *)((inst)->gen.GENinstances))
+#define MIFmodName gen.GENmodName
 
     int              num_param;       /* number of parameters on the code model */
     Mif_Param_Data_t **param;         /* array of structs for each parameter */
@@ -101,7 +106,7 @@ typedef struct sMIFmodel {
     Mif_Boolean_t    analog;          /* true if this model is analog or hybrid type */
     Mif_Boolean_t    event_driven;    /* true if this model is event-driven or hybrid type */
 
-} MIFmodel;
+};
 
 
 

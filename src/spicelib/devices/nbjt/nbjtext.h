@@ -8,11 +8,9 @@ Author: 1987 Karti Mayaram
 
 extern int NBJTacLoad(GENmodel *, CKTcircuit *);
 extern int NBJTask(CKTcircuit *, GENinstance *, int, IFvalue *, IFvalue *);
-extern int NBJTdelete(GENmodel *, IFuid, GENinstance **);
-extern void NBJTdestroy(GENmodel **);
+extern int NBJTdelete(GENinstance *);
 extern int NBJTgetic(GENmodel *, CKTcircuit *);
 extern int NBJTload(GENmodel *, CKTcircuit *);
-extern int NBJTmDelete(GENmodel **, IFuid, GENmodel *);
 extern int NBJTmParam(int, IFvalue *, GENmodel *);
 extern int NBJTparam(int, IFvalue *, GENinstance *, IFvalue *);
 extern int NBJTpzLoad(GENmodel *, CKTcircuit *, SPcomplex *);

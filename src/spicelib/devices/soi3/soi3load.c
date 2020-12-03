@@ -136,6 +136,13 @@ SOI3load(GENmodel *inModel, CKTcircuit *ckt)
    double gcbgf,gcbd,gcbs,gcbdeltaT,gcbgb;
    double gcgbgf,gcgbd,gcgbs,gcgbdeltaT,gcgbgb;
 
+   /* remove compiler warnings */
+   cgfgf=cgfd=cgfs=cgfdeltaT=cgfgb = 0;
+   cdgf=cdd=cds=cddeltaT=cdgb = 0;
+   csgf=csd=css=csdeltaT=csgb = 0;
+   cbgf=cbd=cbs=cbdeltaT=cbgb = 0;
+   cgbgf=cgbd=cgbs=cgbdeltaT=cgbgb = 0;
+
     double alphaBJT;
     double tauFBJTeff,tauRBJTeff;
     double ISts,IS1ts,IStd,IS1td;
@@ -157,11 +164,11 @@ SOI3load(GENmodel *inModel, CKTcircuit *ckt)
 
     double m;
 
-    for( ; model != NULL; model = model->SOI3nextModel ) {
+    for( ; model != NULL; model = SOI3nextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->SOI3instances; here != NULL ;
-                here=here->SOI3nextInstance) {
+        for (here = SOI3instances(model); here != NULL ;
+                here=SOI3nextInstance(here)) {
 
             vt = CONSTKoverQ * here->SOI3temp;
             Check=1;

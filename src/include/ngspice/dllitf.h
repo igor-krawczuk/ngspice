@@ -15,7 +15,7 @@
 
 struct coreInfo_t {
 	/* MIF stuff */
-	void      ((*dllitf_MIF_INP2A)(CKTcircuit *, INPtables *, card *));
+	void      ((*dllitf_MIF_INP2A)(CKTcircuit *, INPtables *, struct card *));
 	char *    ((*dllitf_MIFgetMod)(CKTcircuit *, char *, INPmodel  **, INPtables *));
 	IFvalue * ((*dllitf_MIFgetValue)(CKTcircuit *, char **, int, INPtables *, char **));
 	int		  ((*dllitf_MIFsetup)(SMPmatrix *, GENmodel *, CKTcircuit *, int *));
@@ -26,9 +26,9 @@ struct coreInfo_t {
 	int       ((*dllitf_MIFmAsk)(CKTcircuit *, GENmodel *, int, IFvalue *));
 	int       ((*dllitf_MIFtrunc)(GENmodel *, CKTcircuit *, double *));
 	int       ((*dllitf_MIFconvTest)(GENmodel *, CKTcircuit *));
-	int       ((*dllitf_MIFdelete)(GENmodel *, IFuid, GENinstance  **));
-	int       ((*dllitf_MIFmDelete)(GENmodel **, IFuid, GENmodel *));
-	void      ((*dllitf_MIFdestroy)(GENmodel **));
+	int       ((*dllitf_MIFdelete)(GENinstance *));
+	int       ((*dllitf_MIFmDelete)(GENmodel *));
+	void      ((*dllitf_MIFdestroy)(void));
 	char *    ((*dllitf_MIFgettok)(char **));
 	char *    ((*dllitf_MIFget_token)(char **, Mif_Token_Type_t *));
 	Mif_Cntl_Src_Type_t ((*dllitf_MIFget_cntl_src_type)(Mif_Port_Type_t, Mif_Port_Type_t));
@@ -64,6 +64,7 @@ struct coreInfo_t {
 	Complex_t ((*dllitf_cm_complex_multiply)(Complex_t, Complex_t));
 	Complex_t ((*dllitf_cm_complex_divide)(Complex_t, Complex_t));
 	char *    ((*dllitf_cm_get_path)(void));
+	CKTcircuit *((*dllitf_cm_get_circuit)(void));
 	FILE *    ((*dllitf_cm_stream_out)(void));
 	FILE *    ((*dllitf_cm_stream_in)(void));
 	FILE *    ((*dllitf_cm_stream_err)(void));

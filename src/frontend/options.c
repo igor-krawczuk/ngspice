@@ -21,136 +21,214 @@ Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 #include "control.h"
 #include "spiceif.h"
 
-
-static void setdb(char *str);
-
 bool ft_acctprint = FALSE, ft_noacctprint = FALSE, ft_listprint = FALSE;
 bool ft_nodesprint = FALSE, ft_optsprint = FALSE, ft_noinitprint = FALSE;
+bool ft_norefprint = FALSE;
 bool ft_ngdebug = FALSE, ft_stricterror = FALSE;
 
+static void setdb(char *str);
+static struct variable *cp_enqvec_as_var(const char *vec_name,
+        int *p_f_found);
 
-/* The user-supplied routine to query the values of variables. This
- * recognises the $&varname notation, and also searches the values of
- * plot and circuit environment variables.
+/* The user-supplied routine to query the address of a variable, if its
+ * name is given. This recognises the $&varname notation, and also
+ * searches the address of plot and circuit environment variables.
+ * tbfreed is set to 1, if the variable is malloced here and may safely
+ * be freed, and is set to 0 if plot and circuit environment variables
+ * are returned.
+ *
+ * Note that if tbfreed is set to 1 that any changes will have no effect
+ * on the original variable. The variables that are copied are as follows:
+ *      "curplotname", "curplottitle", "curplotdate", "curplot", and
+ *      "plots".
+ *
+ * The $&v notation returns the values of a real vector v or the real part
+ * of a complex vector v. If there is only a single element, it is returned
+ * as a CP_REAL variable; otherwise a list is returned. In either case,
+ * tbfreed is set to 1 for this case.
  */
-
-struct variable *
-cp_enqvar(char *word)
+struct variable *cp_enqvar(const char *word, int *tbfreed)
 {
-    struct dvec *d;
-    struct variable *vv;
-
-    if (*word == '&') {
-
-        word++;
-
-        d = vec_get(word);
-        if (!d)
-            return (NULL);
-
-        if (d->v_link2)
-            fprintf(cp_err,
-                    "Warning: only one vector may be accessed with the $& notation.\n");
-
-        if (d->v_length == 1) {
-            double value = isreal(d)
-                ? d->v_realdata[0]
-                : realpart(d->v_compdata[0]);
-            return var_alloc_real(copy(word), value, NULL);
-        } else {
-            struct variable *list = NULL;
-            int i;
-            for (i = d->v_length; --i >= 0;) {
-                double value = isreal(d)
-                    ? d->v_realdata[i]
-                    : realpart(d->v_compdata[i]);
-                list = var_alloc_real(NULL, value, list);
-            }
-            return var_alloc_vlist(copy(word), list, NULL);
-        }
+    if (*word == '&') { /* The variable is a vector */
+        return cp_enqvec_as_var(word + 1, tbfreed);
     }
 
-    if (plot_cur) {
-        for (vv = plot_cur->pl_env; vv; vv = vv->va_next)
-            if (eq(vv->va_name, word))
-                return (vv);
-        if (eq(word, "curplotname"))
-            return var_alloc_string(copy(word), copy(plot_cur->pl_name), NULL);
-        if (eq(word, "curplottitle"))
-            return var_alloc_string(copy(word), copy(plot_cur->pl_title), NULL);
-        if (eq(word, "curplotdate"))
-            return var_alloc_string(copy(word), copy(plot_cur->pl_date), NULL);
-        if (eq(word, "curplot"))
-            return var_alloc_string(copy(word), copy(plot_cur->pl_typename), NULL);
-        if (eq(word, "plots")) {
+    if (plot_cur) { /* a current plot is defined */
+        struct variable *vv;
+        for (vv = plot_cur->pl_env; vv; vv = vv->va_next) {
+            if (eq(vv->va_name, word)) {
+                *tbfreed = 0;
+                return vv;
+            }
+        } /* end of loop over variables of the current plot */
+
+        *tbfreed = 1;
+        /* Look for the variables beginning with curplot:
+         * curplot, curplotname, curplottitle, and curplotdate */
+        if (strncmp(word, "curplot", 7) == 0) { /* begins with curplot */
+            const char * const rest = word + 7;
+            if (*rest == '\0') { /* curplot */
+                return var_alloc_string(copy(word),
+                        copy(plot_cur->pl_typename), NULL);
+            }
+            else if (eq(rest, "name")) { /* curplotname */
+                return var_alloc_string(copy(word),
+                        copy(plot_cur->pl_name), NULL);
+            }
+            else if (eq(rest, "title")) { /* curplottitle */
+                return var_alloc_string(copy(word),
+                        copy(plot_cur->pl_title), NULL);
+            }
+            else if (eq(rest, "date")) { /* curplotname */
+                return var_alloc_string(copy(word),
+                        copy(plot_cur->pl_date), NULL);
+            }
+        }
+
+        if (eq(word, "plots")) { /* list of defined plots */
             struct variable *list = NULL;
             struct plot *pl;
             for (pl = plot_list; pl; pl = pl->pl_next)
-                list = var_alloc_string(NULL, copy(pl->pl_typename), list);
+                list = var_alloc_string(NULL,
+                        copy(pl->pl_typename), list);
             return var_alloc_vlist(copy(word), list, NULL);
+        }
+    } /* end of case that a current plot is defined */
+
+    *tbfreed = 0;
+    if (ft_curckt) { /* a current circuit is defined */
+        struct variable *vv;
+        for (vv = ft_curckt->ci_vars; vv; vv = vv->va_next) {
+            if (eq(vv->va_name, word)) {
+                return vv;
+            }
         }
     }
 
-    if (ft_curckt)
-        for (vv = ft_curckt->ci_vars; vv; vv = vv->va_next)
-            if (eq(vv->va_name, word))
-                return (vv);
-
-    return (NULL);
-}
+    return (struct variable *) NULL;
+} /* end of function cp_enqvar */
 
 
-/* Return the plot and ckt env vars, $plots, and $curplot{name,title,date,} */
 
-void
-cp_usrvars(struct variable **v1, struct variable **v2)
+/* This functon returns the contents of a vector as a variable.
+ * If the vector has more than one element, it is returned as a list.
+ * The "shape" of the vector (number of dimensions and number of
+ * elements per dimension) has no effect on the returned list.
+ *
+ * Paramters
+ * vec_name: Name of vector
+ * p_f_found: Address to receive 1 if the vector was found and
+ *      the corresponding variable must be freed and 0 if the vector
+ *      was not found.
+ *
+ * Return values
+ * The address of the created list variable or NULL if none
+ * was found.
+ *
+ * Remarks
+ * The name of the created variable is the same as that of the vector.
+ */
+static struct variable *cp_enqvec_as_var(const char *vec_name,
+        int *p_f_found)
+{
+    const struct dvec * const d = vec_get(vec_name); /* locate vector */
+    if (!d) { /* not found */
+        *p_f_found = 0;
+        return (struct variable *) NULL;
+    }
+
+    /* Variables from vectors are always copies since variable
+     * structures must be created. */
+    *p_f_found = 1;
+
+    if (d->v_link2) {
+        /* The vector has other vectors linked to it via the v_link2
+         * pointer. That is OK, but a warning is printed that other
+         * vectors will not be returned */
+        fprintf(cp_err,
+                "Warning: only one vector may be accessed with the $& notation.\n");
+    }
+
+    if (d->v_length == 1) { /* 1 element, so return as a CP_REAL */
+        double value = isreal(d)
+            ? d->v_realdata[0]
+            : realpart(d->v_compdata[0]);
+        return var_alloc_real(copy(vec_name), value, NULL);
+    }
+    else { /* >1 element, so return as a list of all CP_REALs */
+        struct variable *list = NULL;
+        if (isreal(d)) {
+            int i;
+            double *realdata = d->v_realdata;
+            for (i = d->v_length; --i >= 0;) {
+                list = var_alloc_real(NULL, realdata[i], list);
+            }
+        }
+        else {
+            int i;
+            ngcomplex_t *compdata = d->v_compdata;
+            for (i = d->v_length; --i >= 0;) {
+                list = var_alloc_real(NULL, realpart(compdata[i]), list);
+            }
+        }
+        return var_alloc_vlist(copy(vec_name), list, NULL);
+    }
+} /* end of function cp_enqvec_as_var */
+
+
+
+/* Return $plots, $curplot, $curplottitle, $curplotname, and
+ * $curplotdate as a linked list of variables in that order */
+struct variable *
+cp_usrvars(void)
 {
     struct variable *v, *tv;
+    int tbfreed;
 
-    v =  plot_cur ? plot_cur->pl_env : NULL;
+    v = (struct variable *) NULL;
 
-    if ((tv = cp_enqvar("plots")) != NULL) {
+    if ((tv = cp_enqvar("plots", &tbfreed)) != NULL) {
         tv->va_next = v;
         v = tv;
     }
-    if ((tv = cp_enqvar("curplot")) != NULL) {
+    if ((tv = cp_enqvar("curplot", &tbfreed)) != NULL) {
         tv->va_next = v;
         v = tv;
     }
-    if ((tv = cp_enqvar("curplottitle")) != NULL) {
+    if ((tv = cp_enqvar("curplottitle", &tbfreed)) != NULL) {
         tv->va_next = v;
         v = tv;
     }
-    if ((tv = cp_enqvar("curplotname")) != NULL) {
+    if ((tv = cp_enqvar("curplotname", &tbfreed)) != NULL) {
         tv->va_next = v;
         v = tv;
     }
-    if ((tv = cp_enqvar("curplotdate")) != NULL) {
+    if ((tv = cp_enqvar("curplotdate", &tbfreed)) != NULL) {
         tv->va_next = v;
         v = tv;
     }
 
-    *v1 = v;
-    *v2 = ft_curckt ? ft_curckt->ci_vars : NULL;
-}
+    return v;
+} /* end of function cp_usrvars */
+
 
 
 /* Extract the .option lines from the deck */
 
-struct line *
-inp_getopts(struct line *deck)
+struct card *
+inp_getopts(struct card *deck)
 {
-    struct line *last = NULL, *opts = NULL, *dd, *next = NULL;
+    struct card *last = NULL, *opts = NULL, *dd, *next = NULL;
 
-    for (dd = deck->li_next; dd; dd = next) {
-        next = dd->li_next;
-        if (ciprefix(".opt", dd->li_line)) {
-            inp_casefix(dd->li_line);
+    for (dd = deck->nextcard; dd; dd = next) {
+        next = dd->nextcard;
+        if (ciprefix(".opt", dd->line)) {
+            inp_casefix(dd->line);
             if (last)
-                last->li_next = dd->li_next;
+                last->nextcard = dd->nextcard;
             else
-                deck->li_next = dd->li_next;
-            dd->li_next = opts;
+                deck->nextcard = dd->nextcard;
+            dd->nextcard = opts;
             opts = dd;
         } else {
             last = dd;
@@ -161,27 +239,25 @@ inp_getopts(struct line *deck)
 }
 
 
-/* Extract the option lines from a comfile (spinit, .spiceinit) */
-struct line *
-inp_getoptsc(char *in_line, struct line *com_options)
+/* copy the given option line,
+ *   (presumably from a comfile, e.g. spinit or .spiceinit)
+ * substitute '.options' for 'option'
+ * then put it in front of the given 'options' list */
+
+struct card *
+inp_getoptsc(char *line, struct card *options)
 {
-    struct line *next = NULL;
-    char *line;
+    line = nexttok(line);           /* skip option */
 
-    /* option -> .options */
-    /* skip option */
-    gettok(&in_line);
-    line = tprintf(".options %s", in_line);
+    struct card *next = TMALLOC(struct card, 1);
 
-    next = TMALLOC(struct line, 1);
-    next->li_line    = line;
-    next->li_linenum = 0;
-    next->li_error   = NULL;
-    next->li_actual  = NULL;
+    next->line    = tprintf(".options %s", line);
+    next->linenum = 0;
+    next->error   = NULL;
+    next->actualLine  = NULL;
 
     /* put new line in front */
-    if (com_options)
-        next->li_next = com_options;
+    next->nextcard = options;
 
     return next;
 }
@@ -220,8 +296,6 @@ cp_usrset(struct variable *var, bool isset)
         fprintf(cp_err, "Warning: %s compiled without debug messages\n",
                 cp_program);
 #endif
-    } else if (eq(var->va_name, "program")) {
-        cp_program = var->va_string;
     } else if (eq(var->va_name, "rawfile")) {
         ft_rawfile = copy(var->va_string);
     } else if (eq(var->va_name, "acct")) {
@@ -232,6 +306,8 @@ cp_usrset(struct variable *var, bool isset)
         ft_ngdebug = isset;
     } else if (eq(var->va_name, "noinit")) {
         ft_noinitprint = isset;
+    } else if (eq(var->va_name, "norefvalue")) {
+        ft_norefprint = isset;
     } else if (eq(var->va_name, "list")) {
         ft_listprint = isset;
     } else if (eq(var->va_name, "nopage")) {
@@ -354,7 +430,7 @@ cp_usrset(struct variable *var, bool isset)
         return (0);
     }
 
-    if (ft_curckt) {
+    if (ft_curckt && ft_curckt->ci_ckt) {
         if (if_option(ft_curckt->ci_ckt, var->va_name, var->va_type, vv))
             return US_SIMVAR;
     } else {

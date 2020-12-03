@@ -18,7 +18,7 @@ Remarks:  This code is based on a version written by Serban Popescu which
 /* undefine to add tracing to this file */
 /* #define TRACE */
 
-void INP2R(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2R(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 /* parse a resistor card */
 /* Rname <node> <node> [<val>][<mname>][w=<val>][l=<val>][ac=<val>] */
@@ -57,7 +57,7 @@ void INP2R(CKTcircuit *ckt, INPtables * tab, card * current)
         }
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);			/* Rname */
+    INPgetNetTok(&line, &name, 1);			/* Rname */
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);		/* <node> */
     INPtermInsert(ckt, &nname1, tab, &node1);
@@ -137,7 +137,7 @@ void INP2R(CKTcircuit *ckt, INPtables * tab, card * current)
 
     saveline = line;		/* save then old pointer */
 
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
 
     if (*model && (strcmp(model, "r") != 0)) {
       /* token isn't null */
@@ -147,7 +147,6 @@ void INP2R(CKTcircuit *ckt, INPtables * tab, card * current)
           printf("In INP2R, Valid R Model: %s\n", model);
 #endif
           INPinsert(&model, tab);
-          thismodel = NULL;
           current->error = INPgetMod(ckt, model, &thismodel, tab);
           if (thismodel != NULL) {
             if (mytype != thismodel->INPmodType) {

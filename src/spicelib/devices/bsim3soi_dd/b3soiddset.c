@@ -47,7 +47,7 @@ IFuid tmpName;
 
 
     /*  loop through all the B3SOIDD device models */
-    for( ; model != NULL; model = model->B3SOIDDnextModel )
+    for( ; model != NULL; model = B3SOIDDnextModel(model))
     {
 /* Default value Processing for B3SOIDD MOSFET Models */
 
@@ -75,7 +75,7 @@ IFuid tmpName;
 	    model->B3SOIDDcdsc = 2.4e-4;   /* unit Q/V/m^2  */
         if (!model->B3SOIDDcdscbGiven)
 	    model->B3SOIDDcdscb = 0.0;   /* unit Q/V/m^2  */    
-	    if (!model->B3SOIDDcdscdGiven)
+        if (!model->B3SOIDDcdscdGiven)
 	    model->B3SOIDDcdscd = 0.0;   /* unit Q/V/m^2  */
         if (!model->B3SOIDDcitGiven)
 	    model->B3SOIDDcit = 0.0;   /* unit Q/V/m^2  */
@@ -165,7 +165,6 @@ IFuid tmpName;
             model->B3SOIDDprwg = 0.0;      /* unit 1/V */
         if (!model->B3SOIDDprwbGiven)
             model->B3SOIDDprwb = 0.0;      
-        if (!model->B3SOIDDprtGiven)
         if (!model->B3SOIDDprtGiven)
             model->B3SOIDDprt = 0.0;      
         if (!model->B3SOIDDeta0Given)
@@ -874,8 +873,8 @@ IFuid tmpName;
             model->B3SOIDDnoif = 1.0;
 
         /* loop through all the instances of the model */
-        for (here = model->B3SOIDDinstances; here != NULL ;
-             here=here->B3SOIDDnextInstance) 
+        for (here = B3SOIDDinstances(model); here != NULL ;
+             here=B3SOIDDnextInstance(here)) 
 	{
             /* allocate a chunk of the state vector */
             here->B3SOIDDstates = *states;
@@ -998,6 +997,11 @@ IFuid tmpName;
             model->B3SOIDDadice = model->B3SOIDDadice0  / ( 1 + Cboxt / model->B3SOIDDcox);
 
             here->B3SOIDDfloat = 0;
+
+            here->B3SOIDDpNode = here->B3SOIDDpNodeExt;
+            here->B3SOIDDbNode = here->B3SOIDDbNodeExt;
+            here->B3SOIDDtempNode = here->B3SOIDDtempNodeExt;
+
 	    if (here->B3SOIDDbNode == -1) 
             /* no body contact but bNode to be created for SPICE iteration */
             {  error = CKTmkVolt(ckt,&tmp,here->B3SOIDDname,"Body");
@@ -1352,23 +1356,209 @@ B3SOIDDunsetup(GENmodel *inModel, CKTcircuit *ckt)
     B3SOIDDinstance *here;
  
     for (model = (B3SOIDDmodel *)inModel; model != NULL;
-            model = model->B3SOIDDnextModel)
+            model = B3SOIDDnextModel(model))
     {
-        for (here = model->B3SOIDDinstances; here != NULL;
-                here=here->B3SOIDDnextInstance)
+        for (here = B3SOIDDinstances(model); here != NULL;
+                here=B3SOIDDnextInstance(here))
         {
-            if (here->B3SOIDDdNodePrime
-                    && here->B3SOIDDdNodePrime != here->B3SOIDDdNode)
-            {
-                CKTdltNNum(ckt, here->B3SOIDDdNodePrime);
-                here->B3SOIDDdNodePrime = 0;
-            }
-            if (here->B3SOIDDsNodePrime
+            /* here for debugging purpose only */
+            if (here->B3SOIDDdum5Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDdum5Node);
+            here->B3SOIDDdum5Node = 0;
+
+            if (here->B3SOIDDdum4Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDdum4Node);
+            here->B3SOIDDdum4Node = 0;
+
+            if (here->B3SOIDDdum3Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDdum3Node);
+            here->B3SOIDDdum3Node = 0;
+
+            if (here->B3SOIDDdum2Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDdum2Node);
+            here->B3SOIDDdum2Node = 0;
+
+            if (here->B3SOIDDdum1Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDdum1Node);
+            here->B3SOIDDdum1Node = 0;
+
+            if (here->B3SOIDDcbeNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDcbeNode);
+            here->B3SOIDDcbeNode = 0;
+
+            if (here->B3SOIDDvcscvNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvcscvNode);
+            here->B3SOIDDvcscvNode = 0;
+
+            if (here->B3SOIDDvdscvNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvdscvNode);
+            here->B3SOIDDvdscvNode = 0;
+
+            if (here->B3SOIDDqgNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqgNode);
+            here->B3SOIDDqgNode = 0;
+
+            if (here->B3SOIDDqdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqdNode);
+            here->B3SOIDDqdNode = 0;
+
+            if (here->B3SOIDDqeNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqeNode);
+            here->B3SOIDDqeNode = 0;
+
+            if (here->B3SOIDDqsubs2Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqsubs2Node);
+            here->B3SOIDDqsubs2Node = 0;
+
+            if (here->B3SOIDDqsubs1Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqsubs1Node);
+            here->B3SOIDDqsubs1Node = 0;
+
+            if (here->B3SOIDDqsub0Node > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqsub0Node);
+            here->B3SOIDDqsub0Node = 0;
+
+            if (here->B3SOIDDqaccNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqaccNode);
+            here->B3SOIDDqaccNode = 0;
+
+            if (here->B3SOIDDxcsatNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDxcsatNode);
+            here->B3SOIDDxcsatNode = 0;
+
+            if (here->B3SOIDDvgsteffNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvgsteffNode);
+            here->B3SOIDDvgsteffNode = 0;
+
+            if (here->B3SOIDDvthNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvthNode);
+            here->B3SOIDDvthNode = 0;
+
+            if (here->B3SOIDDvbs0teffNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvbs0teffNode);
+            here->B3SOIDDvbs0teffNode = 0;
+
+            if (here->B3SOIDDgmeNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDgmeNode);
+            here->B3SOIDDgmeNode = 0;
+
+            if (here->B3SOIDDgdsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDgdsNode);
+            here->B3SOIDDgdsNode = 0;
+
+            if (here->B3SOIDDgmbsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDgmbsNode);
+            here->B3SOIDDgmbsNode = 0;
+
+            if (here->B3SOIDDgmNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDgmNode);
+            here->B3SOIDDgmNode = 0;
+
+            if (here->B3SOIDDqjdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqjdNode);
+            here->B3SOIDDqjdNode = 0;
+
+            if (here->B3SOIDDqjsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqjsNode);
+            here->B3SOIDDqjsNode = 0;
+
+            if (here->B3SOIDDqbfNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqbfNode);
+            here->B3SOIDDqbfNode = 0;
+
+            if (here->B3SOIDDqbNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDqbNode);
+            here->B3SOIDDqbNode = 0;
+
+            if (here->B3SOIDDcbgNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDcbgNode);
+            here->B3SOIDDcbgNode = 0;
+
+            if (here->B3SOIDDcbdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDcbdNode);
+            here->B3SOIDDcbdNode = 0;
+
+            if (here->B3SOIDDcbbNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDcbbNode);
+            here->B3SOIDDcbbNode = 0;
+
+            if (here->B3SOIDDxcNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDxcNode);
+            here->B3SOIDDxcNode = 0;
+
+            if (here->B3SOIDDvbseffNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvbseffNode);
+            here->B3SOIDDvbseffNode = 0;
+
+            if (here->B3SOIDDvbs0effNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvbs0effNode);
+            here->B3SOIDDvbs0effNode = 0;
+
+            if (here->B3SOIDDabeffNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDabeffNode);
+            here->B3SOIDDabeffNode = 0;
+
+            if (here->B3SOIDDibpNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDibpNode);
+            here->B3SOIDDibpNode = 0;
+
+            if (here->B3SOIDDitunNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDitunNode);
+            here->B3SOIDDitunNode = 0;
+
+            if (here->B3SOIDDigidlNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDigidlNode);
+            here->B3SOIDDigidlNode = 0;
+
+            if (here->B3SOIDDiiiNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDiiiNode);
+            here->B3SOIDDiiiNode = 0;
+
+            if (here->B3SOIDDibdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDibdNode);
+            here->B3SOIDDibdNode = 0;
+
+            if (here->B3SOIDDibsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDibsNode);
+            here->B3SOIDDibsNode = 0;
+
+            if (here->B3SOIDDicNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDicNode);
+            here->B3SOIDDicNode = 0;
+
+            if (here->B3SOIDDidsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDidsNode);
+            here->B3SOIDDidsNode = 0;
+
+            if (here->B3SOIDDvbsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIDDvbsNode);
+            here->B3SOIDDvbsNode = 0;
+
+
+            if (here->B3SOIDDtempNode > 0 &&
+                here->B3SOIDDtempNode != here->B3SOIDDtempNodeExt &&
+                here->B3SOIDDtempNode != here->B3SOIDDbNodeExt &&
+                here->B3SOIDDtempNode != here->B3SOIDDpNodeExt)
+                CKTdltNNum(ckt, here->B3SOIDDtempNode);
+            here->B3SOIDDtempNode = 0;
+
+            if (here->B3SOIDDbNode > 0 &&
+                here->B3SOIDDbNode != here->B3SOIDDbNodeExt &&
+                here->B3SOIDDbNode != here->B3SOIDDpNodeExt)
+                CKTdltNNum(ckt, here->B3SOIDDbNode);
+            here->B3SOIDDbNode = 0;
+
+            here->B3SOIDDpNode = 0;
+
+            if (here->B3SOIDDsNodePrime > 0
                     && here->B3SOIDDsNodePrime != here->B3SOIDDsNode)
-            {
                 CKTdltNNum(ckt, here->B3SOIDDsNodePrime);
-                here->B3SOIDDsNodePrime = 0;
-            }
+            here->B3SOIDDsNodePrime = 0;
+
+            if (here->B3SOIDDdNodePrime > 0
+                    && here->B3SOIDDdNodePrime != here->B3SOIDDdNode)
+                CKTdltNNum(ckt, here->B3SOIDDdNodePrime);
+            here->B3SOIDDdNodePrime = 0;
         }
     }
     return OK;

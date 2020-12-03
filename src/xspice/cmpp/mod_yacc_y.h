@@ -3,11 +3,10 @@ FILE  mod_yacc.h
 
 MEMBER OF process cmpp
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -37,12 +36,13 @@ NON-STANDARD FEATURES
     None.
 
 ============================================================================*/
+#include <stdbool.h>
 
 #include "cmpp.h"
 
 typedef struct {
    char *id;
-   Boolean_t has_subscript;
+   bool has_subscript;
    char *subscript;
 } Sub_Id_t;
 

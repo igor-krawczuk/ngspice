@@ -15,34 +15,25 @@
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
+
 int
-BSIM4v7mDelete(
-GENmodel **inModel,
-IFuid modname,
-GENmodel *kill)
+BSIM4v7mDelete(GENmodel *gen_model)
 {
-BSIM4v7model **model = (BSIM4v7model**)inModel;
-BSIM4v7model *modfast = (BSIM4v7model*)kill;
-BSIM4v7instance *here;
-BSIM4v7instance *prev = NULL;
-BSIM4v7model **oldmod;
+    BSIM4v7model *model = (BSIM4v7model *) gen_model;
 
-    oldmod = model;
-    for (; *model ; model = &((*model)->BSIM4v7nextModel)) 
-    {    if ((*model)->BSIM4v7modName == modname || 
-             (modfast && *model == modfast))
-	     goto delgot;
-         oldmod = model;
-    }
-    return(E_NOMOD);
+#ifdef USE_OMP
+    FREE(model->BSIM4v7InstanceArray);
+#endif
 
-delgot:
-    *oldmod = (*model)->BSIM4v7nextModel; /* cut deleted device out of list */
-    for (here = (*model)->BSIM4v7instances; here; here = here->BSIM4v7nextInstance)
-    {    if(prev) FREE(prev);
-         prev = here;
+    struct bsim4SizeDependParam *p = model->pSizeDependParamKnot;
+    while (p) {
+        struct bsim4SizeDependParam *next_p = p->pNext;
+        FREE(p);
+        p = next_p;
     }
-    if(prev) FREE(prev);
-    FREE(*model);
-    return(OK);
+
+    /* model->BSIM4v7modName to be freed in INPtabEnd() */
+    FREE(model->BSIM4v7version);
+
+    return OK;
 }

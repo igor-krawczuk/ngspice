@@ -137,16 +137,18 @@ typedef struct sHSM2hereMKSParam {
 
 /* information needed for each instance */
 typedef struct sHSM2instance {
-  struct sHSM2model *HSM2modPtr;           /* pointer to model */
-  struct sHSM2instance *HSM2nextInstance;  /* pointer to next instance of 
-                                              current model*/
-  IFuid HSM2name; /* pointer to character string naming this instance */
-  int HSM2states; /* index into state table for this device */
 
-  int HSM2dNode;      /* number of the drain node of the mosfet */
-  int HSM2gNode;      /* number of the gate node of the mosfet */
-  int HSM2sNode;      /* number of the source node of the mosfet */
-  int HSM2bNode;      /* number of the bulk node of the mosfet */
+  struct GENinstance gen;
+
+#define HSM2modPtr(inst) ((struct sHSM2model *)((inst)->gen.GENmodPtr))
+#define HSM2nextInstance(inst) ((struct sHSM2instance *)((inst)->gen.GENnextInstance))
+#define HSM2name gen.GENname
+#define HSM2states gen.GENstate
+
+  const int HSM2dNode;      /* number of the drain node of the mosfet */
+  const int HSM2gNode;      /* number of the gate node of the mosfet */
+  const int HSM2sNode;      /* number of the source node of the mosfet */
+  const int HSM2bNode;      /* number of the bulk node of the mosfet */
   int HSM2dNodePrime; /* number od the inner drain node */
   int HSM2gNodePrime; /* number of the inner gate node */
   int HSM2sNodePrime; /* number od the inner source node */
@@ -681,14 +683,13 @@ typedef struct sHSM2instance {
 /* per model data */
 
 typedef struct sHSM2model {       	/* model structure for a resistor */
-  int HSM2modType;    		/* type index of this device type */
-  struct sHSM2model *HSM2nextModel; /* pointer to next possible model 
-					 in linked list */
-  HSM2instance * HSM2instances;	/* pointer to list of instances 
-				   that have this model */
-  IFuid HSM2modName;       	/* pointer to the name of this model */
 
-  /* --- end of generic struct GENmodel --- */
+  struct GENmodel gen;
+
+#define HSM2modType gen.GENmodType
+#define HSM2nextModel(inst) ((struct sHSM2model *)((inst)->gen.GENnextModel))
+#define HSM2instances(inst) ((HSM2instance *)((inst)->gen.GENinstances))
+#define HSM2modName gen.GENmodName
 
   int HSM2_type;      		/* device type: 1 = nmos,  -1 = pmos */
   int HSM2_level;               /* level */
@@ -1266,6 +1267,11 @@ typedef struct sHSM2model {       	/* model structure for a resistor */
   double HSM2vdsMax;
   double HSM2vbsMax;
   double HSM2vbdMax;
+  double HSM2vgsrMax;
+  double HSM2vgdrMax;
+  double HSM2vgbrMax;
+  double HSM2vbsrMax;
+  double HSM2vbdrMax;
 
   HSM2modelMKSParam modelMKS ; /* unit-converted parameters */
 
@@ -1839,6 +1845,11 @@ typedef struct sHSM2model {       	/* model structure for a resistor */
   unsigned  HSM2vdsMaxGiven  :1;
   unsigned  HSM2vbsMaxGiven  :1;
   unsigned  HSM2vbdMaxGiven  :1;
+  unsigned  HSM2vgsrMaxGiven  :1;
+  unsigned  HSM2vgdrMaxGiven  :1;
+  unsigned  HSM2vgbrMaxGiven  :1;
+  unsigned  HSM2vbsrMaxGiven  :1;
+  unsigned  HSM2vbdrMaxGiven  :1;
 
 } HSM2model;
 
@@ -2521,6 +2532,11 @@ typedef struct sHSM2model {       	/* model structure for a resistor */
 #define HSM2_MOD_VDS_MAX    4004
 #define HSM2_MOD_VBS_MAX    4005
 #define HSM2_MOD_VBD_MAX    4006
+#define HSM2_MOD_VGSR_MAX   4007
+#define HSM2_MOD_VGDR_MAX   4008
+#define HSM2_MOD_VGBR_MAX   4009
+#define HSM2_MOD_VBSR_MAX   4010
+#define HSM2_MOD_VBDR_MAX   4011
 
 #include "hsm2ext.h"
 

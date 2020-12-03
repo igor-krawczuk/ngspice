@@ -65,7 +65,7 @@ ft_sigintr_cleanup(void)
 
     /* To restore screen after an interrupt to a plot for instance */
     cp_interactive = TRUE;
-    cp_resetcontrol();
+    cp_resetcontrol(TRUE);
 }
 
 
@@ -73,6 +73,8 @@ ft_sigintr_cleanup(void)
 RETSIGTYPE
 ft_sigintr(void)
 {
+    static int interrupt_counter = 0;
+
     /* fprintf(cp_err, "Received interrupt.  Handling it  . . . . .\n"); */
 
     /* Reinstall ft_signintr as the signal handler. */
@@ -80,9 +82,16 @@ ft_sigintr(void)
 
     if (ft_intrpt) {    /* check to see if we're being interrupted repeatedly */
         fprintf(cp_err, "\nInterrupted again (ouch)\n");
+        interrupt_counter++;
     } else {
         fprintf(cp_err, "\nInterrupted once . . .\n");
         ft_intrpt = TRUE;
+        interrupt_counter = 1;
+    }
+
+    if (interrupt_counter >= 3) {
+        fprintf(cp_err, "\nKilling, since %d interrupts have been requested\n\n", interrupt_counter);
+        controlled_exit(1);
     }
 
     if (ft_setflag) {
@@ -158,6 +167,13 @@ sigsegv(void)
     winmessage("Fatal error in NGSPICE");
 #endif
     fatal();
+}
+
+RETSIGTYPE
+sigsegvsh(void)
+{
+    fprintf(cp_err, "\ninternal error -- segmentation violation\n");
+    controlled_exit(EXIT_SEGV);
 }
 
 

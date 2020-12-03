@@ -5,7 +5,6 @@
 #include "ngspice/cpextern.h"
 
 #include "com_display.h"
-#include "quote.h"
 #include "variable.h"
 #include "plotting/plotting.h"
 #include "plotting/pvec.h"
@@ -43,6 +42,8 @@ com_display(wordlist *wl)
         tfree(s);               /*DG to avoid the cp_unquote memory leak */
         if (d == NULL)
             fprintf(cp_err, "Error: no such vector as %s.\n", wl->wl_word);
+        else if (d->v_plot == NULL)
+            fprintf(cp_err, "Error: no analog vector as %s.\n", wl->wl_word);
         else
             while (d) {
                 pvec(d);
@@ -66,7 +67,7 @@ com_display(wordlist *wl)
     dvs = TMALLOC(struct dvec *, len);
     for (d = plot_cur->pl_dvecs, i = 0; d; d = d->v_next, i++)
         dvs[i] = d;
-    if (!cp_getvar("nosort", CP_BOOL, NULL))
+    if (!cp_getvar("nosort", CP_BOOL, NULL, 0))
         qsort(dvs, (size_t) len, sizeof(struct dvec *), dcomp);
 
     out_printf("Title: %s\n", plot_cur->pl_title);

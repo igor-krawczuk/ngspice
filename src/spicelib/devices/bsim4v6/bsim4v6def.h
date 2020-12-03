@@ -29,14 +29,18 @@ Modified by Wenwei Yang, 07/31/2008.
 
 typedef struct sBSIM4v6instance
 {
-    struct sBSIM4v6model *BSIM4v6modPtr;
-    struct sBSIM4v6instance *BSIM4v6nextInstance;
-    IFuid BSIM4v6name;
-    int BSIM4v6states;     /* index into state table for this device */
-    int BSIM4v6dNode;
-    int BSIM4v6gNodeExt;
-    int BSIM4v6sNode;
-    int BSIM4v6bNode;
+
+    struct GENinstance gen;
+
+#define BSIM4v6modPtr(inst) ((struct sBSIM4v6model *)((inst)->gen.GENmodPtr))
+#define BSIM4v6nextInstance(inst) ((struct sBSIM4v6instance *)((inst)->gen.GENnextInstance))
+#define BSIM4v6name gen.GENname
+#define BSIM4v6states gen.GENstate
+
+    const int BSIM4v6dNode;
+    const int BSIM4v6gNodeExt;
+    const int BSIM4v6sNode;
+    const int BSIM4v6bNode;
     int BSIM4v6dNodePrime;
     int BSIM4v6gNodePrime;
     int BSIM4v6gNodeMid;
@@ -795,12 +799,13 @@ struct bsim4v6SizeDependParam
 
 typedef struct sBSIM4v6model 
 {
-    int BSIM4v6modType;
-    struct sBSIM4v6model *BSIM4v6nextModel;
-    BSIM4v6instance *BSIM4v6instances;
-    IFuid BSIM4v6modName; 
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define BSIM4v6modType gen.GENmodType
+#define BSIM4v6nextModel(inst) ((struct sBSIM4v6model *)((inst)->gen.GENnextModel))
+#define BSIM4v6instances(inst) ((BSIM4v6instance *)((inst)->gen.GENinstances))
+#define BSIM4v6modName gen.GENmodName
 
     int BSIM4v6type;
 
@@ -1701,6 +1706,11 @@ typedef struct sBSIM4v6model
     double BSIM4v6vdsMax;
     double BSIM4v6vbsMax;
     double BSIM4v6vbdMax;
+    double BSIM4v6vgsrMax;
+    double BSIM4v6vgdrMax;
+    double BSIM4v6vgbrMax;
+    double BSIM4v6vbsrMax;
+    double BSIM4v6vbdrMax;
 
     struct bsim4v6SizeDependParam *pSizeDependParamKnot;
 
@@ -2509,6 +2519,11 @@ typedef struct sBSIM4v6model
     unsigned  BSIM4v6vdsMaxGiven  :1;
     unsigned  BSIM4v6vbsMaxGiven  :1;
     unsigned  BSIM4v6vbdMaxGiven  :1;
+    unsigned  BSIM4v6vgsrMaxGiven  :1;
+    unsigned  BSIM4v6vgdrMaxGiven  :1;
+    unsigned  BSIM4v6vgbrMaxGiven  :1;
+    unsigned  BSIM4v6vbsrMaxGiven  :1;
+    unsigned  BSIM4v6vbdrMaxGiven  :1;
 
     unsigned  BSIM4v6LintGiven   :1;
     unsigned  BSIM4v6LlGiven   :1;
@@ -3569,6 +3584,11 @@ typedef struct sBSIM4v6model
 #define BSIM4v6_MOD_VDS_MAX            1304
 #define BSIM4v6_MOD_VBS_MAX            1305
 #define BSIM4v6_MOD_VBD_MAX            1306
+#define BSIM4v6_MOD_VGSR_MAX           1307
+#define BSIM4v6_MOD_VGDR_MAX           1308
+#define BSIM4v6_MOD_VGBR_MAX           1309
+#define BSIM4v6_MOD_VBSR_MAX           1310
+#define BSIM4v6_MOD_VBDR_MAX           1311
 
 #include "bsim4v6ext.h"
 

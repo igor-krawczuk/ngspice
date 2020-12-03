@@ -23,18 +23,18 @@ INDpzLoad(GENmodel *inModel, CKTcircuit *ckt, SPcomplex *s)
 
     NG_IGNORE(ckt);
 
-    for( ; model != NULL; model = model->INDnextModel) {
-        for( here = model->INDinstances;here != NULL; 
-                here = here->INDnextInstance) {
+    for( ; model != NULL; model = INDnextModel(model)) {
+        for( here = INDinstances(model);here != NULL; 
+                here = INDnextInstance(here)) {
     
             val = here->INDinduct / here->INDm;
 	    
-            *(here->INDposIbrptr) +=  1;
-            *(here->INDnegIbrptr) -=  1;
-            *(here->INDibrPosptr) +=  1;
-            *(here->INDibrNegptr) -=  1;
-            *(here->INDibrIbrptr ) -=   val * s->real;
-            *(here->INDibrIbrptr +1) -= val * s->imag;
+            *(here->INDposIbrPtr) +=  1;
+            *(here->INDnegIbrPtr) -=  1;
+            *(here->INDibrPosPtr) +=  1;
+            *(here->INDibrNegPtr) -=  1;
+            *(here->INDibrIbrPtr ) -=   val * s->real;
+            *(here->INDibrIbrPtr +1) -= val * s->imag;
         }
     }
     return(OK);

@@ -13,8 +13,6 @@ Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 
 #include "ngspice/cpstd.h"
 
-#define MAXWORDS 512
-
 /* Information about spice commands. */
 
 struct comm {
@@ -43,13 +41,14 @@ struct comm {
     int co_maxargs;
 
     /* The fn that prompts the user. */
-    void (*co_argfn) (wordlist *wl, struct comm *command);
+    void (*co_argfn)(const wordlist *wl, const struct comm *command);
 
     /* When these are printed, printf(string, av[0]) .. */
     char *co_help;
 };
 
 #define LOTS        1000
+#define NLOTS       10000
 
 /* The history list. Things get put here after the first (basic) parse.
  * The word list will change later, so be sure to copy it.
@@ -66,11 +65,13 @@ struct histent {
 
 /* The values returned by cp_usrset(). */
 
-#define US_OK       1   /* Either not relevant or nothing special. */
-#define US_READONLY 2   /* Complain and don't set this var. */
-#define US_DONTRECORD   3   /* Ok, but don't keep track of this one. */
-#define US_SIMVAR   4   /* OK, recorded in options struct */
-#define US_NOSIMVAR   5   /* Not OK, simulation param but circuit not loaded */
+enum {
+    US_OK = 1,      /* Either not relevant or nothing special. */
+    US_READONLY,    /* Complain and don't set this var. */
+    US_DONTRECORD,  /* OK, but don't keep track of this one. */
+    US_SIMVAR,      /* OK, recorded in options struct */
+    US_NOSIMVAR,    /* Not OK, simulation param but circuit not loaded */
+};
 
 /* Aliases. These will be expanded if the word is the first in an input
  * line. The substitution string may contain arg selectors.
@@ -82,11 +83,6 @@ struct alias {
     struct alias *al_next;
     struct alias *al_prev;
 } ;
-
-/* The current record of what characters are special. */
-
-#define CPC_BRR  004 /* Break word to right of character. */
-#define CPC_BRL  010 /* Break word to left of character. */
 
 
 #define CT_ALIASES  1

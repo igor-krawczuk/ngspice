@@ -12,7 +12,7 @@ Modified: 2001 Paolo Nenzi (Cider Integration)
 #include "ngspice/fteext.h"
 #include "inpxx.h"
 
-void INP2D(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2D(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
 /* Dname <node> <node> <model> [<val>] [OFF] [IC=<val>] */
@@ -41,13 +41,13 @@ void INP2D(CKTcircuit *ckt, INPtables * tab, card * current)
 	return;
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);
     INPtermInsert(ckt, &nname1, tab, &node1);
     INPgetNetTok(&line, &nname2, 1);
     INPtermInsert(ckt, &nname2, tab, &node2);
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
     INPinsert(&model, tab);
     current->error = INPgetMod(ckt, model, &thismodel, tab);
     if (thismodel != NULL) {

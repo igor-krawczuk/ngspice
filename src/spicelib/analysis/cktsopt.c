@@ -114,6 +114,9 @@ CKTsetOpt(CKTcircuit *ckt, JOB *anal, int opt, IFvalue *val)
     case OPT_BYPASS:
         task->TSKbypass = val->iValue;
         break;
+    case OPT_INDVERBOSITY:
+        task->TSKindverbosity = val->iValue;
+        break;
     case OPT_XMU:
         task->TSKxmu = val->rValue;
         break;
@@ -165,6 +168,9 @@ CKTsetOpt(CKTcircuit *ckt, JOB *anal, int opt, IFvalue *val)
         break;
     case OPT_NOOPAC:
         task->TSKnoopac = (val->iValue != 0);
+        break;
+    case OPT_EPSMIN:
+        task->TSKepsmin = val->rValue;
         break;
 /* gtri - begin - wbk - add new options */
 #ifdef XSPICE
@@ -268,6 +274,7 @@ static IFparm OPTtbl[] = {
  { "lvltim", 0, IF_INTEGER,"Type of timestep control" },
  { "method", OPT_METHOD, IF_SET|IF_STRING,"Integration method" },
  { "maxord", OPT_MAXORD, IF_SET|IF_INTEGER,"Maximum integration order" },
+ { "indverbosity", OPT_INDVERBOSITY, IF_SET|IF_INTEGER,"Control Inductive Systems Check (coupling)" },
  { "xmu", OPT_XMU, IF_SET|IF_REAL,"Coefficient for trapezoidal method" },
  { "defm", OPT_DEFM,IF_SET|IF_REAL,"Default MOSfet Multiplier" },
  { "defl", OPT_DEFL,IF_SET|IF_REAL,"Default MOSfet length" },
@@ -285,7 +292,7 @@ static IFparm OPTtbl[] = {
  { "tranpoints", OPT_TRANPTS, IF_ASK|IF_INTEGER,"Transient timepoints" },
  { "accept", OPT_TRANACCPT, IF_ASK|IF_INTEGER,"Accepted timepoints" },
  { "rejected", OPT_TRANRJCT, IF_ASK|IF_INTEGER,"Rejected timepoints" },
- { "time", OPT_TOTANALTIME, IF_ASK|IF_REAL,"Total analysis time" },
+ { "time", OPT_TOTANALTIME, IF_ASK|IF_REAL,"Total analysis time (seconds)" },
  { "loadtime", OPT_LOADTIME, IF_ASK|IF_REAL,"Matrix load time" },
  { "synctime", OPT_SYNCTIME, IF_ASK|IF_REAL,"Matrix synchronize time" },
  { "reordertime", OPT_REORDTIME, IF_ASK|IF_REAL,"Matrix reorder time" },
@@ -298,7 +305,7 @@ static IFparm OPTtbl[] = {
  { "transolvetime", OPT_TRANSOLVE, IF_ASK|IF_REAL,"Transient solve time" },
  { "trantrunctime", OPT_TRANTRUNC, IF_ASK|IF_REAL,"Transient trunc time" },
  { "trancuriters", OPT_TRANCURITER, IF_ASK|IF_INTEGER,
-        "Transient iters per point" },
+        "Transient iterations for the last time point" },
  { "actime", OPT_ACTIME, IF_ASK|IF_REAL,"AC analysis time" },
  { "acloadtime", OPT_ACLOAD, IF_ASK|IF_REAL,"AC load time" },
  { "acsynctime", OPT_ACSYNC, IF_ASK|IF_REAL,"AC sync time" },
@@ -319,7 +326,9 @@ static IFparm OPTtbl[] = {
  { "reldv", OPT_RELDV, IF_SET|IF_REAL,
         "Maximum relative iter-iter node voltage change" },
  { "noopac", OPT_NOOPAC, IF_SET|IF_FLAG,
-        "No op calculation in ac if circuit is linear" }
+        "No op calculation in ac if circuit is linear" },
+ { "epsmin", OPT_EPSMIN, IF_SET|IF_REAL,
+        "Minimum value for log" }
 };
 
 int OPTcount = NUMELEMS(OPTtbl);

@@ -3,11 +3,10 @@ FILE    ENHtranslate_poly.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -79,24 +78,25 @@ to new polynomial controlled source code model syntax.
 /*  out the old dependent  source.                                     */
 /*  It returns (a pointer to) the processed deck.                      */
 /*---------------------------------------------------------------------*/
-struct line * ENHtranslate_poly(
-    struct   line  *deck) {        /* Linked list of lines in input deck */
-    struct   line  *d;
-    struct   line  *l1;
-    struct   line  *l2;
+struct card *
+ENHtranslate_poly(
+    struct card  *deck) {        /* Linked list of lines in input deck */
+    struct card  *d;
+    struct card  *l1;
+    struct card  *l2;
 
     char  *card;
 
     /* Iterate through each card in the deck and translate as needed */
-    for(d = deck; d; d = d->li_next) {
+    for(d = deck; d; d = d->nextcard) {
 
 #ifdef TRACE
         /* SDB debug statement */
-        printf("In ENHtranslate_poly, now examining card %s . . . \n", d->li_line);
+        printf("In ENHtranslate_poly, now examining card %s . . . \n", d->line);
 #endif
 
         /* If doesn't need to be translated, continue to next card */
-        if(! needs_translating(d->li_line)) {
+        if(! needs_translating(d->line)) {
 
 #ifdef TRACE
             /* SDB debug statement */
@@ -111,27 +111,28 @@ struct line * ENHtranslate_poly(
 #endif
 
         /* Create two new line structs and splice into deck */
-        l1 = TMALLOC(struct line, 1);
-        l2 = TMALLOC(struct line, 1);
-        l2->li_next = d->li_next;
-        l1->li_next = l2;
-        d->li_next  = l1;
+        l1 = TMALLOC(struct card, 1);
+        l2 = TMALLOC(struct card, 1);
+        l2->nextcard = d->nextcard;
+        l1->nextcard = l2;
+        d->nextcard  = l1;
 
         /* PN 2004: Add original linenumber to ease the debug process
          * for malfromned netlist
          */
 
-        l1->li_linenum = d->li_linenum;
-        l2->li_linenum = d->li_linenum;
+        l1->linenum = d->linenum;
+        l2->linenum = d->linenum;
 
         /* Create the translated cards */
-        d->li_error = two2three_translate(d->li_line, &(l1->li_line), &(l2->li_line));
+        d->error = two2three_translate(d->line, &(l1->line), &(l2->line));
 
         /* Comment out the original line */
-        card = TMALLOC(char, strlen(d->li_line) + 2);
+        card = TMALLOC(char, strlen(d->line) + 2);
         strcpy(card,"*");
-        strcat(card, d->li_line);
-        d->li_line = card;
+        strcat(card, d->line);
+        tfree(d->line);
+        d->line = card;
 
 #ifdef TRACE
         /* SDB debug statement */
@@ -293,7 +294,6 @@ static char *two2three_translate(
 
     char  type;
 
-    char  *tok;
     char  *name;
     char  **out_conn;
     char  **in_conn;
@@ -379,8 +379,8 @@ static char *two2three_translate(
         printf("In two2three_translate, found poly!!!  dim = %d \n", dim);
 #endif
 
-        tok = MIFgettok(&card); /* read and discard POLY */
-        tok = MIFgettok(&card); /* read and discard dimension */
+        txfree(MIFgettok(&card)); /* read and discard POLY */
+        txfree(MIFgettok(&card)); /* read and discard dimension */
     }
 
 
@@ -421,13 +421,9 @@ static char *two2three_translate(
 
     /* Write input nets/sources */
     if((type == 'e') || (type == 'g') ||
-            (type == 'E') || (type == 'G')) {  /* These input port types are vector & need a [. */
-        if (dim > 1) {
-            sprintf(*inst_card + strlen(*inst_card), "%%vd [ ");
-        } else {
-            sprintf(*inst_card + strlen(*inst_card), "%%vd [ ");  /* need something different? */
-        }
-    } else                                /* This input port type is scalar */
+            (type == 'E') || (type == 'G')) /* These input port types are vector & need a [. */
+        sprintf(*inst_card + strlen(*inst_card), "%%vd [ ");
+    else                                    /* This input port type is scalar */
         sprintf(*inst_card + strlen(*inst_card), "%%vnam [ ");
 
 
@@ -435,11 +431,7 @@ static char *two2three_translate(
         sprintf(*inst_card + strlen(*inst_card), "%s ", in_conn[i]);
 
 
-    if (dim > 1) {
-        sprintf(*inst_card + strlen(*inst_card), "] ");
-    } else {
-        sprintf(*inst_card + strlen(*inst_card), "] ");  /* need something different? */
-    }
+    sprintf(*inst_card + strlen(*inst_card), "] ");
 
 
     /* Write output nets */

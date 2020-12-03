@@ -36,11 +36,16 @@ static int steps = 0;
 void
 com_stop(wordlist *wl)
 {
+    /* Check for an active circuit */
+    if (ft_curckt == (struct circ *) NULL) {
+        fprintf(cp_err, "No circuit loaded. Stopping is not possible.\n");
+        return;
+    }
+
     struct dbcomm *thisone = NULL;
     struct dbcomm *d = NULL;
     char *s, buf[64];
     int i;
-    double *val;
 
     while (wl) {
         if (thisone == NULL) {
@@ -73,36 +78,41 @@ com_stop(wordlist *wl)
         } else if (eq(wl->wl_word, "when") && wl->wl_next) {
             /* cp_lexer(string) will not discriminate '=', so we have
                to do it here */
-            if (strstr(wl->wl_next->wl_word, "=") &&
-                (!(wl->wl_next->wl_next) ||
-                 strstr(wl->wl_next->wl_next->wl_word, "when") ||
-                 strstr(wl->wl_next->wl_next->wl_word, "after")))
-            {
+            if (strchr(wl->wl_next->wl_word, '=') &&
+                    (!(wl->wl_next->wl_next) ||
+                    strstr(wl->wl_next->wl_next->wl_word, "when") ||
+                    strstr(wl->wl_next->wl_next->wl_word, "after"))) {
                 /* we have vec=val in a single word */
                 wordlist *wln;
                 char **charr = TMALLOC(char*, 4);
                 char *tok = copy(wl->wl_next->wl_word);
-                char *tokeq = strstr(tok, "=");
+                char *tokeq = strchr(tok, '=');
                 char *tokafter = copy(tokeq + 1);
                 *tokeq = '\0';
                 charr[0] = tok;
                 charr[1] = copy("eq");
                 charr[2] = tokafter;
                 charr[3] = NULL;
-                wln = wl_build(charr);
+                wln = wl_build((const char * const *) charr);
                 wl_splice(wl->wl_next, wln);
             }
+
             /* continue with parsing the enhanced wordlist */
             if (wl->wl_next->wl_next && wl->wl_next->wl_next->wl_next) {
                 wl = wl->wl_next;
                 d->db_number = debugnumber;
                 d->db_type = DB_STOPWHEN;
                 s = wl->wl_word;
-                val = ft_numparse(&s, FALSE);
-                if (val)
-                    d->db_value1 = *val;
-                else
-                    d->db_nodename1 = copy(wl->wl_word);
+
+                {
+                    double val;
+                    if (ft_numparse(&s, FALSE, &val) >= 0) {
+                        d->db_value1 = val;
+                    }
+                    else {
+                        d->db_nodename1 = copy(wl->wl_word);
+                    }
+                }
                 wl = wl->wl_next;
 
                 /* Now get the condition */
@@ -124,17 +134,23 @@ com_stop(wordlist *wl)
 
                 /* Now see about the second one. */
                 s = wl->wl_word;
-                val = ft_numparse(&s, FALSE);
-                if (val)
-                    d->db_value2 = *val;
-                else
+
+                {
+                    double val;
+                    if (ft_numparse(&s, FALSE, &val) >= 0) {
+                        d->db_value2 = val;
+                    }
+                    else {
                     d->db_nodename2 = copy(wl->wl_word);
+                    }
+                }
                 wl = wl->wl_next;
-            } else {
+            }
+            else {
                 goto bad;
             }
-        }
-    }
+        } /* end of case of word "when" */
+    } /* end of loop over wordlist */
 
     if (thisone) {
         if (dbs) {
@@ -153,11 +169,11 @@ com_stop(wordlist *wl)
 
 bad:
     fprintf(cp_err, "Syntax error parsing breakpoint specification.\n");
-}
+} /* end of funtion com_stop */
+
 
 
 /* Trace a node (have wrd_point print it). Usage is "trace node ..."*/
-
 void
 com_trce(wordlist *wl)
 {
@@ -170,6 +186,13 @@ com_trce(wordlist *wl)
 void
 com_iplot(wordlist *wl)
 {
+    /* Check for an active circuit */
+    if (ft_curckt == (struct circ *) NULL) {
+        fprintf(cp_err, "No circuit loaded. "
+                "Incremental plotting is not possible.\n");
+        return;
+    }
+
     /* settrace(wl, VF_PLOT); */
 
     struct dbcomm *d, *td, *currentdb = NULL;
@@ -274,7 +297,7 @@ com_sttus(wordlist *wl)
             else
                 fprintf(cp_out, "stop");
             printcond(d, cp_out);
-        } else if ((d->db_type == DB_DEADIPLOT)) {
+        } else if (d->db_type == DB_DEADIPLOT) {
             if (isatty(fileno(cp_out))) {
                 fprintf(cp_out, "%-4d exiting iplot %s", d->db_number,
                         d->db_nodename1);

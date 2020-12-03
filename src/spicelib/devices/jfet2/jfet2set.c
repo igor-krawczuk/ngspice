@@ -28,7 +28,7 @@ JFET2setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CKTnode *tmp;
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->JFET2nextModel ) {
+    for( ; model != NULL; model = JFET2nextModel(model)) {
 
         if( (model->JFET2type != NJF) && (model->JFET2type != PJF) ) {
             model->JFET2type = NJF;
@@ -38,8 +38,8 @@ JFET2setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
 #include "jfet2parm.h"
 
         /* loop through all the instances of the model */
-        for (here = model->JFET2instances; here != NULL ;
-                here=here->JFET2nextInstance) {
+        for (here = JFET2instances(model); here != NULL ;
+                here=JFET2nextInstance(here)) {
             
             if(!here->JFET2areaGiven) {
                 here->JFET2area = 1;
@@ -50,7 +50,7 @@ JFET2setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
             }
 
             here->JFET2state = *states;
-            *states += JFET2_STATE_COUNT + 1;
+            *states += JFET2numStates;
 
             if(model->JFET2rs != 0) {
                 if(here->JFET2sourcePrimeNode == 0) {
@@ -130,23 +130,20 @@ JFET2unsetup(GENmodel *inModel, CKTcircuit *ckt)
     JFET2instance *here;
 
     for (model = (JFET2model *)inModel; model != NULL;
-	    model = model->JFET2nextModel)
+	    model = JFET2nextModel(model))
     {
-        for (here = model->JFET2instances; here != NULL;
-                here=here->JFET2nextInstance)
+        for (here = JFET2instances(model); here != NULL;
+                here=JFET2nextInstance(here))
 	{
-	    if (here->JFET2sourcePrimeNode
-		    && here->JFET2sourcePrimeNode != here->JFET2sourceNode)
-	    {
-		CKTdltNNum(ckt, here->JFET2sourcePrimeNode);
-		here->JFET2sourcePrimeNode = 0;
-	    }
-	    if (here->JFET2drainPrimeNode
+	    if (here->JFET2drainPrimeNode > 0
 		    && here->JFET2drainPrimeNode != here->JFET2drainNode)
-	    {
 		CKTdltNNum(ckt, here->JFET2drainPrimeNode);
-		here->JFET2drainPrimeNode = 0;
-	    }
+            here->JFET2drainPrimeNode = 0;
+
+	    if (here->JFET2sourcePrimeNode > 0
+		    && here->JFET2sourcePrimeNode != here->JFET2sourceNode)
+		CKTdltNNum(ckt, here->JFET2sourcePrimeNode);
+            here->JFET2sourcePrimeNode = 0;
 	}
     }
     return OK;

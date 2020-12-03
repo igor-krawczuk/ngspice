@@ -21,7 +21,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
   LTRAinstance *here;
   double t1=0.0, t2=0.0, t3=0.0;
   double qf1=0.0, qf2=0.0, qf3=0.0;
-  double lf2, lf3;
+  double lf2=0.0, lf3=0.0;
   double v1d = 0.0, v2d = 0.0, i1d = 0.0, i2d = 0.0;
   double dummy1=0.0, dummy2=0.0;
   int isaved = 0;
@@ -30,7 +30,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
   double max = 0.0, min = 0.0;
 
   /* loop through all the transmission line models */
-  for (; model != NULL; model = model->LTRAnextModel) {
+  for (; model != NULL; model = LTRAnextModel(model)) {
 
     if (ckt->CKTmode & MODEDC) {
       switch (model->LTRAspecialCase) {
@@ -90,6 +90,8 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 	  break;
 	}
 
+    /* FALLTHROUGH added to suppress GCC warning due to
+     * -Wimplicit-fallthrough flag */
 	switch (model->LTRAspecialCase) {
 	case LTRA_MOD_RLC:
 	  /*
@@ -122,6 +124,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 	      model->LTRAtd, model->LTRAalpha, model->LTRAbeta,
 	      ckt->CKTtime, ckt->CKTtimePoints, ckt->CKTtimeIndex,
 	      model->LTRAchopReltol, &(model->LTRAauxIndex));
+          /* FALLTHROUGH */
 
 
 	case LTRA_MOD_LC:
@@ -145,7 +148,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 	      i--;
 
 /*#ifdef LTRADEBUG*/
-	    if ((i == -1)) {
+	    if (i == -1) {
 #ifdef LTRADEBUG
 	      printf("LTRAload: mistake: cannot find delayed timepoint\n");
 		  return E_INTERN;
@@ -219,8 +222,8 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
       }
     }
     /* loop through all the instances of the model */
-    for (here = model->LTRAinstances; here != NULL;
-	here = here->LTRAnextInstance) {
+    for (here = LTRAinstances(model); here != NULL;
+         here = LTRAnextInstance(here)) {
 
       if ((ckt->CKTmode & MODEDC) ||
 	  (model->LTRAspecialCase == LTRA_MOD_RG)) {
@@ -308,6 +311,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 	  *(here->LTRAibr2Pos2Ptr) += dummy1;
 	  *(here->LTRAibr2Neg2Ptr) -= dummy1;
 	  /* end loading for convolution parts' first terms */
+      /* FALLTHROUGH */
 
 	case LTRA_MOD_LC:
 	  /*
@@ -591,6 +595,8 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 	    return (E_BADPARM);
 	  }
 
+    /* FALLTHROUGH added to suppress GCC warning due to
+     * -Wimplicit-fallthrough flag */
 	  switch (model->LTRAspecialCase) {
 	  case LTRA_MOD_RLC:
 
@@ -701,6 +707,7 @@ LTRAload(GENmodel *inModel, CKTcircuit *ckt)
 
 	    /* end convolution of h3dash with v2 and v1 */
 
+        /* FALLTHROUGH */
 	  case LTRA_MOD_LC:
 	    /* begin lossless-like parts */
 

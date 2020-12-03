@@ -9,6 +9,7 @@ Modified: 2000 AlansFixes
 #include "ngspice/sperror.h"
 #include "ngspice/trandefs.h"
 #include "ngspice/cpextern.h"
+#include "ngspice/fteext.h"
 
 #include "analysis.h"
 
@@ -52,6 +53,7 @@ CKTdoJob(CKTcircuit *ckt, int reset, TSKtask *task)
     ckt->CKTnomTemp  = task->TSKnomTemp;
     ckt->CKTmaxOrder  = task->TSKmaxOrder;
     ckt->CKTintegrateMethod  = task->TSKintegrateMethod;
+    ckt->CKTindverbosity  = task->TSKindverbosity;
     ckt->CKTxmu  = task->TSKxmu;
     ckt->CKTbypass  = task->TSKbypass;
     ckt->CKTdcMaxIter  = task->TSKdcMaxIter;
@@ -77,7 +79,7 @@ CKTdoJob(CKTcircuit *ckt, int reset, TSKtask *task)
    may be overridden by 'set xtrtol=newval' */
     if (ckt->CKTadevFlag  &&  (ckt->CKTtrtol > 1)) {
       int newtol;
-      if (cp_getvar("xtrtol", CP_NUM, &newtol)) {
+      if (cp_getvar("xtrtol", CP_NUM, &newtol, 0)) {
         printf("Override trtol to %d for xspice 'A' devices\n", newtol);
         ckt->CKTtrtol  = newtol;
       }
@@ -104,6 +106,7 @@ CKTdoJob(CKTcircuit *ckt, int reset, TSKtask *task)
     ckt->CKTtroubleNode  = 0;
     ckt->CKTtroubleElt  = NULL;
     ckt->CKTnoopac = task->TSKnoopac && ckt->CKTisLinear;
+    ckt->CKTepsmin = task->TSKepsmin;
 #ifdef NEWTRUNC
     ckt->CKTlteReltol = task->TSKlteReltol;
     ckt->CKTlteAbstol = task->TSKlteAbstol;
@@ -111,6 +114,11 @@ CKTdoJob(CKTcircuit *ckt, int reset, TSKtask *task)
 
     fprintf(stdout, "Doing analysis at TEMP = %f and TNOM = %f\n\n", 
     ckt->CKTtemp - CONSTCtoK, ckt->CKTnomTemp - CONSTCtoK);
+
+    /* call altermod and alter on device and model parameters assembled in
+       devtlist and modtlist (if using temper) because we have a new temperature */
+    inp_evaluate_temper(ft_curckt);
+
     error = 0;
 
     if (reset) {

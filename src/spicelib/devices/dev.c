@@ -42,20 +42,23 @@
 #include <string.h> /* for strcpy, strcat*/
 #if (!defined HAS_WINGUI) && (!defined __MINGW32__) && (!defined _MSC_VER)
 #include <dlfcn.h> /* to load libraries*/
-typedef void *  funptr_t;
+typedef void * funptr_t;
+#define FREE_DLERR_MSG(msg)
 #else /* ifdef HAS_WINGUI */
 #undef BOOLEAN
 #include <windows.h>
 typedef FARPROC funptr_t;
-void *dlopen (const char *, int);
-funptr_t dlsym (void *, const char *);
-int dlclose (void *);
-char *dlerror (void);
-#define RTLD_LAZY	1	/* lazy function call binding */
-#define RTLD_NOW	2	/* immediate function call binding */
-#define RTLD_GLOBAL	4	/* symbols in this dlopen'ed obj are visible to other dlopen'ed objs */
-static char errstr[128];
+void *dlopen(const char *, int);
+funptr_t dlsym(void *, const char *);
+char *dlerror(void);
+#define FREE_DLERR_MSG(msg) free_dlerr_msg(msg)
+static void free_dlerr_msg(char *msg);
+#define RTLD_LAZY   1 /* lazy function call binding */
+#define RTLD_NOW    2 /* immediate function call binding */
+#define RTLD_GLOBAL 4 /* symbols in this dlopen'ed obj are visible to other
+                       * dlopen'ed objs */
 #endif /* ifndef HAS_WINGUI */
+
 #include "ngspice/dllitf.h" /* the coreInfo Structure*/
 #include "ngspice/evtudn.h" /*Use defined nodes */
 
@@ -66,7 +69,8 @@ int g_evt_num_udn_types = 0;
 extern Evt_Udn_Info_t idn_digital_info;
 int add_device(int n, SPICEdev **devs, int flag);
 int add_udn(int,Evt_Udn_Info_t **);
-/*saj*/
+
+extern struct coreInfo_t  coreInfo; /* cmexport.c */
 #endif
 
 
@@ -119,6 +123,7 @@ int add_udn(int,Evt_Udn_Info_t **);
 #include "vccs/vccsitf.h"
 #include "vcvs/vcvsitf.h"
 #include "vsrc/vsrcitf.h"
+#include "vdmos/vdmositf.h"
 #ifdef ADMS
 #include "adms/hicum0/hicum0itf.h"
 #include "adms/hicum2/hicum2itf.h"
@@ -190,6 +195,7 @@ static SPICEdev *(*static_devices[])(void) = {
     get_vccs_info,
     get_vcvs_info,
     get_vsrc_info,
+    get_vdmos_info,
 
 #ifdef CIDER
     get_nbjt_info,
@@ -242,6 +248,7 @@ spice_destroy_devices(void)
     tfree(DEVicesfl);
 #endif
     tfree(DEVices);
+    DEVNUM = 0;
 }
 
 
@@ -249,9 +256,11 @@ void
 spice_init_devices(void)
 {
     int i;
+    /* Safeguard against double initialization */
+    DEVNUM = NUMELEMS(static_devices);
 
 #ifdef XSPICE
-    /*Initilise the structs and add digital node type */
+    /* Initialize the structs and add digital node type */
     g_evt_udn_info = TMALLOC(Evt_Udn_Info_t  *, 1);
     g_evt_num_udn_types = 1;
     g_evt_udn_info[0] =  &idn_digital_info;
@@ -364,16 +373,17 @@ static void relink(void) {
 
 int add_device(int n, SPICEdev **devs, int flag){
   int i;
-  DEVices = TREALLOC(SPICEdev *, DEVices, DEVNUM + n);
-  DEVicesfl = TREALLOC(int, DEVicesfl, DEVNUM + n);
+  int dnum = DEVNUM + n;
+  DEVices = TREALLOC(SPICEdev *, DEVices, dnum);
+  DEVicesfl = TREALLOC(int, DEVicesfl, dnum);
   for(i = 0; i < n;i++){
 #ifdef TRACE
       printf("Added device: %s\n",devs[i]->DEVpublic.name);
 #endif
     DEVices[DEVNUM+i] = devs[i];
 
-    /* added by SDB on 6.20.2003 */
     DEVices[DEVNUM+i]->DEVinstSize = &MIFiSize;
+    DEVices[DEVNUM+i]->DEVmodSize = &MIFmSize;
 
     DEVicesfl[DEVNUM+i] = flag;
   }
@@ -384,7 +394,8 @@ int add_device(int n, SPICEdev **devs, int flag){
 
 int add_udn(int n,Evt_Udn_Info_t **udns){
   int i;
-  g_evt_udn_info = TREALLOC(Evt_Udn_Info_t  *, g_evt_udn_info, g_evt_num_udn_types + n);
+  int utypes = g_evt_num_udn_types + n;
+  g_evt_udn_info = TREALLOC(Evt_Udn_Info_t  *, g_evt_udn_info, utypes);
   for(i = 0; i < n;i++){
 #ifdef TRACE
       printf("Added udn: %s\n",udns[i]->name);
@@ -395,115 +406,155 @@ int add_udn(int n,Evt_Udn_Info_t **udns){
   return 0;
 }
 
-extern struct coreInfo_t  coreInfo;
 
-int load_opus(char *name){
-  void *lib;
-  const char *msg;
-  int *num=NULL;
-  struct coreInfo_t **core;
-  SPICEdev **devs;
-  Evt_Udn_Info_t  **udns;
-  funptr_t fetch;
+int load_opus(const char *name)
+{
+    void *lib;
+    char *msg;
+    int num;
+    SPICEdev **devs;
+    Evt_Udn_Info_t **udns;
+    funptr_t fetch;
 
-  lib = dlopen(name,RTLD_NOW);
-  if(!lib){
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
-  
-  fetch = dlsym(lib,"CMdevNum");
-  if(fetch){
-    num = ((int * (*)(void)) fetch) ();
+    lib = dlopen(name, RTLD_NOW);
+    if (!lib) {
+        msg = dlerror();
+        printf("Error opening code model \"%s\": %s\n", name, msg);
+        FREE_DLERR_MSG(msg);
+        return 1;
+    }
+
+
+    /* Get code models defined by the library */
+    if ((fetch = dlsym(lib, "CMdevNum")) != (funptr_t) NULL) {
+        num = *(*(int * (*)(void)) fetch)();
+        fetch = dlsym(lib, "CMdevs");
+        if (fetch != (funptr_t) NULL) {
+            devs = (*(SPICEdev ** (*)(void)) fetch)();
+        }
+        else {
+            msg = dlerror();
+            printf("Error getting the list of devices: %s\n",
+                    msg);
+            FREE_DLERR_MSG(msg);
+            return 1;
+        }
+    }
+    else {
+        msg = dlerror();
+        printf("Error finding the number of devices: %s\n", msg);
+        FREE_DLERR_MSG(msg);
+        return 1;
+    }
+
+    add_device(num, devs, 1);
+
 #ifdef TRACE
-    printf("Got %u devices.\n",*num);
+        printf("Got %u devices.\n", num);
 #endif
-  }else{
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
 
-  fetch = dlsym(lib,"CMdevs");
-  if(fetch){
-    devs = ((SPICEdev ** (*)(void)) fetch) ();
-  }else{
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
 
-  fetch = dlsym(lib,"CMgetCoreItfPtr");
-  if(fetch){
-    core = ((struct coreInfo_t ** (*)(void)) fetch) ();
-    *core = &coreInfo;
-  }else{
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
-  add_device(*num,devs,1);
+    /* Get user-defined ndes defined by the library */
+    if ((fetch = dlsym(lib, "CMudnNum")) != (funptr_t) NULL) {
+        num = *(*(int * (*)(void)) fetch)();
+        fetch = dlsym(lib, "CMudns");
+        if (fetch != (funptr_t) NULL) {
+            udns = (*(Evt_Udn_Info_t ** (*)(void)) fetch)();
+        }
+        else {
+            msg = dlerror();
+            printf("Error getting the list of user-defined types: %s\n",
+                    msg);
+            FREE_DLERR_MSG(msg);
+            return 1;
+        }
+    }
+    else {
+        msg = dlerror();
+        printf("Error finding the number of user-defined types: %s\n", msg);
+        FREE_DLERR_MSG(msg);
+        return 1;
+    }
 
-  fetch = dlsym(lib,"CMudnNum");
-  if(fetch){
-    num = ((int * (*)(void)) fetch) ();
+    add_udn(num, udns);
 #ifdef TRACE
-    printf("Got %u udns.\n",*num);
+    printf("Got %u udns.\n", num);
 #endif
-  }else{
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
 
-  fetch = dlsym(lib,"CMudns");
-  if(fetch){
-    udns = ((Evt_Udn_Info_t  ** (*)(void)) fetch) ();
-  }else{
-    msg = dlerror();
-    printf("%s\n", msg);
-    return 1;
-  }
+    /* Give the code model access to facilities provided by ngspice. */
+    if ((fetch = dlsym(lib,"CMgetCoreItfPtr")) != (funptr_t) NULL) {
+        const struct coreInfo_t ** const core =
+                (const struct coreInfo_t **const)
+                (*(struct coreInfo_t ** (*)(void)) fetch)();
+        *core = &coreInfo;
+    }
+    else {
+        msg = dlerror();
+        printf("Error getting interface pointer: %s\n", msg);
+        FREE_DLERR_MSG(msg);
+        return 1;
+    }
 
-  add_udn(*num,udns);
+    return 0;
+} /* end of function load_opus */
 
-  return 0;
-}
+
 
 #if defined(__MINGW32__) || defined(HAS_WINGUI) || defined(_MSC_VER)
 
-void *dlopen(const char *name,int type)
+/* For reporting error message if formatting fails */
+static const char errstr_fmt[] =
+        "Unable to find message in dlerr(). System code = %lu";
+static char errstr[sizeof errstr_fmt - 3 + 3 * sizeof(unsigned long)];
+
+/* Emulations of POSIX dlopen(), dlsym(), and dlerror(). */
+void *dlopen(const char *name, int type)
 {
-	NG_IGNORE(type);
-	return LoadLibrary(name);
+    NG_IGNORE(type);
+    return LoadLibrary(name);
 }
 
 funptr_t dlsym(void *hDll, const char *funcname)
 {
-	return GetProcAddress(hDll, funcname);
+    return GetProcAddress(hDll, funcname);
 }
 
 char *dlerror(void)
 {
-	LPVOID lpMsgBuf;
+    LPVOID lpMsgBuf;
 
-	FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		GetLastError(),
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR) &lpMsgBuf,
-		0,
-		NULL
-	);
-	strcpy(errstr,lpMsgBuf);
-	LocalFree(lpMsgBuf);
-	return errstr;
-}
-#endif
+    DWORD rc = FormatMessage(
+            FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
+            NULL,
+            GetLastError(),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPTSTR) &lpMsgBuf,
+            0,
+            NULL
+            );
 
+    if (rc == 0) { /* FormatMessage failed */
+        (void) sprintf(errstr, errstr_fmt, (unsigned long) GetLastError());
+        return errstr;
+    }
+
+    return lpMsgBuf; /* Return the formatted message */
+} /* end of function dlerror */
+
+
+
+/* Free message related to dynamic loading */
+static void free_dlerr_msg(char *msg)
+{
+    if (msg != errstr) { /* msg is an allocation */
+        LocalFree(msg);
+    }
+} /* end of function free_dlerr_msg */
+
+
+
+#endif /* Windows emulation of dlopen, dlsym, and dlerr */
 #endif
 /*--------------------   end of XSPICE additions  ----------------------*/

@@ -76,9 +76,9 @@ com_fft(wordlist *wl)
 
     win = TMALLOC(double, length);
     maxt = time[length-1];
-    if (!cp_getvar("specwindow", CP_STRING, window))
+    if (!cp_getvar("specwindow", CP_STRING, window, sizeof(window)))
         strcpy(window, "hanning");
-    if (!cp_getvar("specwindoworder", CP_NUM, &order))
+    if (!cp_getvar("specwindoworder", CP_NUM, &order, 0))
         order = 2;
     if (order < 2)
         order = 2;
@@ -160,26 +160,36 @@ com_fft(wordlist *wl)
     printf("FFT: Time span: %g s, input length: %d\n", span, length);
     printf("FFT: Frequency resolution: %g Hz, output length: %d\n", 1.0/span, fpts);
 
+    in = fftw_malloc(sizeof(double) * (unsigned int) length);
+    out = fftw_malloc(sizeof(fftw_complex) * (unsigned int) fpts);
+
+    for (j = 0; j < length; j++)
+        in[j] = tdvec[0][j]*win[j];
+
+    /* data have same type and length - so we need only one plan */
+    plan_forward = fftw_plan_dft_r2c_1d(length, in, out, FFTW_ESTIMATE); 
+
     for (i = 0; i<ngood; i++) {
 
-        in = fftw_malloc(sizeof(double) * (unsigned int) length);
-        out = fftw_malloc(sizeof(fftw_complex) * (unsigned int) fpts);
-
-        for (j = 0; j < length; j++)
-            in[j] = tdvec[i][j]*win[j];
-
-        plan_forward = fftw_plan_dft_r2c_1d(length, in, out, FFTW_ESTIMATE);
+        if (i > 0) {
+            for (j = 0; j < length; j++)
+                in[j] = tdvec[i][j]*win[j];
+        }
 
         fftw_execute(plan_forward);
 
-        scale = (double) length;
+        scale = (double) fpts - 1.0;
         for (j = 0; j < fpts; j++) {
             fdvec[i][j].cx_real = out[j][0]/scale;
             fdvec[i][j].cx_imag = out[j][1]/scale;
         }
 
-        fftw_free(in);
-        fftw_free(out);
+    }
+
+    fftw_destroy_plan(plan_forward);
+
+    fftw_free(in);
+    fftw_free(out);
 
 #else /* Green's FFT */
 
@@ -200,7 +210,7 @@ com_fft(wordlist *wl)
         rffts(in, M, 1);
         fftFree();
 
-        scale = (double) N;
+        scale = (double) fpts - 1.0;
         /* Re(x[0]), Re(x[N/2]), Re(x[1]), Im(x[1]), Re(x[2]), Im(x[2]), ... Re(x[N/2-1]), Im(x[N/2-1]). */
         fdvec[i][0].cx_real = in[0]/scale;
         fdvec[i][0].cx_imag = 0.0;
@@ -213,14 +223,11 @@ com_fft(wordlist *wl)
 
         tfree(in);
 
-#endif
-
     }
 
-done:
-#ifdef HAVE_LIBFFTW3
-    fftw_destroy_plan(plan_forward);
 #endif
+
+done:
     tfree(tdvec);
     tfree(fdvec);
     tfree(win);
@@ -234,7 +241,7 @@ com_psd(wordlist *wl)
 {
     ngcomplex_t **fdvec = NULL;
     double  **tdvec = NULL;
-    double  *freq, *win = NULL, *time, *ave;
+    double  *freq, *win = NULL, *time;
     double  span, noipower;
     int ngood, fpts, i, j, jj, length, smooth, hsmooth;
     char    *s;
@@ -252,7 +259,7 @@ com_psd(wordlist *wl)
 #endif
 
     double *reald = NULL;
-    double scaling, sum;
+    double sum;
     int order;
 
     if (!plot_cur || !plot_cur->pl_scale) {
@@ -271,12 +278,15 @@ com_psd(wordlist *wl)
 
     // get filter length from parameter input
     s = wl->wl_word;
-    ave = ft_numparse(&s, FALSE);
-    if (!ave || (*ave < 1.0)) {
-        fprintf(cp_out, "Number of averaged data points:  %d\n", 1);
-        smooth = 1;
-    } else {
-        smooth = (int)(*ave);
+    {
+        double val;
+        if (ft_numparse(&s, FALSE, &val) <= 0 || val < 1.0) {
+            fprintf(cp_out, "Number of averaged data points:  1\n");
+            smooth = 1;
+        }
+        else {
+            smooth = (int) val;
+        }
     }
 
     wl = wl->wl_next;
@@ -296,9 +306,9 @@ com_psd(wordlist *wl)
 
     win = TMALLOC(double, length);
     maxt = time[length-1];
-    if (!cp_getvar("specwindow", CP_STRING, window))
+    if (!cp_getvar("specwindow", CP_STRING, window, sizeof(window)))
         strcpy(window, "hanning");
-    if (!cp_getvar("specwindoworder", CP_NUM, &order))
+    if (!cp_getvar("specwindoworder", CP_NUM, &order, 0))
         order = 2;
     if (order < 2)
         order = 2;
@@ -355,11 +365,10 @@ com_psd(wordlist *wl)
     vec_new(f);
     freq = f->v_realdata;
 
+    for (i = 0; i < fpts; i++)
 #ifdef HAVE_LIBFFTW3
-    for (i = 0; i <= fpts; i++)
         freq[i] = i*1./span;
 #else
-    for (i = 0; i <= fpts; i++)
         freq[i] = i*1./span*length/N;
 #endif
 
@@ -386,30 +395,39 @@ com_psd(wordlist *wl)
     in = fftw_malloc(sizeof(double) * (unsigned int) length);
     out = fftw_malloc(sizeof(fftw_complex) * (unsigned int) fpts);
 
+    for (j = 0; j < length; j++)
+        in[j] = tdvec[0][j]*win[j];
+
+    /* data have same type and length - so we need only one plan */
+    plan_forward = fftw_plan_dft_r2c_1d(length, in, out, FFTW_ESTIMATE);
+
     for (i = 0; i<ngood; i++) {
 
-        for (j = 0; j < length; j++)
-            in[j] = tdvec[i][j]*win[j];
-
-        plan_forward = fftw_plan_dft_r2c_1d(length, in, out, FFTW_ESTIMATE);
+        if (i > 0) {
+            for (j = 0; j < length; j++)
+                in[j] = tdvec[i][j]*win[j];
+        }
 
         fftw_execute(plan_forward);
 
-        scaling = (double) length;
-
         intres = (double)length * (double)length;
-        noipower = 0.0;
-        for (j = 0; j < fpts; j++) {
+        fdvec[i][0].cx_real = out[0][0]*out[0][0]/intres;
+        fdvec[i][0].cx_imag = 0;
+        noipower = fdvec[i][0].cx_real;
+        for (j = 1; j < fpts-1; j++) {
             fdvec[i][j].cx_real = 2.* (out[j][0]*out[j][0] + out[j][1]*out[j][1])/intres;
             fdvec[i][j].cx_imag = 0;
             noipower += fdvec[i][j].cx_real;
             if (!finite(noipower))
                 break;
         }
+        fdvec[i][fpts-1].cx_real = out[fpts-1][0]*out[fpts-1][0]/intres;
+        fdvec[i][fpts-1].cx_imag = 0;
+        noipower += fdvec[i][fpts-1].cx_real;
 
 #else /* Green's FFT */
 
-    printf("PSD: Time span: %g s, input length: %d, zero padding: %d\n", span, N, N-length);
+    printf("PSD: Time span: %g s, input length: %d, zero padding: %d\n", span, length, N-length);
     printf("PSD: Frequency resolution: %g Hz, output length: %d\n", 1.0/span, fpts);
 
     reald = TMALLOC(double, N);
@@ -426,8 +444,6 @@ com_psd(wordlist *wl)
         fftInit(M);
         rffts(reald, M, 1);
         fftFree();
-
-        scaling = (double) N;
 
         /* Re(x[0]), Re(x[N/2]), Re(x[1]), Im(x[1]), Re(x[2]), Im(x[2]), ... Re(x[N/2-1]), Im(x[N/2-1]). */
         intres = (double)N * (double)N;
@@ -448,51 +464,48 @@ com_psd(wordlist *wl)
 
 #endif
 
-        printf("Total noise power up to Nyquist frequency %5.3e Hz:\n%e V^2 (or A^2), \nnoise voltage or current %e V (or A)\n",
-               freq[fpts], noipower, sqrt(noipower));
+        printf("Total noise power up to Nyquist frequency %5.3e Hz: %e V^2 (or A^2), \nNoise voltage or current: %e V (or A)\n",
+               freq[fpts-1], noipower, sqrt(noipower));
 
         /* smoothing with rectangular window of width "smooth",
-           plotting V/sqrt(Hz) or I/sqrt(Hz) */
-        if (smooth < 1)
-            continue;
-
+           plotting V^2/Hz or I^2/Hz */
         hsmooth = smooth>>1;
         for (j = 0; j < hsmooth; j++) {
             sum = 0.;
             for (jj = 0; jj < hsmooth + j; jj++)
                 sum += fdvec[i][jj].cx_real;
-            sum /= (hsmooth + j);
-            reald[j] = (sqrt(sum)/scaling);
+            sum /= (double) (hsmooth + j);
+            reald[j] = sum;
         }
         for (j = hsmooth; j < fpts-hsmooth; j++) {
             sum = 0.;
             for (jj = 0; jj < smooth; jj++)
                 sum += fdvec[i][j-hsmooth+jj].cx_real;
-            sum /= smooth;
-            reald[j] = (sqrt(sum)/scaling);
+            sum /= (double) smooth;
+            reald[j] = sum;
         }
         for (j = fpts-hsmooth; j < fpts; j++) {
             sum = 0.;
-            for (jj = 0; jj < smooth; jj++)
-                sum += fdvec[i][j-hsmooth+jj].cx_real;
-            sum /= (fpts - j + hsmooth - 1);
-            reald[j] = (sqrt(sum)/scaling);
+            for (jj = 0; jj < fpts+hsmooth-j-1; jj++)
+                sum += fdvec[i][j-hsmooth+jj+1].cx_real;
+            sum /= (double) (fpts+hsmooth-j-1);
+            reald[j] = sum;
         }
         for (j = 0; j < fpts; j++)
-            fdvec[i][j].cx_real = reald[j];
+            fdvec[i][j].cx_real = reald[j] * (double)fpts / freq[fpts - 1];
     }
 
-done:
 #ifdef HAVE_LIBFFTW3
+    fftw_destroy_plan(plan_forward);
     fftw_free(in);
     fftw_free(out);
-    fftw_destroy_plan(plan_forward);
 #endif
+done:
     tfree(tdvec);
     tfree(fdvec);
     tfree(win);
 
-    free(reald);
+    tfree(reald);
 
     free_pnode(names);
 }

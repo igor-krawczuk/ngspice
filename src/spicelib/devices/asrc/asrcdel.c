@@ -6,29 +6,18 @@ Author: 1987 Kanwar Jit Singh
 #include "ngspice/ngspice.h"
 #include "asrcdefs.h"
 #include "ngspice/sperror.h"
+#include "ngspice/inpdefs.h"
 #include "ngspice/suffix.h"
 
 
 int
-ASRCdelete(GENmodel *model, IFuid name, GENinstance **fast)
+ASRCdelete(GENinstance *gen_inst)
 {
-    ASRCinstance **instPtr = (ASRCinstance**) fast;
-    ASRCmodel *modPtr = (ASRCmodel*) model;
+    ASRCinstance *inst = (ASRCinstance *) gen_inst;
 
-    ASRCinstance **prev = NULL;
-    ASRCinstance *here;
-
-    for (; modPtr ; modPtr = modPtr->ASRCnextModel) {
-        prev = &(modPtr->ASRCinstances);
-        for (here = *prev; here ; here = *prev) {
-            if (here->ASRCname == name || (instPtr && here == *instPtr)) {
-                *prev = here->ASRCnextInstance;
-                FREE(here);
-                return(OK);
-            }
-            prev = &(here->ASRCnextInstance);
-        }
-    }
-
-    return(E_NODEV);
+    INPfreeTree(inst->ASRCtree);
+    FREE(inst->ASRCacValues);
+    FREE(inst->ASRCposPtr);
+    FREE(inst->ASRCvars);
+    return OK;
 }

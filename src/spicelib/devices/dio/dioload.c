@@ -45,7 +45,8 @@ DIOload(GENmodel *inModel, CKTcircuit *ckt)
     double delvd;   /* change in diode voltage temporary */
     double evd;
     double evrev;
-    double gd, gdb, gdsw;
+    double gd, gdb, gdsw, gen_fac, gen_fac_vd;
+    double t1, evd_rec, cdb_rec, gdb_rec;
     double geq;
     double gspr;    /* area-scaled conductance */
     double sarg;
@@ -57,17 +58,17 @@ DIOload(GENmodel *inModel, CKTcircuit *ckt)
     double vt;      /* K t / Q */
     double vte, vtesw, vtetun;
     double vtebrk;
-    int Check;
+    int Check = 0;
     int error;
     int SenCond=0;    /* sensitivity condition */
     double diffcharge, diffchargeSW, deplcharge, deplchargeSW, diffcap, diffcapSW, deplcap, deplcapSW;
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->DIOnextModel ) {
+    for( ; model != NULL; model = DIOnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->DIOinstances; here != NULL ;
-                here=here->DIOnextInstance) {
+        for (here = DIOinstances(model); here != NULL ;
+                here=DIOnextInstance(here)) {
 
             /*
              *     this routine loads diodes for dc and transient analyses.
@@ -234,6 +235,18 @@ next1:      if (model->DIOsatSWCurGiven) {              /* sidewall current */
                 evd = exp(vd/vte);
                 cdb = csat*(evd-1);
                 gdb = csat*evd/vte;
+                if (model->DIOrecSatCurGiven) { /* recombination current */
+                    evd_rec = exp(vd/(model->DIOrecEmissionCoeff*vt));
+                    cdb_rec = here->DIOtRecSatCur*(evd_rec-1);
+                    gdb_rec = here->DIOtRecSatCur*evd_rec/vt;
+                    t1 = pow((1-vd/here->DIOtJctPot), 2) + 0.005;
+                    gen_fac = pow(t1, here->DIOtGradingCoeff/2);
+                    gen_fac_vd = here->DIOtGradingCoeff * (1-vd/here->DIOtJctPot) * pow(t1, (here->DIOtGradingCoeff/2-1));
+                    cdb_rec = cdb_rec * gen_fac;
+                    gdb_rec = gdb_rec * gen_fac + cdb_rec * gen_fac_vd;
+                    cdb = cdb + cdb_rec;
+                    gdb = gdb + gdb_rec;
+                }
 
             } else if((!(model->DIObreakdownVoltageGiven)) ||
                     vd >= -here->DIOtBrkdwnV) { /* reverse */
@@ -300,7 +313,7 @@ next1:      if (model->DIOsatSWCurGiven) {              /* sidewall current */
 
             }
 
-            if ((ckt->CKTmode & (MODETRAN | MODEAC | MODEINITSMSIG)) ||
+            if ((ckt->CKTmode & (MODEDCTRANCURVE | MODETRAN | MODEAC | MODEINITSMSIG)) ||
                      ((ckt->CKTmode & MODETRANOP) && (ckt->CKTmode & MODEUIC))) {
               /*
                *   charge storage elements

@@ -33,25 +33,26 @@ static void if_set_binned_model(CKTcircuit *, char *, char *, struct dvec *);
 
 
 /*
- *      devhelp: lists available devices and information on parameters
- *              devhelp                 : shows all available devices
- *              devhelp devname         : shows all parameters of that model/instance
- *              devhelp devname parname : shows parameter meaning
- *              Options: -csv (comma separated value for generating docs)
- *
+ * devhelp: lists available devices and information on parameters
+ *   devhelp                 : shows all available devices
+ *   devhelp devname         : shows all parameters of that model/instance
+ *   devhelp devname parname : shows parameter meaning
+ *   Options: -csv (comma separated value for generating docs)
  */
 
-void com_devhelp(wordlist *wl)
+void
+com_devhelp(wordlist *wl)
 {
     /* Just a simple driver now */
     devhelp(wl);
 }
 
 
-void devhelp(wordlist *wl)
+void
+devhelp(wordlist *wl)
 {
     int i, k = 0;
-    int devindex = -1, devInstParNo = 0 , devModParNo = 0;
+    int devindex = -1, devInstParNo = 0, devModParNo = 0;
     bool found = FALSE;
     bool csv = FALSE;
     wordlist *wlist;
@@ -185,6 +186,7 @@ void devhelp(wordlist *wl)
  * Pretty print parameter descriptions
  * This function prints description of device parameters
  */
+
 void
 printdesc(IFparm p, bool csv)
 {
@@ -220,21 +222,20 @@ printdesc(IFparm p, bool csv)
 
 
 /*
- *      show: list device operating point info
- *              show
- *              show devs : params
- *              show devs : params ; devs : params
- *              show dev dev dev : param param param , dev dev : param param
- *              show t : param param param, t : param param
- *
+ * show: list device operating point info
+ *   show
+ *   show devs : params
+ *   show devs : params ; devs : params
+ *   show dev dev dev : param param param , dev dev : param param
+ *   show t : param param param, t : param param
  */
 
-static  int     count;
+static int count;
 
 void
 com_showmod(wordlist *wl)
 {
-    if (cp_getvar("altshow", CP_BOOL, NULL))
+    if (cp_getvar("altshow", CP_BOOL, NULL, 0))
         all_show(wl, 1);
     else
         all_show_old(wl, 1);
@@ -244,7 +245,7 @@ com_showmod(wordlist *wl)
 void
 com_show(wordlist *wl)
 {
-    if (cp_getvar("altshow", CP_BOOL, NULL))
+    if (cp_getvar("altshow", CP_BOOL, NULL, 0))
         all_show(wl, 0);
     else
         all_show_old(wl, 0);
@@ -262,7 +263,7 @@ all_show(wordlist *wl, int mode)
     int         i, j, n;
     int         param_flag, dev_flag;
 
-    if (!ft_curckt) {
+    if (!ft_curckt || !ft_curckt->ci_ckt) {
         fprintf(cp_err, "Error: no circuit loaded\n");
         return;
     }
@@ -272,7 +273,7 @@ all_show(wordlist *wl, int mode)
         return;
     }
 
-    if (!cp_getvar("width", CP_NUM, &screen_width))
+    if (!cp_getvar("width", CP_NUM, &screen_width, 0))
         screen_width = DEF_WIDTH;
     count = (screen_width - LEFT_WIDTH) / (DEV_WIDTH + 1);
     count = 1;
@@ -292,7 +293,7 @@ all_show(wordlist *wl, int mode)
 
             if (eq(w->wl_word, "*")) {
                 tfree(w->wl_word);
-                w->wl_word = strdup("all");
+                w->wl_word = copy("all");
             }
 
             if (eq(w->wl_word, "++") || eq(w->wl_word, "all")) {
@@ -424,7 +425,7 @@ all_show_old(wordlist *wl, int mode)
     int         i, j, n;
     int         param_flag, dev_flag;
 
-    if (!ft_curckt) {
+    if (!ft_curckt || !ft_curckt->ci_ckt) {
         fprintf(cp_err, "Error: no circuit loaded\n");
         return;
     }
@@ -434,7 +435,7 @@ all_show_old(wordlist *wl, int mode)
         return;
     }
 
-    if (!cp_getvar("width", CP_NUM, &screen_width))
+    if (!cp_getvar("width", CP_NUM, &screen_width, 0))
         screen_width = DEF_WIDTH;
     count = (screen_width - LEFT_WIDTH) / (DEV_WIDTH + 1);
 
@@ -453,7 +454,7 @@ all_show_old(wordlist *wl, int mode)
 
             if (eq(w->wl_word, "*")) {
                 tfree(w->wl_word);
-                w->wl_word = strdup("all");
+                w->wl_word = copy("all");
             }
 
             if (eq(w->wl_word, "++") || eq(w->wl_word, "all")) {
@@ -642,16 +643,16 @@ param_forall(dgen *dg, int flags)
             && ((plist[i].dataType & IF_SET) || dg->ckt->CKTrhsOld)
             && (!(plist[i].dataType & IF_UNINTERESTING) || (flags == DGEN_ALLPARAMS)))
         {
-                j = 0;
-                do {
-                    fprintf(cp_out, "    %-19s=", plist[i].keyword);
+            j = 0;
+            do {
+                fprintf(cp_out, "    %-19s=", plist[i].keyword);
 
-                    k = dgen_for_n(dg, count, printvals, (plist + i), j);
-                    fprintf(cp_out, "\n");
-                    j += 1;
+                k = dgen_for_n(dg, count, printvals, (plist + i), j);
+                fprintf(cp_out, "\n");
+                j += 1;
 
-                } while (k);
-            }
+            } while (k);
+        }
 }
 
 
@@ -676,18 +677,18 @@ param_forall_old(dgen *dg, int flags)
             && ((plist[i].dataType & IF_SET) || dg->ckt->CKTrhsOld)
             && (!(plist[i].dataType & IF_UNINTERESTING) || (flags == DGEN_ALLPARAMS)))
         {
-                j = 0;
-                do {
-                    if (!j)
-                        fprintf(cp_out, "%*.*s", LEFT_WIDTH, LEFT_WIDTH,
-                                plist[i].keyword);
-                    else
-                        fprintf(cp_out, "%*.*s", LEFT_WIDTH, LEFT_WIDTH, " ");
-                    k = dgen_for_n(dg, count, printvals_old, (plist + i), j);
-                    fprintf(cp_out, "\n");
-                    j += 1;
-                } while (k);
-            }
+            j = 0;
+            do {
+                if (!j)
+                    fprintf(cp_out, "%*.*s", LEFT_WIDTH, LEFT_WIDTH,
+                            plist[i].keyword);
+                else
+                    fprintf(cp_out, "%*.*s", LEFT_WIDTH, LEFT_WIDTH, " ");
+                k = dgen_for_n(dg, count, printvals_old, (plist + i), j);
+                fprintf(cp_out, "\n");
+                j += 1;
+            } while (k);
+        }
 }
 
 
@@ -716,7 +717,7 @@ listparam(wordlist *p, dgen *dg)
 
     if (found) {
         if (dg->ckt->CKTrhsOld ||
-             (plist[i].dataType & IF_SET))
+            (plist[i].dataType & IF_SET))
         {
             j = 0;
             do {
@@ -957,7 +958,8 @@ printvals_old(dgen *dg, IFparm *p, int i)
 }
 
 
-/* (old "show" command)
+/*
+ * (old "show" command)
  * Display various device parameters.  The syntax of this command is
  *   show devicelist : parmlist
  * where devicelist can be "all", the name of a device, a string like r*,
@@ -1035,10 +1037,11 @@ old_show(wordlist *wl)
 }
 
 
-/* Alter a device parameter.  The new syntax here is
- *      alter @device[parameter] = expr
- *      alter device = expr
- *      alter device parameter = expr
+/*
+ * Alter a device parameter.  The new syntax here is
+ *   alter @device[parameter] = expr
+ *   alter device = expr
+ *   alter device parameter = expr
  * expr must be real (complex isn't handled right now, integer is fine though,
  * but no strings ... for booleans, use 0/1).
  */
@@ -1092,6 +1095,7 @@ if_set_binned_model(CKTcircuit *ckt, char *devname, char *param, struct dvec *va
         return;
     }
     w = v->va_V.vV_real;
+    free_struct_variable(v);
 
     v = if_getparam(ckt, &devname, "l", 0, 0);
     if (!v) {
@@ -1099,6 +1103,7 @@ if_set_binned_model(CKTcircuit *ckt, char *devname, char *param, struct dvec *va
         return;
     }
     l = v->va_V.vV_real;
+    free_struct_variable(v);
 
     if (param[0] == 'w')
         w = *val->v_realdata; /* overwrite the width with the alter param */
@@ -1115,16 +1120,13 @@ if_set_binned_model(CKTcircuit *ckt, char *devname, char *param, struct dvec *va
 static void
 com_alter_common(wordlist *wl, int do_model)
 {
-    wordlist *eqword = NULL, *words;
-    char *dev, *p;
-    char *param;
+    wordlist *wl_head = wl;
+    wordlist *eqword, *words;
+    char *dev, *param;
     struct dvec *dv;
     struct pnode *names;
 
-    /* DIE 2009_02_06 */
-    int step = 0, i, wlen, maxelem = 3;
-    wordlist *wl2 = NULL, *wlin, *rhs;
-    bool eqfound = FALSE;
+    int i;
 
     if (!ft_curckt) {
         fprintf(cp_err, "Error: no circuit loaded\n");
@@ -1132,69 +1134,42 @@ com_alter_common(wordlist *wl, int do_model)
     }
 
     /*
-      wordlist 'wl' will be splitted into a wordlist wl2 with three elements,
-      containing
-      1) '@dev[param]' string (i.e.: the substring before '=' char);
-      2) '=' string;
-      3) 'expression' string.
-
-      Spaces around the '=' sign have to be removed. This is provided
-      by inp_remove_excess_ws(). But take care if command is entered manually!
-
-      If the 'altermod' argument is 'altermod m1 vth0=0.7', 'm1' has to be kept as the
-      element in wl2 before splitting inserts the three new elements.
-      If 'expression' is a vector (e.g. [ 1.0 1.2 1.4 ] ), its elements
-      in wl2 have to follow the splitting. wl_splice() will take care of this.
-    */
-    wlin = wl;
-    while (wl) {
+     * when the assignment operator '=' is embedded in a wl_word
+     *  then split the word into several words
+     *
+     * Spaces around the '=' sign have to be removed. This is provided
+     * by inp_remove_excess_ws(). But take care if command is entered manually!
+     */
+    for (; wl; wl = wl->wl_next) {
         char *argument = wl->wl_word;
-        /* searching for '=' ... */
         char *eqptr = strchr(argument, '=');
-
-        /* argument may be '=', then do nothing
-           or =token
-           or token=
-           or token1=token2
-           ...and if found split argument into three chars and make a new wordlist */
         if (eqptr) {
-            /* We found '=' */
-            eqfound = TRUE;
-            if (strlen(argument) == 1) {
-                wl = wl->wl_next;
-                step = -1;
-                wl2 = wlin;
-            } else if (strlen(argument) > 1) {
-                wl2 = wl_cons(copy_substring(argument, eqptr),
-                              wl_cons(copy("="),
-                                      wl_cons(copy(eqptr + 1),
-                                              NULL)));
-                /* combine wordlists into wl2, free wl */
-                wl_splice(wl, wl2);
-                wl = NULL;
+            if (strlen(argument) > 1) {
+                wordlist *wn = NULL;
+                if (eqptr[1])
+                    wn = wl_cons(copy(eqptr + 1), wn);
+                wn = wl_cons(copy("="), wn);
+                if (eqptr > argument)
+                    wn = wl_cons(copy_substring(argument, eqptr), wn);
+                wl_splice(wl, wn);
+                if (wl_head == wl)
+                    wl_head = wn;
             }
-        } else {
-            /* deal with 'altermod m1 vth0=0.7' by moving
-               forward beyond 'm1' */
-            wl = wl->wl_next;
-            step++;
+            break;
         }
     }
 
-    if (eqfound) {
-        /* step back in the wordlist, if we have moved forward, to catch 'm1' */
-        for (i = step; i > 0; i--)
-            wl2 = wl2->wl_prev;
-    } else {
+    if (!wl) {
         /* no equal sign found, probably a pre3f4 input format
-           'alter device value'
-           'alter device parameter value'
-           are supported,
-           'alter device parameter value parameter value [ parameter value ]'
-           multiple param value pairs are not supported!
-        */
-        wl2 = wlin;
-        wlen = wl_length(wlin);
+         *   'alter device value'
+         *   'alter device parameter value'
+         * are supported,
+         *   'alter device parameter value parameter value [ parameter value ]'
+         * with multiple param value pairs are not supported!
+         */
+        wordlist *wlin = wl_head;
+        int wlen = wl_length(wlin);
+        int maxelem = 3;
         /* Return the last element of wlin */
         wlin = wl_nthelem(100, wlin); /* no more than 100 vector elements */
 
@@ -1202,9 +1177,8 @@ com_alter_common(wordlist *wl, int do_model)
             for (i = 0; i < 100; i++) { /* no more than 100 vector elements */
                 wlin = wlin->wl_prev;
                 maxelem++;
-                if (eq(wlin->wl_word, "[")) {
+                if (eq(wlin->wl_word, "["))
                     break;
-                }
                 if (wlin->wl_prev == NULL) {
                     fprintf(cp_err, "Error: '[' is missing.\n");
                     fprintf(cp_err, "Cannot alter parameters.\n");
@@ -1219,42 +1193,30 @@ com_alter_common(wordlist *wl, int do_model)
         }
         /* add the '=' */
         wlin = wlin->wl_prev;
-        rhs = wl_chop_rest(wlin);
-        wlin = wl_append(wlin, wl_cons(copy("="), rhs));
-        /* step back until 'alter' or 'altermod' is found,
-           then move one step forward */
-        while (!ciprefix("alter", wlin->wl_word)) //while (!ciprefix(wlin->wl_word, "alter"))
-            wlin = wlin->wl_prev;
-        wlin = wlin->wl_next;
-        wl2 = wlin;
+        wlin = wl_append(wlin, wl_cons(copy("="), wl_chop_rest(wlin)));
     }
+
+    wl = wl_head;
 
     /* Everything is ready, parsing of the wordlist starts here. */
-    words = wl2;
-    while (words) {
-        p = words->wl_word;
-        eqword = words;
-        words = words->wl_next;
-        if (eq(p, "="))
-            break;
-    }
-
-    if (!words) {
+    eqword = wl_find("=", wl);
+    if (!eqword || !eqword->wl_next) {
         fprintf(cp_err, "Error: no assignment found.\n");
         fprintf(cp_err, "Cannot alter parameters.\n");
         return;
     }
 
-    /* device parameter = expr
-       device = expr
-       @dev[param] = expr
-    */
+    /*
+     * device parameter = expr
+     * device = expr
+     * @dev[param] = expr
+     */
 
     dev = NULL;
     param = NULL;
-    words = wl2;
+    words = wl;
     while (words != eqword) {
-        p = words->wl_word;
+        char *p = words->wl_word;
         if (param) {
             fprintf(cp_err, "Warning: excess parameter name \"%s\" ignored.\n", p);
         } else if (dev) {
@@ -1281,6 +1243,10 @@ com_alter_common(wordlist *wl, int do_model)
         return;
     }
 
+    /* in case the altermod command comes from commandline or
+       over shared library we have to provide lowercase */
+    strtolower(param);
+
     words = eqword->wl_next;
     /* skip next line if words is a vector */
     if (!eq(words->wl_word, "["))
@@ -1290,8 +1256,8 @@ com_alter_common(wordlist *wl, int do_model)
 
     if (!names) {
         /* Put this to try to resolve the case of
-           alter @vin[pulse] = [ 0 5 10n 10n 10n 50n 100n ]
-        */
+         *   alter @vin[pulse] = [ 0 5 10n 10n 10n 50n 100n ]
+         */
         char *xsbuf, *rem_xsbuf;
 
         double *list;
@@ -1324,7 +1290,7 @@ com_alter_common(wordlist *wl, int do_model)
         if (!dv)
             return;
 
-        /*       Here I was, to change the inclusion in the circuit.
+        /* Here I was, to change the inclusion in the circuit.
          * will have to revise that dv is right for its insertion.
          */
         if_setparam(ft_curckt->ci_ckt, &dev, param, dv, do_model);
@@ -1345,12 +1311,12 @@ com_alter_common(wordlist *wl, int do_model)
 
     /* If we want alter the geometry of a MOS device
        we have to ensure that we are in the valid model bin. */
-    if ((dev[0] == 'm') && ((param[0] == 'w') || (param[0] == 'l')))
+    if ((dev[0] == 'm') && (eq(param, "w") || eq(param, "l")))
         if_set_binned_model(ft_curckt->ci_ckt, dev, param, dv);
 
     if_setparam(ft_curckt->ci_ckt, &dev, param, dv, do_model);
 
-done:
+ done:
     /* va: garbage collection for dv, if pnode names is no simple value */
     if (names && !names->pn_value && dv)
         vec_free(dv);
@@ -1368,7 +1334,7 @@ devexpand(char *name)
     if (strchr(name, '*') || strchr(name, '[') || strchr(name, '?')) {
         devices = cp_cctowl(ft_curckt->ci_devices);
         for (wl = NULL; devices; devices = devices->wl_next)
-            if (cp_globmatch(name, devices->wl_word))
+            if (!strcmp(name, devices->wl_word))
                 wl = wl_cons(devices->wl_word, wl);
     } else if (cieq(name, "all")) {
         wl = cp_cctowl(ft_curckt->ci_devices);
@@ -1377,13 +1343,14 @@ devexpand(char *name)
     }
 
     wl_sort(wl);
-    return (wl);
+    return wl;
 }
 
 
 /* altermod mod_1 [mod_nn] file=modelparam.mod
    load model file and overwrite models mod_1 till mod_nn with
    all new parameters (limited to 16 models) */
+
 static void
 com_alter_mod(wordlist *wl)
 {
@@ -1393,7 +1360,7 @@ com_alter_mod(wordlist *wl)
     char *filename = NULL, *eqword, *input, *modelline = NULL, *inptoken;
     int modno = 0, molineno = 0, i, j;
     wordlist *newcommand;
-    struct line *modeldeck, *tmpdeck;
+    struct card *modeldeck, *tmpdeck;
     char *readmode = "r";
     char **arglist;
     bool modelfound = FALSE;
@@ -1415,12 +1382,12 @@ com_alter_mod(wordlist *wl)
     }
     input = wl_flatten(wl);
     /* get the file name */
-    eqword = strstr(input, "=");
+    eqword = strchr(input, '=');
     if (eqword) {
         eqword++;
         while (*eqword == ' ')
             eqword++;
-        if (eqword == '\0') {
+        if (*eqword == '\0') {
             fprintf(cp_err, "Error: no filename given\n");
             controlled_exit(1);
         }
@@ -1430,28 +1397,38 @@ com_alter_mod(wordlist *wl)
         eqword += 4;
         while (*eqword == ' ')
             eqword++;
-        if (eqword == '\0') {
+        if (*eqword == '\0') {
             fprintf(cp_err, "Error: no filename given\n");
             controlled_exit(1);
         }
         filename = copy(eqword);
     }
+
     modfile = inp_pathopen(filename, readmode);
+
+    if (modfile == NULL) {
+        fprintf(cp_err, "Warning: Could not open file %s, altermod ignored\n", filename);
+        tfree(input);
+        tfree(filename);
+        return;
+    }
     {
         char *dir_name = ngdirname(filename);
-        modeldeck = inp_readall(modfile, dir_name, 0, 0);
-        free(dir_name);
+        modeldeck = inp_readall(modfile, dir_name, 0, 0, NULL);
+        tfree(dir_name);
     }
     tfree(input);
     tfree(filename);
     /* get all lines starting with *model */
-    for (tmpdeck = modeldeck; tmpdeck; tmpdeck = tmpdeck->li_next)
-        if (ciprefix("*model", tmpdeck->li_line)) {
+    for (tmpdeck = modeldeck; tmpdeck; tmpdeck = tmpdeck->nextcard)
+        /* We are looking for *model because the input paerser has
+           invalidated all unused models by replacing '.' by '*'. */
+        if (ciprefix("*model", tmpdeck->line)) {
             if (molineno == MODLIM) {
                 fprintf(cp_err, "Error: more than %d models in deck, rest ignored\n", molineno);
                 break;
             }
-            modellines[molineno] = tmpdeck->li_line;
+            modellines[molineno] = tmpdeck->line;
             molineno++;
         }
     /* Check if all models named in altermod command are to be found in input deck.
@@ -1481,7 +1458,7 @@ com_alter_mod(wordlist *wl)
     }
     /* read the model line, generate the altermod commands as a wordlist,
        and call com_alter_common() */
-    arglist = TMALLOC(char*, 4);
+    arglist = TMALLOC(char *, 4);
     arglist[0] = copy("altermod");
     arglist[3] = NULL;
     /* for each model name of altermod command */
@@ -1496,15 +1473,16 @@ com_alter_mod(wordlist *wl)
         tfree(inptoken);
         inptoken = gettok(&modelline); /* skip model type */
         tfree(inptoken);
-        while ((inptoken = gettok(&modelline)) != NULL) {
-            /* exclude level and version */
-            if (ciprefix("version", inptoken) || ciprefix("level", inptoken)) {
+        while ((inptoken = gettok_node(&modelline)) != NULL) {
+            /* exclude level, version and mfg */
+            if (ciprefix("version", inptoken) || ciprefix("level", inptoken) ||
+                ciprefix("mfg", inptoken)) {
                 tfree(inptoken);
                 continue;
             }
             arglist[2] = inptoken;
             /* create a new wordlist from array arglist */
-            newcommand = wl_build(arglist);
+            newcommand = wl_build((const char * const *) arglist);
             com_alter_common(newcommand->wl_next, 1);
             wl_free(newcommand);
             tfree(inptoken);
@@ -1514,3 +1492,101 @@ com_alter_mod(wordlist *wl)
     tfree(arglist[0]);
     tfree(arglist[3]);
 }
+
+
+#ifdef HAVE_TSEARCH
+
+#include <search.h>
+
+static int
+check_ifparm_compare(const void *a, const void *b)
+{
+    IFparm *pa = (IFparm *) a;
+    IFparm *pb = (IFparm *) b;
+    return pa->id - pb->id;
+}
+
+
+static void
+check_ifparm_freenode(void *node)
+{
+    NG_IGNORE(node);
+}
+
+
+static void
+check_ifparm(IFdevice *device, int instance_flag)
+{
+    int i, xcount;
+    IFparm *plist;
+
+    if (instance_flag) {
+        plist = device->instanceParms;
+        if (!plist)
+            return;
+        fprintf(stderr, " checking %s instanceParams\n", device->name);
+        xcount = *device->numInstanceParms;
+    } else {
+        plist = device->modelParms;
+        if (!plist)
+            return;
+        fprintf(stderr, " checking %s modelParams\n", device->name);
+        xcount = *device->numModelParms;
+    }
+
+    void *root = NULL;
+
+    for (i = 0; i < xcount; i++) {
+
+        IFparm *psearch = *(IFparm **) tsearch(plist + i, &root,
+                                               check_ifparm_compare);
+
+        int type_err = (psearch->dataType ^ plist[i].dataType) & ~IF_REDUNDANT;
+        if (type_err)
+            fprintf(stderr,
+                    " ERROR, dataType mismatch \"%s\" \"%s\" %08x\n",
+                    psearch->keyword, plist[i].keyword, type_err);
+
+        if ((plist[i].dataType & IF_REDUNDANT) &&
+            (i == 0 || plist[i-1].id != plist[i].id)) {
+            fprintf(stderr,
+                    "ERROR, alias \"%s\" has non matching predecessor \"%s\"\n",
+                    plist[i].keyword, plist[i-1].keyword);
+        }
+
+        if (i == 0)
+            continue;
+
+        if (plist[i-1].id != plist[i].id) {
+            if (psearch != plist + i)
+                fprintf(stderr,
+                        "ERROR: non neighbored duplicate id: \"%s\" \"%s\"\n",
+                        psearch->keyword, plist[i].keyword);
+        } else if (!(plist[i].dataType & IF_REDUNDANT)) {
+            fprintf(stderr,
+                    "ERROR: non R duplicate id: \"%s\" \"%s\"\n",
+                    plist[i-1].keyword, plist[i].keyword);
+        }
+    }
+
+#ifdef HAVE_TDESTROY
+    tdestroy (root, check_ifparm_freenode);
+#endif
+}
+
+
+void
+com_check_ifparm(wordlist *wl)
+{
+    NG_IGNORE(wl);
+
+    int k;
+
+    for (k = 0; k < ft_sim->numDevices; k++)
+        if (ft_sim->devices[k]) {
+            check_ifparm(ft_sim->devices[k], 0);
+            check_ifparm(ft_sim->devices[k], 1);
+        }
+}
+
+#endif

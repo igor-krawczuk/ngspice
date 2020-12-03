@@ -127,7 +127,7 @@ B4SOIload(
 }
 
 int B4SOILoadOMP(B4SOIinstance *here, CKTcircuit *ckt) {
-    B4SOImodel *model = here->B4SOImodPtr;
+    B4SOImodel *model = B4SOImodPtr(here);
 #else
     register B4SOImodel *model = (B4SOImodel*)inModel;
     register B4SOIinstance *here;
@@ -489,9 +489,9 @@ int B4SOILoadOMP(B4SOIinstance *here, CKTcircuit *ckt) {
     double m;
 
 #ifndef USE_OMP
-    for (; model != NULL; model = model->B4SOInextModel)
-    {    for (here = model->B4SOIinstances; here != NULL;
-            here = here->B4SOInextInstance)
+    for (; model != NULL; model = B4SOInextModel(model))
+    {    for (here = B4SOIinstances(model); here != NULL;
+              here = B4SOInextInstance(here))
          {    
 
 #endif        
@@ -610,7 +610,7 @@ int B4SOILoadOMP(B4SOIinstance *here, CKTcircuit *ckt) {
             if ((vds == 0.0) && (vgs == 0.0) && (vbs == 0.0) &&
                     ((ckt->CKTmode & (MODETRAN | MODEAC|MODEDCOP |
                                       MODEDCTRANCURVE)) || (!(ckt->CKTmode & MODEUIC))))
-            {   vbs = 0.0;
+            {
                 /*                vgs = model->B4SOItype*0.1 + here->B4SOIvth0; */
                 vgs = model->B4SOItype * here->B4SOIvth0 + 0.1; /* v4.0 */
                 vds = 0.0;
@@ -1708,8 +1708,7 @@ int B4SOILoadOMP(B4SOIinstance *here, CKTcircuit *ckt) {
             dVbs_dVb = 1.0;
             dVbs_dVe = 0.0;
             dVbs_dT = 0.0;
-            if (selfheat)  dVbsmos_dT = 0.0;
-            else  dVbsmos_dT = 0.0;
+            dVbsmos_dT = 0.0;
 
             Vbp = Vbs - Vps;
             dVbp_dVb = 1;
@@ -9394,7 +9393,9 @@ finished: /* returning Values to Calling Routine */
             if (!ChargeComputationNeeded)
                 goto line850;
 
+#ifndef NOBYPASS
 line755:
+#endif
             ag0 = ckt->CKTag[0];
 
             T0 = vgd + DELTA_1;
@@ -10969,6 +10970,7 @@ void B4SOILoadRhsMat(GENmodel *inModel, CKTcircuit *ckt)
 
     for(idx = 0; idx < InstCount; idx++) {
        here = InstArray[idx];
+       model = B4SOImodPtr(here);
         /* Update b for Ax = b */
 
             /* v3.1 */

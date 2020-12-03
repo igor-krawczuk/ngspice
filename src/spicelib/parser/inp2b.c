@@ -12,7 +12,7 @@ Author: 1988 Thomas L. Quarles
 #include "inpxx.h"
 #include "ngspice/cktdefs.h"
 
-void INP2B(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2B(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
     /* Bname <node> <node> [V=expr] [I=expr] */
@@ -42,7 +42,7 @@ void INP2B(CKTcircuit *ckt, INPtables * tab, card * current)
         ckt->CKTvarHertz = 1;
         
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
 
     INPgetNetTok(&line, &nname1, 1);

@@ -15,8 +15,8 @@ IFparm VSRCpTable[] = { /* parameters */
  IOPAAU("acphase", VSRC_AC_PHASE,  IF_REAL   ,"AC Phase"),
  /* Modified to allow print @vin[sin] A.Roldan */
  IOP ("pulse",   VSRC_PULSE,     IF_REALVEC,"Pulse description"),
- IOP ("sine",    VSRC_SINE,      IF_REALVEC,"Sinusoidal source description"),
  IOP ("sin",     VSRC_SINE,      IF_REALVEC,"Sinusoidal source description"),
+ IOPR("sine",    VSRC_SINE,      IF_REALVEC,"Sinusoidal source description"),
  IOP ("exp",     VSRC_EXP,       IF_REALVEC,"Exponential source description"),
  IOP ("pwl",     VSRC_PWL,       IF_REALVEC,"Piecewise linear description"),
  IOP ("sffm",    VSRC_SFFM,      IF_REALVEC,"Single freq. FM description"),
@@ -24,7 +24,7 @@ IFparm VSRCpTable[] = { /* parameters */
  IOP ("trnoise", VSRC_TRNOISE,   IF_REALVEC,"Transient noise description"),
  IOP ("trrandom", VSRC_TRRANDOM, IF_REALVEC,"random source description"),
 #ifdef SHARED_MODULE
- IOP ("external", VSRC_EXTERNAL, IF_REALVEC,"external source description"),
+ IOP ("external", VSRC_EXTERNAL, IF_STRING,"external source description"),
 #endif
  OPU ("pos_node",VSRC_POS_NODE,  IF_INTEGER,"Positive node of source"),
  OPU ("neg_node",VSRC_NEG_NODE,  IF_INTEGER,"Negative node of source"),

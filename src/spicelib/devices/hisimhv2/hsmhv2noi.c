@@ -85,7 +85,6 @@ int HSMHV2noise (
 {
   HSMHV2model *model = (HSMHV2model *)inModel;
   HSMHV2instance *here;
-  char name[N_MXVLNTH];
   double tempOnoise=0.0 ;
   double tempInoise=0.0 ;
   double noizDens[HSMHV2NSRCS] ;
@@ -107,9 +106,9 @@ int HSMHV2noise (
     ""                  /* total transistor noise */
   };
   
-  for ( ;model != NULL; model = model->HSMHV2nextModel ) {
-    for ( here = model->HSMHV2instances; here != NULL;
-	  here = here->HSMHV2nextInstance ) {
+  for ( ;model != NULL; model = HSMHV2nextModel(model)) {
+    for ( here = HSMHV2instances(model); here != NULL;
+	  here = HSMHV2nextInstance(here)) {
       switch (operation) {
       case N_OPEN:
 	/* see if we have to to produce a summary report */
@@ -119,35 +118,13 @@ int HSMHV2noise (
 	  switch (mode) {
 	  case N_DENS:
 	    for ( i = 0; i < HSMHV2NSRCS; i++ ) { 
-	      (void) sprintf(name, "onoise.%s%s", 
-			     (char *)here->HSMHV2name, HSMHV2nNames[i]);
-	      data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-	      if (!data->namelist)
-		return(E_NOMEM);
-	      SPfrontEnd->IFnewUid
-		(ckt, &(data->namelist[data->numPlots++]),
-		 NULL, name, UID_OTHER, NULL);
+	      NOISE_ADD_OUTVAR(ckt, data, "onoise.%s%s", here->HSMHV2name, HSMHV2nNames[i]);
 	    }
 	    break;
 	  case INT_NOIZ:
 	    for ( i = 0; i < HSMHV2NSRCS; i++ ) {
-	      (void) sprintf(name, "onoise_total.%s%s", 
-			     (char *)here->HSMHV2name, HSMHV2nNames[i]);
-	      data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-	      if (!data->namelist)
-		return(E_NOMEM);
-	      SPfrontEnd->IFnewUid
-		(ckt, &(data->namelist[data->numPlots++]),
-		 NULL, name, UID_OTHER, NULL);
-	      
-	      (void) sprintf(name, "inoise_total.%s%s", 
-			     (char *)here->HSMHV2name, HSMHV2nNames[i]);
-	      data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-	      if (!data->namelist)
-		return(E_NOMEM);
-	      SPfrontEnd->IFnewUid
-		(ckt, &(data->namelist[data->numPlots++]),
-		 NULL, name, UID_OTHER, NULL);
+	      NOISE_ADD_OUTVAR(ckt, data, "onoise_total.%s%s", here->HSMHV2name, HSMHV2nNames[i]);
+	      NOISE_ADD_OUTVAR(ckt, data, "inoise_total.%s%s", here->HSMHV2name, HSMHV2nNames[i]);
 	    }
 	    break;
 	  }

@@ -31,10 +31,10 @@ NUMD2load(GENmodel *inModel, CKTcircuit *ckt)
   register NUMD2instance *inst;
   register TWOdevice *pDevice;
   double startTime, startTime2, totalTime, totalTime2;
-  double id;
+  double id=0.;
   double idhat = 0.0;
   double ideq;
-  double gd;
+  double gd=0.;
   double xfact;
   double tol;			/* temporary for tolerance calculations */
   double vd;			/* current diode voltage */
@@ -50,7 +50,7 @@ NUMD2load(GENmodel *inModel, CKTcircuit *ckt)
   char *initStateName;
 
   /* loop through all the diode models */
-  for (; model != NULL; model = model->NUMD2nextModel) {
+  for (; model != NULL; model = NUMD2nextModel(model)) {
     FieldDepMobility = model->NUMD2models->MODLfieldDepMobility;
     TransDepMobility = model->NUMD2models->MODLtransDepMobility;
     SurfaceMobility = model->NUMD2models->MODLsurfaceMobility;
@@ -81,7 +81,7 @@ NUMD2load(GENmodel *inModel, CKTcircuit *ckt)
       }
     } else if (ckt->CKTmode & MODEINITTRAN) {
       model->NUMD2pInfo->order = ckt->CKTorder;
-      model->NUMD2pInfo->method = GEAR;
+/*      model->NUMD2pInfo->method = GEAR; */
       model->NUMD2pInfo->method = ckt->CKTintegrateMethod;
       for (i = 0; i <= ckt->CKTmaxOrder; i++) {
 	deltaNorm[i] = ckt->CKTdeltaOld[i] / TNorm;
@@ -90,8 +90,8 @@ NUMD2load(GENmodel *inModel, CKTcircuit *ckt)
 	  model->NUMD2pInfo->intCoeff, deltaNorm);
     }
     /* loop through all the instances of the model */
-    for (inst = model->NUMD2instances; inst != NULL;
-	inst = inst->NUMD2nextInstance) {
+    for (inst = NUMD2instances(model); inst != NULL;
+         inst = NUMD2nextInstance(inst)) {
 
       pDevice = inst->NUMD2pDevice;
 
@@ -386,7 +386,7 @@ int
 NUMD2initSmSig(NUMD2instance *inst)
 {
   SPcomplex yd;
-  double omega = inst->NUMD2modPtr->NUMD2methods->METHomega;
+  double omega = NUMD2modPtr(inst)->NUMD2methods->METHomega;
 
   AcAnalysisMethod = SOR_ONLY;
   (void) NUMD2admittance(inst->NUMD2pDevice, omega, &yd);

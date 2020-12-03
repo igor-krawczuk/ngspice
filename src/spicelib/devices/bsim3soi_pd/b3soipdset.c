@@ -47,7 +47,7 @@ IFuid tmpName;
 
 
     /*  loop through all the B3SOIPD device models */
-    for( ; model != NULL; model = model->B3SOIPDnextModel )
+    for( ; model != NULL; model = B3SOIPDnextModel(model))
     {
 /* Default value Processing for B3SOIPD MOSFET Models */
 
@@ -79,7 +79,7 @@ IFuid tmpName;
 	    model->B3SOIPDcdsc = 2.4e-4;   /* unit Q/V/m^2  */
         if (!model->B3SOIPDcdscbGiven)
 	    model->B3SOIPDcdscb = 0.0;   /* unit Q/V/m^2  */    
-	    if (!model->B3SOIPDcdscdGiven)
+        if (!model->B3SOIPDcdscdGiven)
 	    model->B3SOIPDcdscd = 0.0;   /* unit Q/V/m^2  */
         if (!model->B3SOIPDcitGiven)
 	    model->B3SOIPDcit = 0.0;   /* unit Q/V/m^2  */
@@ -169,7 +169,6 @@ IFuid tmpName;
             model->B3SOIPDprwg = 0.0;      /* unit 1/V */
         if (!model->B3SOIPDprwbGiven)
             model->B3SOIPDprwb = 0.0;      
-        if (!model->B3SOIPDprtGiven)
         if (!model->B3SOIPDprtGiven)
             model->B3SOIPDprt = 0.0;      
         if (!model->B3SOIPDeta0Given)
@@ -1048,8 +1047,8 @@ IFuid tmpName;
             model->B3SOIPDnoif = 1.0;
 
         /* loop through all the instances of the model */
-        for (here = model->B3SOIPDinstances; here != NULL ;
-             here=here->B3SOIPDnextInstance) 
+        for (here = B3SOIPDinstances(model); here != NULL ;
+             here=B3SOIPDnextInstance(here)) 
 	{
             /* allocate a chunk of the state vector */
             here->B3SOIPDstates = *states;
@@ -1168,6 +1167,11 @@ IFuid tmpName;
 
 
             here->B3SOIPDfloat = 0;
+
+            here->B3SOIPDpNode = here->B3SOIPDpNodeExt;
+            here->B3SOIPDbNode = here->B3SOIPDbNodeExt;
+            here->B3SOIPDtempNode = here->B3SOIPDtempNodeExt;
+
             if (here->B3SOIPDpNode == -1) {  /*  floating body case -- 4-node  */
                 error = CKTmkVolt(ckt,&tmp,here->B3SOIPDname,"Body");
                 if (error) return(error);
@@ -1456,23 +1460,113 @@ B3SOIPDunsetup(
     B3SOIPDinstance *here;
  
     for (model = (B3SOIPDmodel *)inModel; model != NULL;
-            model = model->B3SOIPDnextModel)
+            model = B3SOIPDnextModel(model))
     {
-        for (here = model->B3SOIPDinstances; here != NULL;
-                here=here->B3SOIPDnextInstance)
+        for (here = B3SOIPDinstances(model); here != NULL;
+                here=B3SOIPDnextInstance(here))
         {
-            if (here->B3SOIPDdNodePrime
-                    && here->B3SOIPDdNodePrime != here->B3SOIPDdNode)
-            {
-                CKTdltNNum(ckt, here->B3SOIPDdNodePrime);
-                here->B3SOIPDdNodePrime = 0;
-            }
-            if (here->B3SOIPDsNodePrime
+            /* here for debugging purpose only */
+            if (here->B3SOIPDqjdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDqjdNode);
+            here->B3SOIPDqjdNode = 0;
+
+            if (here->B3SOIPDqjsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDqjsNode);
+            here->B3SOIPDqjsNode = 0;
+
+            if (here->B3SOIPDqbfNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDqbfNode);
+            here->B3SOIPDqbfNode = 0;
+
+            if (here->B3SOIPDcbgNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDcbgNode);
+            here->B3SOIPDcbgNode = 0;
+
+            if (here->B3SOIPDcbdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDcbdNode);
+            here->B3SOIPDcbdNode = 0;
+
+            if (here->B3SOIPDcbbNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDcbbNode);
+            here->B3SOIPDcbbNode = 0;
+
+            if (here->B3SOIPDibpNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDibpNode);
+            here->B3SOIPDibpNode = 0;
+
+            if (here->B3SOIPDitunNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDitunNode);
+            here->B3SOIPDitunNode = 0;
+
+            if (here->B3SOIPDigidlNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDigidlNode);
+            here->B3SOIPDigidlNode = 0;
+
+            if (here->B3SOIPDgigbNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDgigbNode);
+            here->B3SOIPDgigbNode = 0;
+
+            if (here->B3SOIPDgigdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDgigdNode);
+            here->B3SOIPDgigdNode = 0;
+
+            if (here->B3SOIPDgiggNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDgiggNode);
+            here->B3SOIPDgiggNode = 0;
+
+            if (here->B3SOIPDigNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDigNode);
+            here->B3SOIPDigNode = 0;
+
+            if (here->B3SOIPDiiiNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDiiiNode);
+            here->B3SOIPDiiiNode = 0;
+
+            if (here->B3SOIPDibdNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDibdNode);
+            here->B3SOIPDibdNode = 0;
+
+            if (here->B3SOIPDibsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDibsNode);
+            here->B3SOIPDibsNode = 0;
+
+            if (here->B3SOIPDicNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDicNode);
+            here->B3SOIPDicNode = 0;
+
+            if (here->B3SOIPDidsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDidsNode);
+            here->B3SOIPDidsNode = 0;
+
+            if (here->B3SOIPDvbsNode > 0)
+                CKTdltNNum(ckt, here->B3SOIPDvbsNode);
+            here->B3SOIPDvbsNode = 0;
+
+
+            if (here->B3SOIPDtempNode > 0 &&
+                here->B3SOIPDtempNode != here->B3SOIPDtempNodeExt &&
+                here->B3SOIPDtempNode != here->B3SOIPDbNodeExt &&
+                here->B3SOIPDtempNode != here->B3SOIPDpNodeExt)
+                CKTdltNNum(ckt, here->B3SOIPDtempNode);
+            here->B3SOIPDtempNode = 0;
+
+            if (here->B3SOIPDbNode > 0 &&
+                here->B3SOIPDbNode != here->B3SOIPDbNodeExt &&
+                here->B3SOIPDbNode != here->B3SOIPDpNodeExt)
+                CKTdltNNum(ckt, here->B3SOIPDbNode);
+            here->B3SOIPDbNode = 0;
+
+            here->B3SOIPDpNode = 0;
+
+            if (here->B3SOIPDsNodePrime > 0
                     && here->B3SOIPDsNodePrime != here->B3SOIPDsNode)
-            {
                 CKTdltNNum(ckt, here->B3SOIPDsNodePrime);
-                here->B3SOIPDsNodePrime = 0;
-            }
+            here->B3SOIPDsNodePrime = 0;
+
+            if (here->B3SOIPDdNodePrime > 0
+                    && here->B3SOIPDdNodePrime != here->B3SOIPDdNode)
+                CKTdltNNum(ckt, here->B3SOIPDdNodePrime);
+            here->B3SOIPDdNodePrime = 0;
         }
     }
     return OK;

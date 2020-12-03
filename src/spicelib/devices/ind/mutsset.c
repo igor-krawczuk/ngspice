@@ -17,7 +17,6 @@ This function is obsolete (was used by an old sensitivity analysis)
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
-#ifdef MUTUAL
 /*ARGSUSED*/
 int
 MUTsSetup(SENstruct *info, GENmodel *inModel)
@@ -26,11 +25,11 @@ MUTsSetup(SENstruct *info, GENmodel *inModel)
     MUTinstance *here;
 
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->MUTnextModel ) {
+    for( ; model != NULL; model = MUTnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->MUTinstances; here != NULL ;
-                here=here->MUTnextInstance) {
+        for (here = MUTinstances(model); here != NULL ;
+                here=MUTnextInstance(here)) {
 
             if(here->MUTsenParmNo){
                 here->MUTsenParmNo = ++(info->SENparms);
@@ -41,4 +40,3 @@ MUTsSetup(SENstruct *info, GENmodel *inModel)
     }
     return(OK);
 }
-#endif /* MUTUAL */

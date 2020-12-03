@@ -26,11 +26,11 @@ VCVSsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     NG_IGNORE(states);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->VCVSnextModel ) {
+    for( ; model != NULL; model = VCVSnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->VCVSinstances; here != NULL ;
-                here=here->VCVSnextInstance) {
+        for (here = VCVSinstances(model); here != NULL ;
+                here=VCVSnextInstance(here)) {
             
             if(here->VCVSposNode == here->VCVSnegNode) {
                 SPfrontEnd->IFerrorf (ERR_FATAL,
@@ -50,12 +50,12 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(VCVSposIbrptr, VCVSposNode, VCVSbranch);
-            TSTALLOC(VCVSnegIbrptr, VCVSnegNode, VCVSbranch);
-            TSTALLOC(VCVSibrPosptr, VCVSbranch, VCVSposNode);
-            TSTALLOC(VCVSibrNegptr, VCVSbranch, VCVSnegNode);
-            TSTALLOC(VCVSibrContPosptr, VCVSbranch, VCVScontPosNode);
-            TSTALLOC(VCVSibrContNegptr, VCVSbranch, VCVScontNegNode);
+            TSTALLOC(VCVSposIbrPtr, VCVSposNode, VCVSbranch);
+            TSTALLOC(VCVSnegIbrPtr, VCVSnegNode, VCVSbranch);
+            TSTALLOC(VCVSibrPosPtr, VCVSbranch, VCVSposNode);
+            TSTALLOC(VCVSibrNegPtr, VCVSbranch, VCVSnegNode);
+            TSTALLOC(VCVSibrContPosPtr, VCVSbranch, VCVScontPosNode);
+            TSTALLOC(VCVSibrContNegPtr, VCVSbranch, VCVScontNegNode);
         }
     }
     return(OK);
@@ -68,15 +68,14 @@ VCVSunsetup(GENmodel *inModel, CKTcircuit *ckt)
     VCVSinstance *here;
 
     for (model = (VCVSmodel *)inModel; model != NULL;
-	    model = model->VCVSnextModel)
+	    model = VCVSnextModel(model))
     {
-        for (here = model->VCVSinstances; here != NULL;
-                here=here->VCVSnextInstance)
+        for (here = VCVSinstances(model); here != NULL;
+                here=VCVSnextInstance(here))
 	{
-	    if (here->VCVSbranch) {
+	    if (here->VCVSbranch > 0)
 		CKTdltNNum(ckt, here->VCVSbranch);
-		here->VCVSbranch = 0;
-	    }
+            here->VCVSbranch = 0;
 	}
     }
     return OK;

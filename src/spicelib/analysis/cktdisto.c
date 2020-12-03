@@ -27,6 +27,8 @@ CKTdisto (CKTcircuit *ckt, int mode)
     int error=0;
     int size;
 
+    /* FALLTHROUGH added to suppress GCC warning due to
+     * -Wimplicit-fallthrough flag */
     switch(mode) {
 
     case D_SETUP:
@@ -63,7 +65,7 @@ CKTdisto (CKTcircuit *ckt, int mode)
     case D_RHSF1:
 
  	   job->Df2given = 0; /* will change if any F2 source is found */
-
+        /* FALLTHROUGH */
     case D_RHSF2:
 
 
@@ -89,9 +91,9 @@ CKTdisto (CKTcircuit *ckt, int mode)
             VSRCinstance *here;
             VSRCmodel *model;
             for(model = (VSRCmodel *)ckt->CKThead[vcode];model != NULL;
-                    model=model->VSRCnextModel){
-                for(here=model->VSRCinstances;here!=NULL;
-                        here=here->VSRCnextInstance) {
+                    model=VSRCnextModel(model)){
+                for(here=VSRCinstances(model);here!=NULL;
+                        here=VSRCnextInstance(here)) {
 
 /* check if the source has a distortion input*/
 
@@ -125,9 +127,9 @@ if (((here->VSRCdF1given) && (mode == D_RHSF1)) ||
             ISRCmodel *model;
 
             for(model= (ISRCmodel *)ckt->CKThead[icode];model != NULL;
-                    model=model->ISRCnextModel){
-                for(here=model->ISRCinstances;here!=NULL;
-                        here=here->ISRCnextInstance) {
+                    model=ISRCnextModel(model)){
+                for(here=ISRCinstances(model);here!=NULL;
+                        here=ISRCnextInstance(here)) {
 
 /* check if the source has a distortion input*/
 

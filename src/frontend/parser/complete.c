@@ -73,8 +73,8 @@ static void printem(wordlist *wl);
 #endif
 
 static wordlist *cctowl(struct ccom *cc, bool sib);
-static struct ccom *clookup(register char *word, struct ccom **dd, bool pref,
-                            bool create);
+static struct ccom *clookup(register const char *word, struct ccom **dd, bool pref,
+        bool create);
 /* MW. I need top node in cdelete */
 static void cdelete(struct ccom *node, struct ccom **top);
 
@@ -91,7 +91,6 @@ cp_ccom(wordlist *wlist, char *buf, bool esc)
     int j, arg;
 
     buf = cp_unquote(copy(buf));
-    cp_wstrip(buf);
     if (wlist) {   /* Not the first word. */
         cc = getccom(wlist->wl_word);
         if (cc && cc->cc_invalid)
@@ -462,6 +461,9 @@ cp_addcomm(char *word, long int bits0, long int bits1, long int bits2, long int 
 {
     struct ccom *cc;
 
+    if(cp_nocc)
+        return;
+
     cc = clookup(word, &commands, FALSE, TRUE);
     cc->cc_invalid = 0;
     cc->cc_kwords[0] = bits0;
@@ -491,6 +493,9 @@ cp_addkword(int kw_class, char *word)
 {
     struct ccom *cc;
 
+    if(cp_nocc)
+        return;
+
     if ((kw_class < 1) || (kw_class >= NCLASSES)) {
         fprintf(cp_err, "cp_addkword: Internal Error: bad class %d\n",
                 kw_class);
@@ -515,7 +520,7 @@ cp_destroy_keywords(void)
 /* Remove a keyword from the database. */
 
 void
-cp_remkword(int kw_class, char *word)
+cp_remkword(int kw_class, const char *word)
 {
     struct ccom *cc;
 
@@ -583,7 +588,7 @@ throwaway(struct ccom *dbase)
  */
 
 static struct ccom *
-clookup(register char *word, struct ccom **dd, bool pref, bool create)
+clookup(register const char *word, struct ccom **dd, bool pref, bool create)
 {
     register struct ccom *place = *dd, *tmpc;
     int ind = 0, i;

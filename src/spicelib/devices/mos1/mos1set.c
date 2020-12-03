@@ -25,7 +25,7 @@ MOS1setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt,
     CKTnode *tmp;
 
     /*  loop through all the MOS1 device models */
-    for( ; model != NULL; model = model->MOS1nextModel ) {
+    for( ; model != NULL; model = MOS1nextModel(model)) {
 
         if(!model->MOS1typeGiven) {
             model->MOS1type = NMOS;
@@ -89,15 +89,15 @@ MOS1setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt,
 	}
 
         /* loop through all the instances of the model */
-        for (here = model->MOS1instances; here != NULL ;
-                here=here->MOS1nextInstance) {
+        for (here = MOS1instances(model); here != NULL ;
+                here=MOS1nextInstance(here)) {
 
             /* allocate a chunk of the state vector */
             here->MOS1states = *states;
             *states += MOS1numStates;
 
             if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                *states += 10 * (ckt->CKTsenInfo->SENparms);
+                *states += MOS1numSenStates * (ckt->CKTsenInfo->SENparms);
             }
 
             if(!here->MOS1drainPerimiterGiven) {
@@ -218,23 +218,20 @@ MOS1unsetup(GENmodel *inModel, CKTcircuit *ckt)
     MOS1instance *here;
 
     for (model = (MOS1model *)inModel; model != NULL;
-	    model = model->MOS1nextModel)
+	    model = MOS1nextModel(model))
     {
-        for (here = model->MOS1instances; here != NULL;
-                here=here->MOS1nextInstance)
+        for (here = MOS1instances(model); here != NULL;
+                here=MOS1nextInstance(here))
 	{
-	    if (here->MOS1dNodePrime
-		    && here->MOS1dNodePrime != here->MOS1dNode)
-	    {
-		CKTdltNNum(ckt, here->MOS1dNodePrime);
-		here->MOS1dNodePrime= 0;
-	    }
-	    if (here->MOS1sNodePrime
+	    if (here->MOS1sNodePrime > 0
 		    && here->MOS1sNodePrime != here->MOS1sNode)
-	    {
 		CKTdltNNum(ckt, here->MOS1sNodePrime);
-		here->MOS1sNodePrime= 0;
-	    }
+            here->MOS1sNodePrime= 0;
+
+	    if (here->MOS1dNodePrime > 0
+		    && here->MOS1dNodePrime != here->MOS1dNode)
+		CKTdltNNum(ckt, here->MOS1dNodePrime);
+            here->MOS1dNodePrime= 0;
 	}
     }
     return OK;

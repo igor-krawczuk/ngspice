@@ -1,23 +1,26 @@
-//////////////////////////////////////////////////////////////////////////////
-// Build cmextrn.h, cminfo.h, udnextrn.h and udninfo.h from udnpath.lst and
-// modpath.lst using 'cmpp -lst'. Then compile this file and link it with
-// cm and udn object files to produce a dll that can be loaded by the
-// spice opus simulator at run-time.
-//
-// Author: Arpad Buermen
-////////////////////////////////////////////////////////////////////////////// 
+/* ----------------------------------------------------------------------
+ Build cmextrn.h, cminfo.h, udnextrn.h and udninfo.h from udnpath.lst and
+ modpath.lst using 'cmpp -lst'. Then compile this file and link it with
+ cm and udn object files to produce a dll that can be loaded by ngspice
+ at run-time.
+ Copyright 2000 The ngspice team
+ 3 - Clause BSD license
+ (see COPYING or https://opensource.org/licenses/BSD-3-Clause)
+ Author: Arpad Buermen
+------------------------------------------------------------------------ */
 
-#include "ngspice/inpdefs.h"
-#include "ngspice/devdefs.h"
-#include "ngspice/evtudn.h"
-#include "ngspice/dllitf.h"
-#include "cmextrn.h"
-#include "udnextrn.h"
-
+#include  <stdarg.h>
 #include  <stdlib.h>
 #include  <string.h>
 
-#include  <stdarg.h>
+#include "ngspice/devdefs.h"
+#include "ngspice/dstring.h"
+#include "ngspice/dllitf.h"
+#include "ngspice/evtudn.h"
+#include "ngspice/inpdefs.h"
+#include "cmextrn.h"
+#include "udnextrn.h"
+
 
 
 //////////////////////////////////////////////////////////////////////////////
@@ -39,8 +42,9 @@ Evt_Udn_Info_t  *cmEVTudns[] = {
 
 int cmEVTudnCNT = sizeof(cmEVTudns)/sizeof(Evt_Udn_Info_t *)-1;
 
-// Pointer to core info structure containing pointers to core functions.
-struct coreInfo_t *coreitf;
+/* Instantiation of pointer to core info structure containing pointers
+ * to core functions. */
+struct coreInfo_t *coreitf = (struct coreInfo_t *) NULL;
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -65,10 +69,6 @@ extern CM_EXPORT void *CMdevNum(void);
 extern CM_EXPORT void *CMudns(void);
 extern CM_EXPORT void *CMudnNum(void);
 extern CM_EXPORT void *CMgetCoreItfPtr(void);
-
-extern void *tmalloc(size_t num);
-extern void *trealloc(const void *str, size_t num);
-extern void txfree(const void *ptr);
 
 
 // This one returns the device table
@@ -105,7 +105,7 @@ CM_EXPORT void *CMgetCoreItfPtr(void) {
 void MIF_INP2A(
     CKTcircuit   *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables    *tab,      /* symbol table for node names, etc.            */
-    card         *current   /* the card we are to parse                     */
+    struct card  *current   /* the card we are to parse                     */
 	) {
 	(coreitf->dllitf_MIF_INP2A)(ckt,tab,current);
 }
@@ -197,25 +197,21 @@ int MIFconvTest(
 }
 
 int MIFdelete(
-    GENmodel *inModel,
-    IFuid    name,
-    GENinstance  **inst
+    GENinstance  *inst
 	) {
-	return (coreitf->dllitf_MIFdelete)(inModel,name,inst);
+	return (coreitf->dllitf_MIFdelete)(inst);
 }
 
 int MIFmDelete(
-    GENmodel **inModel,
-    IFuid    modname,
-    GENmodel *model
+    GENmodel *gen_model
 	) {
-	return (coreitf->dllitf_MIFmDelete)(inModel,modname,model);
+	return (coreitf->dllitf_MIFmDelete)(gen_model);
 }
 
 void MIFdestroy(
-    GENmodel **inModel
+    void
 	) {
-	(coreitf->dllitf_MIFdestroy)(inModel);
+	(coreitf->dllitf_MIFdestroy)();
 }
 
 char  *MIFgettok(
@@ -366,6 +362,10 @@ char * cm_get_path(void) {
 	return (coreitf->dllitf_cm_get_path)();
 }
 
+CKTcircuit *cm_get_circuit(void) {
+	return (coreitf->dllitf_cm_get_circuit)();
+}
+
 FILE * cm_stream_out(void) {
 	return (coreitf->dllitf_cm_stream_out)();
 }
@@ -416,44 +416,76 @@ Infile_Path/<infile>
 NGSPICE_INPUT_DIR/<infile>, where the path is given by the environmental variable
 <infile>, where the path is the current directory
 */
-
-#define MAX_PATH_LEN 1024
-
+#define DFLT_BUF_SIZE   256
 FILE *fopen_with_path(const char *path, const char *mode)
 {
-    char buf[MAX_PATH_LEN+1];
     FILE *fp;
 
-    if((path[0] != '/') && (path[1] != ':')) {
+    if((path[0] != '/') && (path[1] != ':')) { /* path absolue (probably) */
 //        const char *x = getenv("ngspice_vpath");
         const char *x = cm_get_path();
-        if(x) {
-            strncpy(buf, x, MAX_PATH_LEN);
-            strcat(buf, "/");
-            strcat(buf, path);
-            fp =  fopen(buf, mode);
-            if (fp)
-                return fp;
-            else {
-                char *y = getenv( "NGSPICE_INPUT_DIR" );
-                if (y && *y) {
-                    char *a;
-                    strncpy(buf, y, MAX_PATH_LEN);
-                    a = strrchr(buf, '/');
-                    if(a && a[1] == '\0')
-                        a[0] = '\0';
-                    strcat(buf, "/");
-                    strcat(buf, path);
-                    fp =  fopen(buf, mode);
-                    if (fp)
-                        return fp;
-                }
+        if (x) {
+            DS_CREATE(ds, DFLT_BUF_SIZE);
+
+            /* Build file <cm_get_path(()>/path> */
+            if (ds_cat_printf(&ds, "%s/%s", x, path) != 0) {
+                cm_message_printf(
+                        "Unable to build cm_get_path() path for opening file.");
+                ds_free(&ds);
+                return (FILE *) NULL;
             }
+
+            /* Try opening file. If fail, try using NGSPICE_INPUT_DIR
+             * env variable location */
+            if ((fp = fopen(ds_get_buf(&ds), mode)) == (FILE *) NULL) {
+                char *y = getenv("NGSPICE_INPUT_DIR");
+                if (y && *y) { /* have env var and not "" */
+                    int rc_ds = 0;
+                    /* Build <env var>/path and try opening. If the env var
+                     * ends with a slash, do not add a second slash */
+                    ds_clear(&ds);
+                    rc_ds |= ds_cat_str(&ds, y);
+
+                    /* Add slash if not present. Note that check for
+                     * length > 0 is done on the remote chance that the
+                     * ds_cat_str() failed. */
+                    const size_t len = ds_get_length(&ds);
+                    if (len > 0 && ds_get_buf(&ds)[len - 1] != '/') {
+                        rc_ds |= ds_cat_char(&ds, '/'); /* add dir sep */
+                    }
+                    rc_ds |= ds_cat_str(&ds, path); /* add input path */
+
+                    /* Ensure path built OK */
+                    if (rc_ds != 0) {
+                        cm_message_printf(
+                                "Unable to build NGSPICE_INPUT_DIR "
+                                "path for opening file.");
+                        ds_free(&ds);
+                        return (FILE *) NULL;
+                    }
+
+                    /* Try opening file name that was built */
+                    if ((fp = fopen(ds_get_buf(&ds),
+                            mode)) != (FILE *) NULL) {
+                        ds_free(&ds);
+                        return fp;
+                    }
+                }
+            } /* end of open using prefix from cm_get_path() failed */
+            else { /* Opened OK */
+                ds_free(&ds);
+                return fp;
+            }
+            ds_free(&ds); /* free dstring resources, if any */
         }
-    }
+    } /* end of case that path is not absolute */
+
+    /* If not opened yet, try opening exactly as given */
     fp =  fopen(path, mode);
+
     return fp;
-}
+} /* end of function fopen_with_path */
+
 
 
 int

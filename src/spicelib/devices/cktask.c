@@ -19,7 +19,6 @@ CKTask(CKTcircuit *ckt, GENinstance *instance, int which, IFvalue *value, IFvalu
 {
     int type = instance->GENmodPtr->GENmodType;
     int error;
-    SPICEdev **DEVices;
 
     DEVices = devices();
     if(DEVices[type]->DEVask) {
@@ -30,7 +29,13 @@ CKTask(CKTcircuit *ckt, GENinstance *instance, int which, IFvalue *value, IFvalu
     }
     if (error && ft_stricterror) {
         fprintf(stderr, "\nError: %s\n", errMsg);
+        FREE(errMsg);
         controlled_exit(EXIT_BAD);
     }
+    if (error && ft_ngdebug) {
+        printf("\nWarning: %s\n", errMsg);
+    }
+    if (errMsg)
+        FREE(errMsg);
     return(error);
 }

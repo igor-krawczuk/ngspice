@@ -18,14 +18,18 @@ File: bsim3v32def.h
 
 typedef struct sBSIM3v32instance
 {
-    struct sBSIM3v32model *BSIM3v32modPtr;
-    struct sBSIM3v32instance *BSIM3v32nextInstance;
-    IFuid BSIM3v32name;
-    int BSIM3v32states;     /* index into state table for this device */
-    int BSIM3v32dNode;
-    int BSIM3v32gNode;
-    int BSIM3v32sNode;
-    int BSIM3v32bNode;
+
+    struct GENinstance gen;
+
+#define BSIM3v32modPtr(inst) ((struct sBSIM3v32model *)((inst)->gen.GENmodPtr))
+#define BSIM3v32nextInstance(inst) ((struct sBSIM3v32instance *)((inst)->gen.GENnextInstance))
+#define BSIM3v32name gen.GENname
+#define BSIM3v32states gen.GENstate
+
+    const int BSIM3v32dNode;
+    const int BSIM3v32gNode;
+    const int BSIM3v32sNode;
+    const int BSIM3v32bNode;
     int BSIM3v32dNodePrime;
     int BSIM3v32sNodePrime;
     int BSIM3v32qNode; /* MCJ */
@@ -396,12 +400,13 @@ struct bsim3v32SizeDependParam
 
 typedef struct sBSIM3v32model
 {
-    int BSIM3v32modType;
-    struct sBSIM3v32model *BSIM3v32nextModel;
-    BSIM3v32instance *BSIM3v32instances;
-    IFuid BSIM3v32modName;
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define BSIM3v32modType gen.GENmodType
+#define BSIM3v32nextModel(inst) ((struct sBSIM3v32model *)((inst)->gen.GENnextModel))
+#define BSIM3v32instances(inst) ((BSIM3v32instance *)((inst)->gen.GENinstances))
+#define BSIM3v32modName gen.GENmodName
 
     int BSIM3v32type;
 
@@ -875,6 +880,11 @@ typedef struct sBSIM3v32model
     double BSIM3v32vdsMax;
     double BSIM3v32vbsMax;
     double BSIM3v32vbdMax;
+    double BSIM3v32vgsrMax;
+    double BSIM3v32vgdrMax;
+    double BSIM3v32vgbrMax;
+    double BSIM3v32vbsrMax;
+    double BSIM3v32vbdrMax;
 
     struct bsim3v32SizeDependParam *pSizeDependParamKnot;
 
@@ -1326,6 +1336,11 @@ typedef struct sBSIM3v32model
     unsigned  BSIM3v32vdsMaxGiven  :1;
     unsigned  BSIM3v32vbsMaxGiven  :1;
     unsigned  BSIM3v32vbdMaxGiven  :1;
+    unsigned  BSIM3v32vgsrMaxGiven  :1;
+    unsigned  BSIM3v32vgdrMaxGiven  :1;
+    unsigned  BSIM3v32vgbrMaxGiven  :1;
+    unsigned  BSIM3v32vbsrMaxGiven  :1;
+    unsigned  BSIM3v32vbdrMaxGiven  :1;
 
 } BSIM3v32model;
 
@@ -1890,6 +1905,11 @@ typedef struct sBSIM3v32model
 #define BSIM3v32_MOD_VDS_MAX          804
 #define BSIM3v32_MOD_VBS_MAX          805
 #define BSIM3v32_MOD_VBD_MAX          806
+#define BSIM3v32_MOD_VGSR_MAX         807
+#define BSIM3v32_MOD_VGDR_MAX         808
+#define BSIM3v32_MOD_VGBR_MAX         809
+#define BSIM3v32_MOD_VBSR_MAX         810
+#define BSIM3v32_MOD_VBDR_MAX         811
 
 #include "bsim3v32ext.h"
 

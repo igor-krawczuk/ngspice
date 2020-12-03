@@ -3,11 +3,10 @@ FILE    MIFask.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -92,7 +91,7 @@ int MIFask(
     inst = (MIFinstance *) inInst;
 
     /* Arrange for access to MIF specific data in the model */
-    model = inst->MIFmodPtr;
+    model = MIFmodPtr(inst);
 
 
     /* Get model type */

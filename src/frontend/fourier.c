@@ -41,7 +41,7 @@ fourier(wordlist *wl, struct plot *current_plot)
 {
     struct dvec *time, *vec;
     struct pnode *pn, *names;
-    double *ff, fundfreq, *data = NULL;
+    double fundfreq, *data = NULL;
     int nfreqs, fourgridsize, polydegree;
     double *freq, *mag, *phase, *nmag, *nphase;  /* Outputs from CKTfour */
     double thd, *timescale = NULL;
@@ -65,11 +65,11 @@ fourier(wordlist *wl, struct plot *current_plot)
         return 1;
     }
 
-    if (!cp_getvar("nfreqs", CP_NUM, &nfreqs) || nfreqs < 1)
+    if (!cp_getvar("nfreqs", CP_NUM, &nfreqs, 0) || nfreqs < 1)
         nfreqs = 10;
-    if (!cp_getvar("polydegree", CP_NUM, &polydegree) || polydegree < 0)
+    if (!cp_getvar("polydegree", CP_NUM, &polydegree, 0) || polydegree < 0)
         polydegree = 1;
-    if (!cp_getvar("fourgridsize", CP_NUM, &fourgridsize) || fourgridsize < 1)
+    if (!cp_getvar("fourgridsize", CP_NUM, &fourgridsize, 0) || fourgridsize < 1)
         fourgridsize = DEF_FOURGRIDSIZE;
 
     time = current_plot->pl_scale;
@@ -78,11 +78,10 @@ fourier(wordlist *wl, struct plot *current_plot)
         return 1;
     }
     s = wl->wl_word;
-    if ((ff = ft_numparse(&s, FALSE)) == NULL || (*ff <= 0.0)) {
-        fprintf(cp_err, "Error: bad fund freq %s\n", wl->wl_word);
+    if (ft_numparse(&s, FALSE, &fundfreq) < 0 || fundfreq <= 0.0) {
+        fprintf(cp_err, "Error: bad fundamental freq %s\n", wl->wl_word);
         return 1;
     }
-    fundfreq = *ff;
 
     freq = TMALLOC(double, nfreqs);
     mag = TMALLOC(double, nfreqs);

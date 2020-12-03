@@ -28,11 +28,11 @@ TRAsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *state)
     NG_IGNORE(state);
 
     /*  loop through all the transmission line models */
-    for( ; model != NULL; model = model->TRAnextModel ) {
+    for( ; model != NULL; model = TRAnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->TRAinstances; here != NULL ;
-                here=here->TRAnextInstance) {
+        for (here = TRAinstances(model); here != NULL ;
+                here=TRAnextInstance(here)) {
             
             if(here->TRAbrEq1==0) {
                 error = CKTmkVolt(ckt,&tmp,here->TRAname,"i1");
@@ -121,27 +121,26 @@ TRAunsetup(GENmodel *inModel, CKTcircuit *ckt)
     TRAinstance *here;
 
     for (model = (TRAmodel *)inModel; model != NULL;
-	    model = model->TRAnextModel)
+	    model = TRAnextModel(model))
     {
-        for (here = model->TRAinstances; here != NULL;
-                here=here->TRAnextInstance)
+        for (here = TRAinstances(model); here != NULL;
+                here=TRAnextInstance(here))
 	{
-	    if (here->TRAbrEq1) {
-		CKTdltNNum(ckt, here->TRAbrEq1);
-		here->TRAbrEq1= 0;
-	    }
-	    if (here->TRAbrEq2) {
-		CKTdltNNum(ckt, here->TRAbrEq2);
-		here->TRAbrEq2= 0;
-	    }
-	    if (here->TRAintNode1) {
-		CKTdltNNum(ckt, here->TRAintNode1);
-		here->TRAintNode1= 0;
-	    }
-	    if (here->TRAintNode2) {
+	    if (here->TRAintNode2 > 0)
 		CKTdltNNum(ckt, here->TRAintNode2);
-		here->TRAintNode2= 0;
-	    }
+            here->TRAintNode2= 0;
+
+	    if (here->TRAintNode1 > 0)
+		CKTdltNNum(ckt, here->TRAintNode1);
+            here->TRAintNode1= 0;
+
+	    if (here->TRAbrEq2 > 0)
+		CKTdltNNum(ckt, here->TRAbrEq2);
+            here->TRAbrEq2= 0;
+
+	    if (here->TRAbrEq1 > 0)
+		CKTdltNNum(ckt, here->TRAbrEq1);
+            here->TRAbrEq1= 0;
 	}
     }
     return OK;

@@ -17,23 +17,26 @@ endif
 
 if !TCL_MODULE
 if !SHARED_MODULE
-bin_PROGRAMS =  ngspice ngnutmeg
+bin_PROGRAMS =  ngspice
 
+if OLDAPPS
 if !WINGUI
-bin_PROGRAMS += ngsconvert ngproc2mod ngmultidec ngmakeidx
+bin_PROGRAMS += ngnutmeg ngsconvert ngproc2mod ngmultidec ngmakeidx
 helpdatadir = $(pkgdatadir)/helpdir
 helpdata_DATA = ngspice.txt ngspice.idx
 if !NO_HELP
 bin_PROGRAMS += nghelp
 endif !NO_HELP
 endif !WINGUI
+endif OLDAPPS
 endif !SHARED_MODULE
 endif !TCL_MODULE
 
 EXTRA_DIST = ngspice.txt setplot spectrum \
-	     devload devaxis ciderinit winmain.c winmain.h \
+	     devload devaxis ciderinit \
+	     hist_info.c hist_info.h winmain.c winmain.h \
 	     tclspice.c tclspice.map pkgIndex.tcl.in spinit.in tclspinit.in \
-	     main.c sharedspice.c
+	     main.c sharedspice.c ngicon.rc ngspice.ico
 
 
 initdatadir = $(pkgdatadir)/scripts
@@ -92,11 +95,18 @@ DYNAMIC_DEVICELIBS =					\
 	spicelib/devices/vbic/libvbic.la		\
 	spicelib/devices/vccs/libvccs.la		\
 	spicelib/devices/vcvs/libvcvs.la		\
+	spicelib/devices/vdmos/libvdmos.la		\
 	spicelib/devices/vsrc/libvsrc.la		\
 	@VLADEV@
 
 
 ## Build ngspice first:
+
+## compile the icon:
+if WINRESOURCE
+ngicon.o: ngicon.rc
+	windres $(srcdir)/ngicon.rc -O coff -o ngicon.o
+endif
 
 ngspice_SOURCES = \
 	main.c \
@@ -107,7 +117,8 @@ ngspice_SOURCES = \
 ngspice_CPPFLAGS = $(AM_CPPFLAGS) -DSIMULATOR
 
 if WINGUI
-ngspice_SOURCES += winmain.c
+ngspice_LDFLAGS = -municode $(AM_LDFLAGS)
+ngspice_SOURCES += winmain.c hist_info.c
 endif
 
 ngspice_LDADD = \
@@ -187,7 +198,11 @@ ngspice_LDADD += frontend/help/libhlp.la
 endif
 endif
 
+if WINRESOURCE
+ngspice_LDADD += ngicon.o
+endif
 
+if OLDAPPS
 ## nutmeg:
 
 ngnutmeg_SOURCES = \
@@ -199,7 +214,7 @@ ngnutmeg_SOURCES = \
 ngnutmeg_CPPFLAGS = $(AM_CPPFLAGS)
 
 if WINGUI
-ngnutmeg_SOURCES += winmain.c
+ngnutmeg_SOURCES += winmain.c hist_info.c
 endif
 
 ngnutmeg_LDADD = \
@@ -256,6 +271,7 @@ endif !NO_HELP
 ngsconvert_SOURCES =  ngsconvert.c
 
 ngsconvert_LDADD =  \
+	frontend/com_history.lo \
 	frontend/libfte.la \
 	frontend/parser/libparser.la \
 	maths/misc/libmathmisc.la \
@@ -267,6 +283,7 @@ ngsconvert_LDADD =  \
 ngproc2mod_SOURCES = ngproc2mod.c
 
 ngproc2mod_LDADD =  \
+	frontend/libfte.la \
 	frontend/parser/libparser.la \
 	spicelib/parser/libinp.la \
 	misc/libmisc.la
@@ -277,6 +294,8 @@ ngproc2mod_LDADD =  \
 ngmultidec_SOURCES = ngmultidec.c
 
 ngmultidec_LDADD =  \
+	frontend/libfte.la \
+	frontend/parser/libparser.la \
 	maths/sparse/libsparse.la \
 	misc/libmisc.la
 
@@ -285,6 +304,11 @@ ngmultidec_LDADD =  \
 
 ngmakeidx_SOURCES = makeidx.c
 
+ngmakeidx_LDADD =  \
+	frontend/libfte.la \
+	frontend/parser/libparser.la \
+	misc/libmisc.la
+    
 ## create index for online help:
 
 ngspice.idx: ngmakeidx$(EXEEXT) $(srcdir)/ngspice.txt
@@ -292,14 +316,21 @@ ngspice.idx: ngmakeidx$(EXEEXT) $(srcdir)/ngspice.txt
 
 endif !SHWIN
 endif !WINGUI
+endif OLDAPPS
 
+if RELPATH
+spinitpath=../lib/ngspice
+endif RELPATH
+if !RELPATH
+spinitpath=$(pkglibdir)
+endif !RELPATH
 
 ## create spinit at compile time, see
 ##   (info "(autoconf) Installation Directory Variables")
 
 edit = sed \
 	-e 's|@XSPICEINIT[@]|$(XSPICEINIT)|g' \
-	-e 's|@pkglibdir[@]|$(pkglibdir)|g'
+	-e 's|@pkglibdir[@]|$(spinitpath)|g'
 
 spinit tclspinit : Makefile
 	rm -f $@ $@.tmp
@@ -321,7 +352,15 @@ AM_CFLAGS = -static
 LIBS = @LIBS@ @X_LIBS@ @X_PRE_LIBS@ @X_EXTRA_LIBS@
 
 if WINGUI
-LIBS += -lpsapi
+LIBS += -lpsapi -lshlwapi
+endif
+
+if WINCONSOLE
+LIBS += -lpsapi -lshlwapi
+endif
+
+if SHWIN
+LIBS += -lpsapi -lshlwapi
 endif
 
 CLEANFILES = ngspice.idx spinit tclspinit pkgIndex.tcl
@@ -337,7 +376,7 @@ pkgIndex_DATA = pkgIndex.tcl
 pkgIndexdir = $(pkglibdir)
 
 if TCLWIN
-LIBS += -lpsapi  -ltcl84 -lBLT24
+LIBS += -lpsapi -lshlwapi  -ltcl84 -lBLT24
 endif
 
 libspice_la_SOURCES = \

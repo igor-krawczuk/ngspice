@@ -78,6 +78,9 @@ BJTask(CKTcircuit *ckt, GENinstance *instPtr, int which, IFvalue *value, IFvalue
         case BJT_QUEST_COLPRIMENODE:
             value->iValue = here->BJTcolPrimeNode;
             return(OK);
+        case BJT_QUEST_COLLCXNODE:
+            value->iValue = here->BJTcollCXNode;
+            return(OK);
         case BJT_QUEST_BASEPRIMENODE:
             value->iValue = here->BJTbasePrimeNode;
             return(OK);
@@ -96,7 +99,7 @@ BJTask(CKTcircuit *ckt, GENinstance *instPtr, int which, IFvalue *value, IFvalue
             return(OK);
         case BJT_QUEST_CB:
             value->rValue = *(ckt->CKTstate0 + here->BJTcb);
-            if (here->BJTmodPtr->BJTsubs==LATERAL) {
+            if (BJTmodPtr(here)->BJTsubs==LATERAL) {
                 value->rValue -= *(ckt->CKTstate0 + here->BJTcdsub);
                 if ((ckt->CKTcurrentAnalysis & DOING_TRAN) && 
                           !(ckt->CKTmode & MODETRANOP)) {
@@ -248,7 +251,7 @@ BJTask(CKTcircuit *ckt, GENinstance *instPtr, int which, IFvalue *value, IFvalue
                        (ckt->CKTmode & MODETRANOP)) {
                 value->rValue = 0;
             } else {
-                value->rValue = -(here->BJTmodPtr->BJTsubs *
+                value->rValue = -(BJTmodPtr(here)->BJTsubs *
                                    (*(ckt->CKTstate0 + here->BJTcqsub) +
                                     *(ckt->CKTstate0 + here->BJTcdsub)));
             }
@@ -263,7 +266,7 @@ BJTask(CKTcircuit *ckt, GENinstance *instPtr, int which, IFvalue *value, IFvalue
             } else {
                 value->rValue = -*(ckt->CKTstate0 + here->BJTcc);
                 value->rValue -= *(ckt->CKTstate0 + here->BJTcb);
-                if (here->BJTmodPtr->BJTsubs==VERTICAL) {
+                if (BJTmodPtr(here)->BJTsubs==VERTICAL) {
                     value->rValue += *(ckt->CKTstate0 + here->BJTcdsub);
                     if ((ckt->CKTcurrentAnalysis & DOING_TRAN) && 
                             !(ckt->CKTmode & MODETRANOP)) {

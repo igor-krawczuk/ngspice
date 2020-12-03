@@ -3,22 +3,25 @@ Copyright 1990 Regents of the University of California.  All rights reserved.
 Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 **********/
 
+#include "../misc/ivars.h"
+#include "circuits.h"
+#include "com_alias.h"
+#include "define.h"
+#include "display.h"
+#include "ftehelp.h"
+#include "misccoms.h"
 #include "ngspice/ngspice.h"
 #include "ngspice/cpdefs.h"
 #include "ngspice/ftedefs.h"
 #include "ngspice/dvec.h"
-#include "ftehelp.h"
+#include "ngspice/iferrmsg.h"
 #include "ngspice/hlpdefs.h"
-#include "misccoms.h"
-#include "postcoms.h"
-#include "circuits.h"
-#include "variable.h"
 #include "plotting/graf.h"
-#include "display.h"
-#include "../misc/ivars.h"
-#include "com_alias.h"
-#include "define.h"
+#include "plotting/plotit.h"
+#include "postcoms.h"
 #include "runcoms2.h"
+#include "variable.h"
+#include "com_unset.h"
 
 #ifdef HAVE_GNUREADLINE
 #include <readline/readline.h>
@@ -29,6 +32,12 @@ extern char history_file[];
 #ifdef HAVE_BSDEDITLINE
 #include <editline/readline.h>
 extern char history_file[];
+#endif
+
+#ifdef SHARED_MODULE
+extern void rem_controls(void);
+extern void destroy_wallace(void);
+extern void sh_delete_myvec(void);
 #endif
 
 extern IFsimulator SIMinfo;
@@ -45,11 +54,12 @@ com_quit(wordlist *wl)
     bool noask =
         (wl  &&  wl->wl_word  &&  1 == sscanf(wl->wl_word, "%d", &exitcode)) ||
         (wl  &&  wl->wl_word  &&  cieq(wl->wl_word, "noask"))  ||
-        !cp_getvar("askquit", CP_BOOL, NULL);
+        !cp_getvar("askquit", CP_BOOL, NULL, 0);
 
     /* update screen and reset terminal */
     gr_clean();
     cp_ccon(FALSE);
+
 
     /* Make sure the guy really wants to quit. */
     if (!ft_nutmeg)
@@ -63,7 +73,6 @@ com_quit(wordlist *wl)
         wordlist all = { "all", NULL, NULL };
         wordlist star = { "*", NULL, NULL };
 
-//      com_remcirc(NULL);
         com_destroy(&all);
         com_unalias(&star);
         com_undefine(&star);
@@ -74,43 +83,36 @@ com_quit(wordlist *wl)
         cp_remvar("sourcepath");
         cp_remvar("program");
         cp_remvar("prompt");
-    }
-#endif
 
-#ifdef EXPERIMENTAL_CODE
-    /* Destroy CKT when quit. Add by Gong Ding, gdiso@ustc.edu */
-    if (!ft_nutmeg) {
-        struct circ *cc;
-        for (cc = ft_circuits; cc; cc = cc->ci_next)
-            if (SIMinfo.deleteCircuit)
-                SIMinfo.deleteCircuit(cc->ci_ckt);
+        destroy_wallace();
     }
-#endif
 
-#ifdef SHARED_MODULE
+    rem_controls();
+
     /* Destroy CKT when quit. */
     if (!ft_nutmeg) {
         while(ft_curckt)
             com_remcirc(NULL);
     }
-#endif
-
-    DevSwitch(NULL);
-    DevSwitch(NULL);
-
-    /* then go away */
-
-#ifdef SHARED_MODULE
     cp_destroy_keywords();
     destroy_ivars();
+#else
+    /* remove plotting parameters */
+    pl_rempar();
+
+    while (ft_curckt)
+        com_remcirc(NULL);
 #endif
 
+    tfree(errMsg);
     byemesg();
+
 #ifdef SHARED_MODULE
     destroy_const_plot();
     spice_destroy_devices();
-#endif
-#ifdef SHARED_MODULE
+    unset_all();
+    cp_resetcontrol(FALSE);
+    sh_delete_myvec();
     /* add 1000 to notify that we exit from 'quit' */
     controlled_exit(1000 + exitcode);
 #else
@@ -141,7 +143,10 @@ com_bug(wordlist *wl)
             Bug_Addr);
 
     (void) sprintf(buf, SYSTEM_MAIL, ft_sim->simulator, ft_sim->version, Bug_Addr);
-    (void) system(buf);
+    if (system(buf) == -1) {
+        fprintf(cp_err, "Bug report could not be sent: \"%s\" failed.\n",
+                buf);
+    }
 
     fprintf(cp_out, "Bug report sent.  Thank you.\n");
 }
@@ -161,9 +166,9 @@ com_bug(wordlist *wl)
 #endif
 
 
-/* printout upon startup or 'version' command. options to version are -s (short)
-   or -f (full). 'version' with options may also be used in ngspice pipe mode. */
-
+/* printout upon startup or 'version' command. options to version are -s (short),
+   -f (full), -v (just version), -d (just compile date).
+   'version' with options may also be used in ngspice pipe mode. */
 void
 com_version(wordlist *wl)
 {
@@ -178,11 +183,12 @@ com_version(wordlist *wl)
                 "** %s-%s : %s\n"
                 "** The U. C. Berkeley CAD Group\n"
                 "** Copyright 1985-1994, Regents of the University of California.\n"
+                "** Copyright 2001-2020, The ngspice team.\n"
                 "** %s\n",
                 ft_sim->simulator, ft_sim->version, ft_sim->description, Spice_Manual);
-        if (Spice_Notice != NULL && *Spice_Notice != '\0')
+        if (*Spice_Notice != '\0')
             fprintf(cp_out, "** %s\n", Spice_Notice);
-        if (Spice_Build_Date != NULL && *Spice_Build_Date != '\0')
+        if (*Spice_Build_Date != '\0')
             fprintf(cp_out, "** Creation Date: %s\n", Spice_Build_Date);
         fprintf(cp_out, "******\n");
 
@@ -197,24 +203,29 @@ com_version(wordlist *wl)
                     "** %s-%s\n"
                     "** %s\n",
                     ft_sim->simulator, ft_sim->version, Spice_Manual);
-            if (Spice_Notice != NULL && *Spice_Notice != '\0')
+            if (*Spice_Notice != '\0')
                 fprintf(cp_out, "** %s\n", Spice_Notice);
-            if (Spice_Build_Date != NULL && *Spice_Build_Date != '\0')
+            if (*Spice_Build_Date != '\0')
                 fprintf(cp_out, "** Creation Date: %s\n", Spice_Build_Date);
             fprintf(cp_out, "******\n");
 
-        } else if (!strncasecmp(s, "-f", 2)) {
+        } else if (!strncasecmp(s, "-v", 2)) {
+            fprintf(cp_out, "%s-%s\n",ft_sim->simulator, ft_sim->version);
+        } else if (!strncasecmp(s, "-d", 2) && *Spice_Build_Date != '\0'){
+            fprintf(cp_out, "%s\n", Spice_Build_Date);
 
+        } else if (!strncasecmp(s, "-f", 2)) {
             fprintf(cp_out,
                     "******\n"
                     "** %s-%s : %s\n"
                     "** The U. C. Berkeley CAD Group\n"
                     "** Copyright 1985-1994, Regents of the University of California.\n"
+                    "** Copyright 2001-2020, The ngspice team.\n"
                     "** %s\n",
                     ft_sim->simulator, ft_sim->version, ft_sim->description, Spice_Manual);
-            if (Spice_Notice != NULL && *Spice_Notice != '\0')
+            if (*Spice_Notice != '\0')
                 fprintf(cp_out, "** %s\n", Spice_Notice);
-            if (Spice_Build_Date != NULL && *Spice_Build_Date != '\0')
+            if (*Spice_Build_Date != '\0')
                 fprintf(cp_out, "** Creation Date: %s\n", Spice_Build_Date);
             fprintf(cp_out, "**\n");
 #ifdef CIDER

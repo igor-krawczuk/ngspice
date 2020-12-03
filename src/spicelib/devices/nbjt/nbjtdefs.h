@@ -22,14 +22,14 @@ Authors: 1987 Karti Mayaram, 1991 David Gates
 
 /* information needed per instance */
 typedef struct sNBJTinstance {
-  struct sNBJTmodel *NBJTmodPtr;/* back pointer to model */
-  struct sNBJTinstance *NBJTnextInstance;	/* pointer to next instance
-						 * of current model */
-  IFuid NBJTname;		/* pointer to character string naming this
-				 * instance */
-  int NBJTstate;		/* pointer to start of state vector for bjt */
 
-  /* entries in the state vector for bjt: */
+  struct GENinstance gen;
+
+#define NBJTmodPtr(inst) ((struct sNBJTmodel *)((inst)->gen.GENmodPtr))
+#define NBJTnextInstance(inst) ((struct sNBJTinstance *)((inst)->gen.GENnextInstance))
+#define NBJTname gen.GENname
+#define NBJTstate gen.GENstate
+
 #define NBJTvbe NBJTstate
 #define NBJTvce NBJTstate+1
 #define NBJTic NBJTstate+2
@@ -40,9 +40,9 @@ typedef struct sNBJTinstance {
 #define NBJTdIcDVbe NBJTstate+7
 #define NBJTnumStates 8
 
-  int NBJTcolNode;		/* number of collector node of bjt */
-  int NBJTbaseNode;		/* number of base node of bjt */
-  int NBJTemitNode;		/* number of emitter node of bjt */
+  const int NBJTcolNode;		/* number of collector node of bjt */
+  const int NBJTbaseNode;		/* number of base node of bjt */
+  const int NBJTemitNode;		/* number of emitter node of bjt */
   ONEdevice *NBJTpDevice;
   GLOBvalues NBJTglobals;	/* Temp.-Dep. Global Parameters */
   int NBJTtype;
@@ -87,17 +87,14 @@ typedef struct sNBJTinstance {
 
 /* per model data */
 typedef struct sNBJTmodel {	/* model structure for a bjt */
-  int NBJTmodType;		/* type index of this device type */
-  struct sNBJTmodel *NBJTnextModel;	/* pointer to next possible model in
-					 * linked list */
-  NBJTinstance *NBJTinstances;	/* pointer to list of instances that have
-				 * this model */
 
-  /* --- end of generic struct GENmodel --- */
+  struct GENmodel gen;
 
-  IFuid NBJTmodName;		/* pointer to character string naming this
-				 * model */
-  /* Everything below here is numerical-device-specific */
+#define NBJTmodType gen.GENmodType
+#define NBJTnextModel(inst) ((struct sNBJTmodel *)((inst)->gen.GENnextModel))
+#define NBJTinstances(inst) ((NBJTinstance *)((inst)->gen.GENinstances))
+#define NBJTmodName gen.GENmodName
+
   MESHcard *NBJTxMeshes;	/* list of xmesh cards */
   MESHcard *NBJTyMeshes;	/* list of ymesh cards */
   DOMNcard *NBJTdomains;	/* list of domain cards */
@@ -122,39 +119,43 @@ typedef struct sNBJTmodel {	/* model structure for a bjt */
 #define PNP -1
 
 /* device parameters */
-#define NBJT_AREA 1
-#define NBJT_OFF 2
-#define NBJT_IC_FILE 3
-#define NBJT_PRINT 4
-#define NBJT_TEMP 5
+enum {
+    NBJT_AREA = 1,
+    NBJT_OFF,
+    NBJT_IC_FILE,
+    NBJT_PRINT,
+    NBJT_TEMP,
+};
 
-#define NBJT_G11 8
-#define NBJT_C11 9
-#define NBJT_Y11 10
-#define NBJT_G12 11
-#define NBJT_C12 12
-#define NBJT_Y12 13
-#define NBJT_G13 14
-#define NBJT_C13 15
-#define NBJT_Y13 16
-#define NBJT_G21 17
-#define NBJT_C21 18
-#define NBJT_Y21 19
-#define NBJT_G22 20
-#define NBJT_C22 21
-#define NBJT_Y22 22
-#define NBJT_G23 23
-#define NBJT_C23 24
-#define NBJT_Y23 25
-#define NBJT_G31 26
-#define NBJT_C31 27
-#define NBJT_Y31 28
-#define NBJT_G32 29
-#define NBJT_C32 30
-#define NBJT_Y32 31
-#define NBJT_G33 32
-#define NBJT_C33 33
-#define NBJT_Y33 34
+enum {
+    NBJT_G11 = 8,
+    NBJT_C11,
+    NBJT_Y11,
+    NBJT_G12,
+    NBJT_C12,
+    NBJT_Y12,
+    NBJT_G13,
+    NBJT_C13,
+    NBJT_Y13,
+    NBJT_G21,
+    NBJT_C21,
+    NBJT_Y21,
+    NBJT_G22,
+    NBJT_C22,
+    NBJT_Y22,
+    NBJT_G23,
+    NBJT_C23,
+    NBJT_Y23,
+    NBJT_G31,
+    NBJT_C31,
+    NBJT_Y31,
+    NBJT_G32,
+    NBJT_C32,
+    NBJT_Y32,
+    NBJT_G33,
+    NBJT_C33,
+    NBJT_Y33,
+};
 
 /* model parameters */
 /* NOTE: all true model parameters have been moved to IFcardInfo structures */

@@ -15,7 +15,7 @@ void
 INP2Y(
     CKTcircuit *ckt,
     INPtables *tab,
-    card *current)
+    struct card *current)
 
 {
 /* parse a txl card */
@@ -58,7 +58,7 @@ int lenvalgiven = 0;
         return;
     }
     line = current->line;
-    INPgetTok(&line,&name,1);
+    INPgetNetTok(&line,&name,1);
     INPinsert(&name,tab);
     INPgetNetTok(&line,&nname1,1);
     INPtermInsert(ckt,&nname1,tab,&node1);
@@ -69,10 +69,9 @@ int lenvalgiven = 0;
     INPgetNetTok(&line,&ground2,1);
     INPtermInsert(ckt,&ground2,tab,&gnode2);
 
-    INPgetTok(&line,&model,1);
+    INPgetNetTok(&line, &model, 1);
     if(*model) { /* token isn't null */
             INPinsert(&model,tab);
-            thismodel = NULL;
             current->error = INPgetMod(ckt,model,&thismodel,tab);
             INPgetTok(&line,&model,1);
             if (strcmp(model, "len") == 0) {

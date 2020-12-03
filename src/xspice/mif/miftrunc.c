@@ -3,11 +3,10 @@ FILE    MIFtrunc.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -92,10 +91,10 @@ MIFtrunc(
 
 
     /* loop through all models of this type */
-    for( ; model != NULL; model = model->MIFnextModel) {
+    for( ; model != NULL; model = MIFnextModel(model)) {
 
         /* Loop through all instances of this model */
-        for(here = model->MIFinstances; here != NULL; here = here->MIFnextInstance) {
+        for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
 
             /* Loop through all integration states on the instance */
             for(i = 0; i < here->num_intgr; i++) {
@@ -114,7 +113,6 @@ MIFtrunc(
 
 
 /*
- * Copyright (c) 1985 Thomas L. Quarles
  *
  * This is a modified version of the function CKTterr().  It limits
  * timeStep according to computed truncation error.

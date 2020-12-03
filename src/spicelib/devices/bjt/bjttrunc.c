@@ -24,12 +24,15 @@ BJTtrunc(GENmodel *inModel, CKTcircuit *ckt, double *timeStep)
     BJTmodel *model = (BJTmodel*)inModel;
     BJTinstance *here;
 
-    for( ; model != NULL; model = model->BJTnextModel) {
-        for(here=model->BJTinstances;here!=NULL;here = here->BJTnextInstance){
+    for( ; model != NULL; model = BJTnextModel(model)) {
+        for(here=BJTinstances(model);here!=NULL;here = BJTnextInstance(here)){
 
             CKTterr(here->BJTqbe,ckt,timeStep);
             CKTterr(here->BJTqbc,ckt,timeStep);
             CKTterr(here->BJTqsub,ckt,timeStep);
+            if (model->BJTintCollResistGiven) {
+                CKTterr(here->BJTqbcx,ckt,timeStep);
+            }
         }
     }
     return(OK);

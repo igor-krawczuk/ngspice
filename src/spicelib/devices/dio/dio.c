@@ -27,6 +27,7 @@ IFparm DIOpTable[] = { /* parameters */
  OP("gd",   DIO_CONDUCT,IF_REAL, "Diode conductance"),
  OP("cd",   DIO_CAP, IF_REAL, "Diode capacitance"),
  OPU("charge", DIO_CHARGE, IF_REAL, "Diode capacitor charge"),
+ OPUR("qd", DIO_CHARGE, IF_REAL, "Diode capacitor charge"),
  OPU("capcur", DIO_CAPCUR, IF_REAL, "Diode capacitor current"),
  OPU("p",      DIO_POWER,  IF_REAL, "Diode power"),
  OPU("sens_dc",DIO_QUEST_SENS_DC,     IF_REAL,   "dc sensitivity "),
@@ -45,7 +46,7 @@ IFparm DIOmPTable[] = { /* model parameters */
  IOP( "jsw", DIO_MOD_JSW,  IF_REAL, "Sidewall Saturation current"),
 
  IOPU( "tnom",DIO_MOD_TNOM,IF_REAL, "Parameter measurement temperature"),
- IOPR( "tref",DIO_MOD_TNOM,IF_REAL, "Parameter measurement temperature"),
+ IOPUR("tref",DIO_MOD_TNOM,IF_REAL, "Parameter measurement temperature"),
  IOP( "rs",  DIO_MOD_RS,  IF_REAL, "Ohmic resistance"),
  IOP( "trs", DIO_MOD_TRS, IF_REAL, "Ohmic resistance 1st order temp. coeff."),
  IOPR( "trs1", DIO_MOD_TRS, IF_REAL, "Ohmic resistance 1st order temp. coeff."),
@@ -56,8 +57,8 @@ IFparm DIOmPTable[] = { /* model parameters */
  IOPA( "ttt1", DIO_MOD_TTT1, IF_REAL, "Transit Time 1st order temp. coeff."),
  IOPA( "ttt2", DIO_MOD_TTT2, IF_REAL, "Transit Time 2nd order temp. coeff."),
  IOPA( "cjo", DIO_MOD_CJO, IF_REAL, "Junction capacitance"),
- IOPR( "cj0", DIO_MOD_CJO, IF_REAL, "Junction capacitance"),
- IOPR( "cj", DIO_MOD_CJO, IF_REAL, "Junction capacitance"),
+ IOPAR( "cj0",DIO_MOD_CJO, IF_REAL, "Junction capacitance"),
+ IOPAR( "cj", DIO_MOD_CJO, IF_REAL, "Junction capacitance"),
  IOP( "vj",  DIO_MOD_VJ,  IF_REAL, "Junction potential"),
  IOPR( "pb",  DIO_MOD_VJ,  IF_REAL, "Junction potential"),
  IOP( "m",   DIO_MOD_M,   IF_REAL, "Grading coefficient"),
@@ -83,8 +84,6 @@ IFparm DIOmPTable[] = { /* model parameters */
  IOPR( "ctc", DIO_MOD_CTA, IF_REAL, "Area junction capacitance temperature coefficient"),
  IOP( "ctp", DIO_MOD_CTP, IF_REAL, "Perimeter junction capacitance temperature coefficient"),
 
- IOP( "ctp", DIO_MOD_CTP, IF_REAL, "Perimeter junction capacitance temperature coefficient"),
-
  IOP( "tpb", DIO_MOD_TPB, IF_REAL, "Area junction potential temperature coefficient"),
  IOPR( "tvj", DIO_MOD_TPB, IF_REAL, "Area junction potential temperature coefficient"),
  IOP( "tphp", DIO_MOD_TPHP, IF_REAL, "Perimeter junction potential temperature coefficient"),
@@ -107,6 +106,8 @@ IFparm DIOmPTable[] = { /* model parameters */
 
  IOP( "fv_max",   DIO_MOD_FV_MAX,  IF_REAL, "maximum voltage in forward direction"),
  IOP( "bv_max",   DIO_MOD_BV_MAX,  IF_REAL, "maximum voltage in reverse direction"),
+ IOP( "isr",  DIO_MOD_ISR,  IF_REAL, "Recombination saturation current"),
+ IOP( "nr",   DIO_MOD_NR,   IF_REAL, "Recombination current emission coefficient"),
 
  IP( "d",    DIO_MOD_D,   IF_FLAG, "Diode model")
 };

@@ -3,11 +3,10 @@ FILE    int/udnfunc.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -40,13 +39,12 @@ NON-STANDARD FEATURES
 ============================================================================*/
 
 #include <stdio.h>
+
+
 #include "ngspice/cm.h"
-
 #include "ngspice/evtudn.h"
+#include "ngspice/memory.h"
 
-void *tmalloc(size_t);
-
-#define TMALLOC(t,n)      (t*) tmalloc(sizeof(t) * (size_t)(n))
 
 /* macro to ignore unused variables and parameters */
 #define NG_IGNORE(x)  (void)x

@@ -164,27 +164,29 @@ NIiter(CKTcircuit *ckt, int maxIter)
                 SPfrontEnd->IFseconds() - startTime;
 #ifdef STEPDEBUG
             /*XXXX*/
-            if (*ckt->CKTrhs != 0.0)
-                printf("NIiter: CKTrhs[0] = %g\n", *ckt->CKTrhs);
-            if (*ckt->CKTrhsSpare != 0.0)
-                printf("NIiter: CKTrhsSpare[0] = %g\n", *ckt->CKTrhsSpare);
-            if (*ckt->CKTrhsOld != 0.0)
-                printf("NIiter: CKTrhsOld[0] = %g\n", *ckt->CKTrhsOld);
+            if (ckt->CKTrhs[0] != 0.0)
+                printf("NIiter: CKTrhs[0] = %g\n", ckt->CKTrhs[0]);
+            if (ckt->CKTrhsSpare[0] != 0.0)
+                printf("NIiter: CKTrhsSpare[0] = %g\n", ckt->CKTrhsSpare[0]);
+            if (ckt->CKTrhsOld[0] != 0.0)
+                printf("NIiter: CKTrhsOld[0] = %g\n", ckt->CKTrhsOld[0]);
             /*XXXX*/
 #endif
-            *ckt->CKTrhs = 0;
-            *ckt->CKTrhsSpare = 0;
-            *ckt->CKTrhsOld = 0;
+            ckt->CKTrhs[0] = 0;
+            ckt->CKTrhsSpare[0] = 0;
+            ckt->CKTrhsOld[0] = 0;
 
             if (iterno > maxIter) {
-                /* fprintf(stderr, "too many iterations without convergence: %d iter's (max iter == %d)\n",
-                   iterno, maxIter); */
                 ckt->CKTstat->STATnumIter += iterno;
-                FREE(errMsg);
-                errMsg = copy("Too many iterations without convergence");
+                /* we don't use this info during transient analysis */
+                if (ckt->CKTcurrentAnalysis != DOING_TRAN) {
+                    FREE(errMsg);
+                    errMsg = copy("Too many iterations without convergence");
 #ifdef STEPDEBUG
-                printf("iterlim exceeded \n");
+                    fprintf(stderr, "too many iterations without convergence: %d iter's (max iter == %d)\n",
+                    iterno, maxIter);
 #endif
+                }
                 FREE(OldCKTstate0);
                 return(E_ITERLIM);
             }

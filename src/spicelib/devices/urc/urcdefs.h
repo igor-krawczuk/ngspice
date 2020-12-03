@@ -19,14 +19,17 @@ Author: 1985 Thomas L. Quarles
 /* information needed for each instance */
 
 typedef struct sURCinstance {
-    struct sURCmodel *URCmodPtr;    /* backpointer to model */
-    struct sURCinstance *URCnextInstance;   /* pointer to next instance of 
-                                             * current model*/
-    IFuid URCname;  /* pointer to character string naming this instance */
-    int URCstate;	/* not used */
-    int URCposNode;   /* number of positive node of URC */
-    int URCnegNode;   /* number of negative node of URC */
-    int URCgndNode;   /* number of the "ground" node of the URC */
+
+    struct GENinstance gen;
+
+#define URCmodPtr(inst) ((struct sURCmodel *)((inst)->gen.GENmodPtr))
+#define URCnextInstance(inst) ((struct sURCinstance *)((inst)->gen.GENnextInstance))
+#define URCname gen.GENname
+#define URCstate gen.GENstate
+
+    const int URCposNode;   /* number of positive node of URC */
+    const int URCnegNode;   /* number of negative node of URC */
+    const int URCgndNode;   /* number of the "ground" node of the URC */
 
     double URClength;   /* length of line */
     int URClumps;   /* number of lumps in line */
@@ -37,14 +40,13 @@ typedef struct sURCinstance {
 /* per model data */
 
 typedef struct sURCmodel {       /* model structure for a resistor */
-    int URCmodType; /* type index of this device type */
-    struct sURCmodel *URCnextModel; /* pointer to next possible model 
-                                     * in linked list */
-    URCinstance * URCinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid URCmodName;       /* pointer to character string naming this model */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define URCmodType gen.GENmodType
+#define URCnextModel(inst) ((struct sURCmodel *)((inst)->gen.GENnextModel))
+#define URCinstances(inst) ((URCinstance *)((inst)->gen.GENinstances))
+#define URCmodName gen.GENmodName
 
     double URCk;        /* propagation constant for URC */
     double URCfmax;     /* max frequence of interest */
@@ -61,20 +63,24 @@ typedef struct sURCmodel {       /* model structure for a resistor */
 } URCmodel;
 
 /* device parameters */
-#define URC_LEN 1
-#define URC_LUMPS 2
-#define URC_POS_NODE 3
-#define URC_NEG_NODE 4
-#define URC_GND_NODE 5
+enum {
+    URC_LEN = 1,
+    URC_LUMPS,
+    URC_POS_NODE,
+    URC_NEG_NODE,
+    URC_GND_NODE,
+};
 
 /* model parameters */
-#define URC_MOD_K 101
-#define URC_MOD_FMAX 102
-#define URC_MOD_RPERL 103
-#define URC_MOD_CPERL 104
-#define URC_MOD_ISPERL 105
-#define URC_MOD_RSPERL 106
-#define URC_MOD_URC 107
+enum {
+    URC_MOD_K = 101,
+    URC_MOD_FMAX,
+    URC_MOD_RPERL,
+    URC_MOD_CPERL,
+    URC_MOD_ISPERL,
+    URC_MOD_RSPERL,
+    URC_MOD_URC,
+};
 
 /* device questions */
 

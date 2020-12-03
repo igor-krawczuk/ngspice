@@ -35,7 +35,6 @@ RESnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
     RESmodel *firstModel = (RESmodel *) genmodel;
     RESmodel *model;
     RESinstance *inst;
-    char name[N_MXVLNTH];
     double tempOutNoise;
     double tempInNoise;
     double noizDens[RESNSRCS];
@@ -53,9 +52,9 @@ RESnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
     };
 
     
-    for (model = firstModel; model != NULL; model = model->RESnextModel) {
-        for (inst = model->RESinstances; inst != NULL; 
-                inst = inst->RESnextInstance) {
+    for (model = firstModel; model != NULL; model = RESnextModel(model)) {
+        for (inst = RESinstances(model); inst != NULL; 
+                inst = RESnextInstance(inst)) {
 
             if(!inst->RESnoisy) continue; /* Quiet resistors are skipped */
             
@@ -73,43 +72,14 @@ RESnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
 
                     case N_DENS:
                         for (i=0; i < RESNSRCS; i++) {
-                        (void)sprintf(name,"onoise_%s%s",
-                                      inst->RESname, RESnNames[i]);
-
-                        data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                        if (!data->namelist) return(E_NOMEM);
-                        SPfrontEnd->IFnewUid (ckt,
-                            &(data->namelist[data->numPlots++]),
-                            NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
+                            NOISE_ADD_OUTVAR(ckt, data, "onoise_%s%s", inst->RESname, RESnNames[i]);
                         }
                         break;
 
                     case INT_NOIZ:
                         for (i=0; i < RESNSRCS; i++) {
-                            (void)sprintf(name,"onoise_total_%s%s",
-                                          inst->RESname, RESnNames[i]);
-
-
-                            data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                            if (!data->namelist) return(E_NOMEM);
-                            SPfrontEnd->IFnewUid (ckt,
-                                &(data->namelist[data->numPlots++]),
-                                NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
-
-
-                            (void)sprintf(name,"inoise_total_%s%s",
-                                inst->RESname,RESnNames[i]);
-
-
-                            data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                            if (!data->namelist) return(E_NOMEM);
-                            SPfrontEnd->IFnewUid (ckt,
-                                &(data->namelist[data->numPlots++]),
-                                NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
-
+                            NOISE_ADD_OUTVAR(ckt, data, "onoise_total_%s%s", inst->RESname, RESnNames[i]);
+                            NOISE_ADD_OUTVAR(ckt, data, "inoise_total_%s%s", inst->RESname, RESnNames[i]);
                         }
                         break;
                     }
@@ -123,7 +93,7 @@ RESnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
                 
                        NevalSrcInstanceTemp(&noizDens[RESTHNOIZ],&lnNdens[RESTHNOIZ],
                                 ckt,THERMNOISE, inst->RESposNode,inst->RESnegNode,
-                                inst->RESconduct * inst->RESm, inst->RESdtemp); 
+                                inst->RESconduct, inst->RESdtemp);
 
                        NevalSrcInstanceTemp(&noizDens[RESFLNOIZ], NULL, ckt,
                                 N_GAIN,inst->RESposNode, inst->RESnegNode,
@@ -133,9 +103,9 @@ RESnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
                        printf("DC current in resistor %s: %e\n",inst->RESname, inst->REScurrent);
 #endif
                        
-                       noizDens[RESFLNOIZ] *= inst->RESm * model->RESfNcoef * exp(model->RESfNexp *
-                                              log(MAX(fabs(inst->REScurrent),
-                                              N_MINLOG))) / (inst->RESeffNoiseArea*pow(data->freq,model->RESef));
+                       noizDens[RESFLNOIZ] *= inst->RESm * model->RESfNcoef *
+                           pow(fabs(inst->REScurrent / inst->RESm), model->RESfNexp)
+                           / (inst->RESeffNoiseArea * pow(data->freq, model->RESef));
                        lnNdens[RESFLNOIZ]   = log(MAX(noizDens[RESFLNOIZ],N_MINLOG));
 
                        noizDens[RESTOTNOIZ] = noizDens[RESTHNOIZ] + noizDens[RESFLNOIZ];

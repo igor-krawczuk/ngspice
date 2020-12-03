@@ -20,19 +20,19 @@ INDacLoad(GENmodel *inModel, CKTcircuit *ckt)
     double m;
     INDinstance *here;
 
-    for( ; model != NULL; model = model->INDnextModel) {
-        for( here = model->INDinstances;here != NULL; 
-                here = here->INDnextInstance) {
+    for( ; model != NULL; model = INDnextModel(model)) {
+        for( here = INDinstances(model);here != NULL; 
+                here = INDnextInstance(here)) {
     
             m = (here->INDm);
 
             val = ckt->CKTomega * here->INDinduct / m;
 	    
-            *(here->INDposIbrptr) +=  1;
-            *(here->INDnegIbrptr) -=  1;
-            *(here->INDibrPosptr) +=  1;
-            *(here->INDibrNegptr) -=  1;
-            *(here->INDibrIbrptr +1) -=  val;
+            *(here->INDposIbrPtr) +=  1;
+            *(here->INDnegIbrPtr) -=  1;
+            *(here->INDibrPosPtr) +=  1;
+            *(here->INDibrNegPtr) -=  1;
+            *(here->INDibrIbrPtr +1) -=  val;
         }
     }
     return(OK);

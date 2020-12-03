@@ -31,7 +31,6 @@ VBICnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt, Ndata *
     VBICmodel *firstModel = (VBICmodel *) genmodel;
     VBICmodel *model;
     VBICinstance *inst;
-    char name[N_MXVLNTH];
     double tempOnoise;
     double tempInoise;
     double noizDens[VBICNSRCS];
@@ -59,9 +58,9 @@ VBICnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt, Ndata *
         ""                  /* total transistor noise */
     };
 
-    for (model=firstModel; model != NULL; model=model->VBICnextModel) {
-        for (inst=model->VBICinstances; inst != NULL;
-                inst=inst->VBICnextInstance) {
+    for (model=firstModel; model != NULL; model=VBICnextModel(model)) {
+        for (inst=VBICinstances(model); inst != NULL;
+                inst=VBICnextInstance(inst)) {
 
             switch (operation) {
 
@@ -75,40 +74,14 @@ VBICnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt, Ndata *
 
                     case N_DENS:
                         for (i=0; i < VBICNSRCS; i++) {
-                            (void)sprintf(name,"onoise_%s%s",
-                                inst->VBICname,VBICnNames[i]);
-
-
-                        data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                        if (!data->namelist) return(E_NOMEM);
-                        SPfrontEnd->IFnewUid (ckt,
-                            &(data->namelist[data->numPlots++]),
-                            NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
+                            NOISE_ADD_OUTVAR(ckt, data, "onoise_%s%s", inst->VBICname, VBICnNames[i]);
                         }
                         break;
 
                     case INT_NOIZ:
                         for (i=0; i < VBICNSRCS; i++) {
-                            (void)sprintf(name,"onoise_total_%s%s",
-                                inst->VBICname,VBICnNames[i]);
-
-                        data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                        if (!data->namelist) return(E_NOMEM);
-                        SPfrontEnd->IFnewUid (ckt,
-                            &(data->namelist[data->numPlots++]),
-                            NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
-
-                            (void)sprintf(name,"inoise_total_%s%s",
-                                inst->VBICname,VBICnNames[i]);
-
-data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-if (!data->namelist) return(E_NOMEM);
-                SPfrontEnd->IFnewUid (ckt,
-                        &(data->namelist[data->numPlots++]),
-                        NULL, name, UID_OTHER, NULL);
-                                /* we've added one more plot */
+                            NOISE_ADD_OUTVAR(ckt, data, "onoise_total_%s%s", inst->VBICname, VBICnNames[i]);
+                            NOISE_ADD_OUTVAR(ckt, data, "inoise_total_%s%s", inst->VBICname, VBICnNames[i]);
                         }
                         break;
                     }

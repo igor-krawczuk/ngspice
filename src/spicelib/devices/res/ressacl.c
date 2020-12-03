@@ -21,27 +21,25 @@ RESsAcLoad(GENmodel *inModel, CKTcircuit *ckt)
 {
     RESmodel *model = (RESmodel *)inModel;
     RESinstance *here;
-    double vres;
-    double ivres;
     double value;
     double ivalue;
 
     /*  loop through all the resistor models */
-    for( ; model != NULL; model = model->RESnextModel ) {
+    for( ; model != NULL; model = RESnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->RESinstances; here != NULL ;
-                here=here->RESnextInstance) {
+        for (here = RESinstances(model); here != NULL ;
+                here=RESnextInstance(here)) {
 
             if(here->RESsenParmNo){
-                vres = *(ckt->CKTrhsOld+here->RESposNode) -
+                value = *(ckt->CKTrhsOld+here->RESposNode) -
                     *(ckt->CKTrhsOld+here->RESnegNode);
-                ivres = *(ckt->CKTirhsOld+here->RESposNode) -
+                ivalue = *(ckt->CKTirhsOld+here->RESposNode) -
                     *(ckt->CKTirhsOld+here->RESnegNode);
-                value = vres * here->RESacConduct * here->RESacConduct;
-		value = value * here->RESm * here->RESm;
-                ivalue = ivres * here->RESacConduct * here->RESacConduct;
-		ivalue = ivalue * here->RESm * here->RESm;
+                value *= here->RESacConduct;
+                value *= here->RESacConduct;
+                ivalue *= here->RESacConduct;
+                ivalue *= here->RESacConduct;
 
                 /* load the RHS matrix */
                 *(ckt->CKTsenInfo->SEN_RHS[here->RESposNode] + 

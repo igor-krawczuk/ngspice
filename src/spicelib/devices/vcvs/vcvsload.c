@@ -25,18 +25,18 @@ VCVSload(GENmodel *inModel, CKTcircuit *ckt)
     NG_IGNORE(ckt);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->VCVSnextModel ) {
+    for( ; model != NULL; model = VCVSnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->VCVSinstances; here != NULL ;
-                here=here->VCVSnextInstance) {
+        for (here = VCVSinstances(model); here != NULL ;
+                here=VCVSnextInstance(here)) {
             
-            *(here->VCVSposIbrptr) += 1.0 ;
-            *(here->VCVSnegIbrptr) -= 1.0 ;
-            *(here->VCVSibrPosptr) += 1.0 ;
-            *(here->VCVSibrNegptr) -= 1.0 ;
-            *(here->VCVSibrContPosptr) -= here->VCVScoeff ;
-            *(here->VCVSibrContNegptr) += here->VCVScoeff ;
+            *(here->VCVSposIbrPtr) += 1.0 ;
+            *(here->VCVSnegIbrPtr) -= 1.0 ;
+            *(here->VCVSibrPosPtr) += 1.0 ;
+            *(here->VCVSibrNegPtr) -= 1.0 ;
+            *(here->VCVSibrContPosPtr) -= here->VCVScoeff ;
+            *(here->VCVSibrContNegPtr) += here->VCVScoeff ;
         }
     }
     return(OK);

@@ -41,7 +41,7 @@ double Nvtm, SourceSatCurrent, DrainSatCurrent;
 int Size_Not_Found, error;
 
     /*  loop through all the BSIM3v32 device models */
-    for (; model != NULL; model = model->BSIM3v32nextModel)
+    for (; model != NULL; model = BSIM3v32nextModel(model))
     {    Temp = ckt->CKTtemp;
          if (model->BSIM3v32bulkJctPotential < 0.1)
          {   model->BSIM3v32bulkJctPotential = 0.1;
@@ -54,6 +54,13 @@ int Size_Not_Found, error;
          if (model->BSIM3v32GatesidewallJctPotential < 0.1)
          {   model->BSIM3v32GatesidewallJctPotential = 0.1;
              fprintf(stderr, "Given pbswg is less than 0.1. Pbswg is set to 0.1.\n");
+         }
+
+         struct bsim3v32SizeDependParam *p = model->pSizeDependParamKnot;
+         while (p) {
+             struct bsim3v32SizeDependParam *next_p = p->pNext;
+             FREE(p);
+             p = next_p;
          }
          model->pSizeDependParamKnot = NULL;
          pLastKnot = NULL;
@@ -209,8 +216,8 @@ int Size_Not_Found, error;
 
          /* loop through all the instances of the model */
                /* MCJ: Length and Width not initialized */
-         for (here = model->BSIM3v32instances; here != NULL;
-              here = here->BSIM3v32nextInstance)
+         for (here = BSIM3v32instances(model); here != NULL;
+              here = BSIM3v32nextInstance(here))
          {
               pSizeDependParamKnot = model->pSizeDependParamKnot;
               Size_Not_Found = 1;
@@ -868,11 +875,14 @@ int Size_Not_Found, error;
 
               /* process source/drain series resistance */
               /* ACM model */
+
+              double DrainResistance, SourceResistance;
+
               if (model->BSIM3v32acmMod == 0)
               {
-                  here->BSIM3v32drainConductance = model->BSIM3v32sheetResistance
+                  DrainResistance = model->BSIM3v32sheetResistance
                                                   * here->BSIM3v32drainSquares;
-                  here->BSIM3v32sourceConductance = model->BSIM3v32sheetResistance
+                  SourceResistance = model->BSIM3v32sheetResistance
                                                    * here->BSIM3v32sourceSquares;
               }
               else /* ACM > 0 */
@@ -894,21 +904,19 @@ int Size_Not_Found, error;
                   model->BSIM3v32rs,
                   model->BSIM3v32rsc,
                   here->BSIM3v32sourceSquares,
-                  &(here->BSIM3v32drainConductance),
-                  &(here->BSIM3v32sourceConductance)
+                  &DrainResistance,
+                  &SourceResistance
                   );
                   if (error)
                       return(error);
               }
-              if (here->BSIM3v32drainConductance > 0.0)
-                  here->BSIM3v32drainConductance = 1.0
-                                                / here->BSIM3v32drainConductance;
+              if (DrainResistance > 0.0)
+                  here->BSIM3v32drainConductance = 1.0 / DrainResistance;
               else
                   here->BSIM3v32drainConductance = 0.0;
 
-              if (here->BSIM3v32sourceConductance > 0.0)
-                  here->BSIM3v32sourceConductance = 1.0
-                                               / here->BSIM3v32sourceConductance;
+              if (SourceResistance > 0.0)
+                  here->BSIM3v32sourceConductance = 1.0 / SourceResistance;
               else
                   here->BSIM3v32sourceConductance = 0.0;
 

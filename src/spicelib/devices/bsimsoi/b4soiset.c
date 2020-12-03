@@ -59,7 +59,7 @@ B4SOIinstance **InstArray;
 #endif
 
     /*  loop through all the B4SOI device models */
-    for( ; model != NULL; model = model->B4SOInextModel )
+    for( ; model != NULL; model = B4SOInextModel(model))
     {
 /* Default value Processing for B4SOI MOSFET Models */
 
@@ -255,8 +255,8 @@ B4SOIinstance **InstArray;
             model->B4SOInpeak = 1.7e17;   /* unit 1/cm3 */
         if (!model->B4SOIngateGiven)
             model->B4SOIngate = 0;   /* unit 1/cm3 */
-            if (!model->B4SOInsdGiven)
-                    model->B4SOInsd = 1.0e20;
+        if (!model->B4SOInsdGiven)
+            model->B4SOInsd = 1.0e20;
         if (!model->B4SOIvbmGiven)
             model->B4SOIvbm = -3.0;
         if (!model->B4SOIxtGiven)
@@ -2066,6 +2066,16 @@ B4SOIinstance **InstArray;
             model->B4SOIvbsMax = 1e99;
         if (!model->B4SOIvbdMaxGiven)
             model->B4SOIvbdMax = 1e99;
+        if (!model->B4SOIvgsrMaxGiven)
+            model->B4SOIvgsrMax = 1e99;
+        if (!model->B4SOIvgdrMaxGiven)
+            model->B4SOIvgdrMax = 1e99;
+        if (!model->B4SOIvgbrMaxGiven)
+            model->B4SOIvgbrMax = 1e99;
+        if (!model->B4SOIvbsrMaxGiven)
+            model->B4SOIvbsrMax = 1e99;
+        if (!model->B4SOIvbdrMaxGiven)
+            model->B4SOIvbdrMax = 1e99;
 
         if (!model->B4SOIfdModGiven)
             model->B4SOIfdMod = 0;
@@ -2073,7 +2083,7 @@ B4SOIinstance **InstArray;
             model->B4SOIvsce = 0.0;
         if (!model->B4SOIcdsbsGiven)
             model->B4SOIcdsbs = 0.0;
-            if (!model->B4SOIminvcvGiven)     /* v4.1 for Vgsteffcv */
+        if (!model->B4SOIminvcvGiven)     /* v4.1 for Vgsteffcv */
             model->B4SOIminvcv = 0.0;
         if (!model->B4SOIlminvcvGiven)    /* v4.1 for Vgsteffcv */
             model->B4SOIlminvcv = 0.0;
@@ -2091,8 +2101,8 @@ B4SOIinstance **InstArray;
         if (!model->B4SOIpvoffcvGiven)
             model->B4SOIpvoffcv = 0.0;
         /* loop through all the instances of the model */
-        for (here = model->B4SOIinstances; here != NULL ;
-             here=here->B4SOInextInstance)
+        for (here = B4SOIinstances(model); here != NULL ;
+             here=B4SOInextInstance(here))
         {   /* allocate a chunk of the state vector */
             here->B4SOIstates = *states;
             *states += B4SOInumStates;
@@ -2248,6 +2258,10 @@ B4SOIinstance **InstArray;
                      here->B4SOIsoiMod = 1;
                }
             }
+
+            here->B4SOIpNode = here->B4SOIpNodeExt;
+            here->B4SOIbNode = here->B4SOIbNodeExt;
+            here->B4SOItempNode = here->B4SOItempNodeExt;
 
             here->B4SOIfloat = 0;
             if (here->B4SOIsoiMod == 2) /* v3.2 */
@@ -2711,30 +2725,32 @@ do { if((here->ptr = SMPmakeElt(matrix,here->first,here->second))==(double *)NUL
     /* loop through all the B4SOI device models 
        to count the number of instances */
     
-    for( ; model != NULL; model = model->B4SOInextModel )
+    for( ; model != NULL; model = B4SOInextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->B4SOIinstances; here != NULL ;
-             here=here->B4SOInextInstance) 
+        for (here = B4SOIinstances(model); here != NULL ;
+             here=B4SOInextInstance(here)) 
         { 
             InstCount++;
         }
+        model->B4SOIInstCount = 0;
+        model->B4SOIInstanceArray = NULL;
     }
     InstArray = TMALLOC(B4SOIinstance*, InstCount);
     model = (B4SOImodel*)inModel;
+    /* store this in the first model only */
+    model->B4SOIInstCount = InstCount;
+    model->B4SOIInstanceArray = InstArray;
     idx = 0;
-    for( ; model != NULL; model = model->B4SOInextModel )
+    for( ; model != NULL; model = B4SOInextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->B4SOIinstances; here != NULL ;
-             here=here->B4SOInextInstance) 
+        for (here = B4SOIinstances(model); here != NULL ;
+             here=B4SOInextInstance(here)) 
         { 
             InstArray[idx] = here;
             idx++;
         }
-        /* set the array pointer and instance count into each model */
-        model->B4SOIInstCount = InstCount;
-        model->B4SOIInstanceArray = InstArray;		
     }
 #endif
 
@@ -2750,24 +2766,138 @@ B4SOIunsetup(
     B4SOImodel *model;
     B4SOIinstance *here;
 
+#ifdef USE_OMP
+    model = (B4SOImodel*)inModel;
+    tfree(model->B4SOIInstanceArray);
+#endif
+
     for (model = (B4SOImodel *)inModel; model != NULL;
-            model = model->B4SOInextModel)
+            model = B4SOInextModel(model))
     {
-        for (here = model->B4SOIinstances; here != NULL;
-                here=here->B4SOInextInstance)
+        for (here = B4SOIinstances(model); here != NULL;
+                here=B4SOInextInstance(here))
         {
-            if (here->B4SOIdNodePrime
-                    && here->B4SOIdNodePrime != here->B4SOIdNode)
-            {
-                CKTdltNNum(ckt, here->B4SOIdNodePrime);
-                here->B4SOIdNodePrime = 0;
-            }
-            if (here->B4SOIsNodePrime
+            /* here for debugging purpose only */
+            if (here->B4SOIqjdNode > 0)
+                CKTdltNNum(ckt, here->B4SOIqjdNode);
+            here->B4SOIqjdNode = 0;
+
+            if (here->B4SOIqjsNode > 0)
+                CKTdltNNum(ckt, here->B4SOIqjsNode);
+            here->B4SOIqjsNode = 0;
+
+            if (here->B4SOIqbfNode > 0)
+                CKTdltNNum(ckt, here->B4SOIqbfNode);
+            here->B4SOIqbfNode = 0;
+
+            if (here->B4SOIcbgNode > 0)
+                CKTdltNNum(ckt, here->B4SOIcbgNode);
+            here->B4SOIcbgNode = 0;
+
+            if (here->B4SOIcbdNode > 0)
+                CKTdltNNum(ckt, here->B4SOIcbdNode);
+            here->B4SOIcbdNode = 0;
+
+            if (here->B4SOIcbbNode > 0)
+                CKTdltNNum(ckt, here->B4SOIcbbNode);
+            here->B4SOIcbbNode = 0;
+
+            if (here->B4SOIibpNode > 0)
+                CKTdltNNum(ckt, here->B4SOIibpNode);
+            here->B4SOIibpNode = 0;
+
+            if (here->B4SOIitunNode > 0)
+                CKTdltNNum(ckt, here->B4SOIitunNode);
+            here->B4SOIitunNode = 0;
+
+            if (here->B4SOIigidlNode > 0)
+                CKTdltNNum(ckt, here->B4SOIigidlNode);
+            here->B4SOIigidlNode = 0;
+
+            if (here->B4SOIgigbNode > 0)
+                CKTdltNNum(ckt, here->B4SOIgigbNode);
+            here->B4SOIgigbNode = 0;
+
+            if (here->B4SOIgigdNode > 0)
+                CKTdltNNum(ckt, here->B4SOIgigdNode);
+            here->B4SOIgigdNode = 0;
+
+            if (here->B4SOIgiggNode > 0)
+                CKTdltNNum(ckt, here->B4SOIgiggNode);
+            here->B4SOIgiggNode = 0;
+
+            if (here->B4SOIigNode > 0)
+                CKTdltNNum(ckt, here->B4SOIigNode);
+            here->B4SOIigNode = 0;
+
+            if (here->B4SOIiiiNode > 0)
+                CKTdltNNum(ckt, here->B4SOIiiiNode);
+            here->B4SOIiiiNode = 0;
+
+            if (here->B4SOIibdNode > 0)
+                CKTdltNNum(ckt, here->B4SOIibdNode);
+            here->B4SOIibdNode = 0;
+
+            if (here->B4SOIibsNode > 0)
+                CKTdltNNum(ckt, here->B4SOIibsNode);
+            here->B4SOIibsNode = 0;
+
+            if (here->B4SOIicNode > 0)
+                CKTdltNNum(ckt, here->B4SOIicNode);
+            here->B4SOIicNode = 0;
+
+            if (here->B4SOIidsNode > 0)
+                CKTdltNNum(ckt, here->B4SOIidsNode);
+            here->B4SOIidsNode = 0;
+
+            if (here->B4SOIvbsNode > 0)
+                CKTdltNNum(ckt, here->B4SOIvbsNode);
+            here->B4SOIvbsNode = 0;
+
+            if (here->B4SOIsbNode > 0 &&
+                here->B4SOIsbNode != here->B4SOIbNode)
+                CKTdltNNum(ckt, here->B4SOIsbNode);
+            here->B4SOIsbNode = 0;
+
+            if (here->B4SOIdbNode > 0 &&
+                here->B4SOIdbNode != here->B4SOIbNode)
+                CKTdltNNum(ckt, here->B4SOIdbNode);
+            here->B4SOIdbNode = 0;
+
+            if (here->B4SOIgNodeMid > 0 &&
+                here->B4SOIgNodeMid != here->B4SOIgNodeExt)
+                CKTdltNNum(ckt, here->B4SOIgNodeMid);
+            here->B4SOIgNodeMid = 0;
+
+            if (here->B4SOIgNode > 0 &&
+                here->B4SOIgNode != here->B4SOIgNodeExt)
+                CKTdltNNum(ckt, here->B4SOIgNode);
+            here->B4SOIgNode = 0;
+
+            if (here->B4SOItempNode > 0 &&
+                here->B4SOItempNode != here->B4SOItempNodeExt &&
+                here->B4SOItempNode != here->B4SOIbNodeExt &&
+                here->B4SOItempNode != here->B4SOIpNodeExt)
+                CKTdltNNum(ckt, here->B4SOItempNode);
+            here->B4SOItempNode = 0;
+
+            if (here->B4SOIbNode > 0 &&
+                here->B4SOIbNode != here->B4SOIbNodeExt &&
+                here->B4SOIbNode != here->B4SOIpNodeExt)
+                CKTdltNNum(ckt, here->B4SOIbNode);
+            here->B4SOIbNode = 0;
+
+            here->B4SOIpNode = 0;
+
+            if (here->B4SOIsNodePrime > 0
                     && here->B4SOIsNodePrime != here->B4SOIsNode)
-            {
                 CKTdltNNum(ckt, here->B4SOIsNodePrime);
-                here->B4SOIsNodePrime = 0;
-            }
+            here->B4SOIsNodePrime = 0;
+
+            if (here->B4SOIdNodePrime > 0
+                    && here->B4SOIdNodePrime != here->B4SOIdNode)
+                CKTdltNNum(ckt, here->B4SOIdNodePrime);
+            here->B4SOIdNodePrime = 0;
         }
     }
 #endif

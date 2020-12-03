@@ -213,7 +213,7 @@ cx_interpolate(void *data, short int type, int length, int *newlength, short int
     *newlength = ns->v_length;
     d = alloc_d(ns->v_length);
 
-    if (!cp_getvar("polydegree", CP_NUM, &degree))
+    if (!cp_getvar("polydegree", CP_NUM, &degree, 0))
         degree = 1;
 
     for (base = 0; base < length; base += grouping) {
@@ -248,7 +248,7 @@ cx_deriv(void *data, short int type, int length, int *newlength, short int *newt
         return (NULL);
     }
 
-    if (!cp_getvar("dpolydegree", CP_NUM, &degree))
+    if (!cp_getvar("dpolydegree", CP_NUM, &degree, 0))
         degree = 2; /* default quadratic */
 
     n = degree + 1;
@@ -615,9 +615,9 @@ cx_fft(void *data, short int type, int length, int *newlength, short int *newtyp
 
     win = TMALLOC(double, length);
     maxt = time[length-1];
-    if (!cp_getvar("specwindow", CP_STRING, window))
+    if (!cp_getvar("specwindow", CP_STRING, window, sizeof(window)))
         strcpy(window, "none");
-    if (!cp_getvar("specwindoworder", CP_NUM, &order))
+    if (!cp_getvar("specwindoworder", CP_NUM, &order, 0))
         order = 2;
     if (order < 2)
         order = 2;
@@ -716,7 +716,7 @@ cx_fft(void *data, short int type, int length, int *newlength, short int *newtyp
 
         fftw_execute(plan_forward);
 
-        scale = (double) length;
+        scale = (double) fpts - 1.0;
         for (i = 0; i < fpts; i++) {
             outdata[i].cx_real = out[i][0]/scale;
             outdata[i].cx_imag = out[i][1]/scale;
@@ -740,7 +740,7 @@ cx_fft(void *data, short int type, int length, int *newlength, short int *newtyp
         rffts(datax, M, 1);
         fftFree();
 
-        scale = (double) N;
+        scale = (double) fpts - 1.0;
         /* Re(x[0]), Re(x[N/2]), Re(x[1]), Im(x[1]), Re(x[2]), Im(x[2]), ... Re(x[N/2-1]), Im(x[N/2-1]). */
         outdata[0].cx_real = datax[0]/scale;
         outdata[0].cx_imag = 0.0;

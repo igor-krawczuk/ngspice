@@ -15,7 +15,7 @@ Author: 1985 Thomas L. Quarles
  * Note that multi-line models are handled in the calling fcn
  * (INPpas1).
  *-------------------------------------------------------------*/
-char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
+char *INPdomodel(CKTcircuit *ckt, struct card *image, INPtables * tab)
 {
 
     char *modname;
@@ -38,7 +38,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 
     INPgetTok(&line, &modname, 1);	/* throw away '.model' */
     tfree(modname);
-    INPgetTok(&line, &modname, 1);      /* get model name */
+    INPgetNetTok(&line, &modname, 1);      /* get model name */
     INPinsert(&modname, tab);	   /* stick model name into table */
     INPgetTok(&line, &type_name, 1);     /* get model type */
 
@@ -162,14 +162,14 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 					type = INPtypelook("MESA");
 					if (type < 0)
 					{
-						err = INPmkTemp("Device type MESA not availabe\n");
+						err = INPmkTemp("Device type MESA not available\n");
 					}
 					break;
 				case 3:
 					type = INPtypelook("MESA");
 					if (type < 0)
 					{
-						err = INPmkTemp("Device type MESA not availabe\n");
+						err = INPmkTemp("Device type MESA not available\n");
 					}
 					break;
 				case 4:
@@ -210,6 +210,19 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 				("Device type URC not available in this binary\n");
 			}
 			INPmakeMod(modname, type, image);
+    }
+
+    /*  ------  Check if model is a VDMOS FET ------- */
+    else if ((strcmp(type_name, "vdmos") == 0) ||
+             (strcmp(type_name, "vdmosn") == 0) ||
+             (strcmp(type_name, "vdmosp") == 0)) {
+        type = INPtypelook("VDMOS");
+        if (type < 0) {
+            err =
+                INPmkTemp
+                ("Device type VDMOS not available in this binary\n");
+        }
+        INPmakeMod(modname, type, image);
     }
 
     /*  --------  Check if model is a MOSFET --------- */
@@ -279,13 +292,13 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 			case 8: case 49:
 			    err = INPfindVer(line, ver);
 
-			    if ( strcmp(ver, "3.0") == 0 ) {
+			    if (prefix("3.0", ver)) {
 			      type = INPtypelook("BSIM3v0");
 			    }
-			    if ( strcmp(ver, "3.1") == 0 ) {
+			    if (prefix("3.1", ver)) {
 			      type = INPtypelook("BSIM3v1");
 			    }
-			    if ( prefix("3.2", ver)) { /* version string ver has to start with 3.2 */
+			    if (prefix("3.2", ver)) { /* version string ver has to start with 3.2 */
 			      type = INPtypelook("BSIM3v32");
 			    }
 			    if ( (strstr(ver, "default")) || (prefix("3.3", ver)) ) {
@@ -328,6 +341,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 				    ("Device type BSIM5 not available in this binary\n");
 			    }
 			    break;
+#ifdef ADMS
 			case 16:
 			    type = INPtypelook("BSIM6");
 			    if (type < 0) {
@@ -335,7 +349,6 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 				    INPmkTemp
 				    ("Device type BSIM6 not available in this binary\n");}
 			    break;
-#ifdef ADMS
 			case 44:
 				type = INPtypelook("ekv");
 				if (type < 0) {
@@ -358,7 +371,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 			    if (type < 0) {
 				    err =
 				    INPmkTemp
-				    ("Placeholder: Device type B3SOIFD not available in this binary\n");
+				    ("Device type B3SOIFD not available in this binary\n");
 			    }
 			    break;
 			case 56:
@@ -366,7 +379,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 			    if (type < 0) {
 				    err =
 				    INPmkTemp
-				    ("Placeholder: Device type B3SOIDD not available in this binary\n");
+				    ("Device type B3SOIDD not available in this binary\n");
 			    }
 			    break;
 			case 57:
@@ -374,7 +387,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 			    if (type < 0) {
 				    err =
 				    INPmkTemp
-				    ("Placeholder: Device type B3SOIPD not available in this binary\n");
+				    ("Device type B3SOIPD not available in this binary\n");
 			    }
 			    break;
 			case 10: case 58:
@@ -398,7 +411,7 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 			    if (type < 0) {
 				    err =
 				    INPmkTemp
-				    ("Placeholder: Device type HiSIM2 not available in this binary\n");
+				    ("Device type HiSIM2 not available in this binary\n");
 			    }
 			    break;
 			case 73:
@@ -446,6 +459,17 @@ char *INPdomodel(CKTcircuit *ckt, card * image, INPtables * tab)
 				("Device type Resistor not available in this binary\n");
 			}
 			INPmakeMod(modname, type, image);
+    }
+
+    /*  --------  Check if model is a PSPICE resistor --------- */
+    else if (strcmp(type_name, "res") == 0) {
+        type = INPtypelook("Resistor");
+        if (type < 0) {
+            err =
+                INPmkTemp
+                ("Device type Resistor not available in this binary\n");
+        }
+        INPmakeMod(modname, type, image);
     }
 
     /*  --------  Check if model is a transmission line of some sort --------- */

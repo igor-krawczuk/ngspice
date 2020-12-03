@@ -22,7 +22,7 @@ INDsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CKTnode *tmp;
 
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->INDnextModel ) {
+    for( ; model != NULL; model = INDnextModel(model)) {
  
    /* Default Value Processing for Model Parameters */
         if (!model->INDmIndGiven) {
@@ -72,13 +72,13 @@ INDsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         
 	
         /* loop through all the instances of the model */
-        for (here = model->INDinstances; here != NULL ;
-                here=here->INDnextInstance) {
+        for (here = INDinstances(model); here != NULL ;
+                here=INDnextInstance(here)) {
 
             here->INDflux = *states;
-            *states += 2 ;
+            *states += INDnumStates ;
             if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                *states += 2 * (ckt->CKTsenInfo->SENparms);
+                *states += INDnumSenStates * (ckt->CKTsenInfo->SENparms);
             }
 
             if(here->INDbrEq == 0) {
@@ -87,17 +87,20 @@ INDsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
                 here->INDbrEq = tmp->number;
             }
 
+            here->system = NULL;
+            here->system_next_ind = NULL;
+
 /* macro to make elements with built in test for out of memory */
 #define TSTALLOC(ptr,first,second) \
 do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(INDposIbrptr,INDposNode,INDbrEq);
-            TSTALLOC(INDnegIbrptr,INDnegNode,INDbrEq);
-            TSTALLOC(INDibrNegptr,INDbrEq,INDnegNode);
-            TSTALLOC(INDibrPosptr,INDbrEq,INDposNode);
-            TSTALLOC(INDibrIbrptr,INDbrEq,INDbrEq);
+            TSTALLOC(INDposIbrPtr,INDposNode,INDbrEq);
+            TSTALLOC(INDnegIbrPtr,INDnegNode,INDbrEq);
+            TSTALLOC(INDibrNegPtr,INDbrEq,INDnegNode);
+            TSTALLOC(INDibrPosPtr,INDbrEq,INDposNode);
+            TSTALLOC(INDibrIbrPtr,INDbrEq,INDbrEq);
         }
     }
     return(OK);
@@ -110,15 +113,14 @@ INDunsetup(GENmodel *inModel, CKTcircuit *ckt)
     INDinstance *here;
 
     for (model = (INDmodel *)inModel; model != NULL;
-	    model = model->INDnextModel)
+	    model = INDnextModel(model))
     {
-        for (here = model->INDinstances; here != NULL;
-                here=here->INDnextInstance)
+        for (here = INDinstances(model); here != NULL;
+                here=INDnextInstance(here))
 	{
-	    if (here->INDbrEq) {
+	    if (here->INDbrEq > 0)
 		CKTdltNNum(ckt, here->INDbrEq);
-		here->INDbrEq = 0;
-	    }
+            here->INDbrEq = 0;
 	}
     }
     return OK;

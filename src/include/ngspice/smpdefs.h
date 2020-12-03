@@ -27,7 +27,7 @@ void SMPcaSolve(SMPmatrix *Matrix, double RHS[], double iRHS[],
 void SMPcSolve( SMPmatrix *, double [], double [], double [], double []);
 void SMPsolve( SMPmatrix *, double [], double []);
 int SMPmatSize( SMPmatrix *);
-int SMPnewMatrix( SMPmatrix ** );
+int SMPnewMatrix( SMPmatrix **, int );
 void SMPdestroy( SMPmatrix *);
 int SMPpreOrder( SMPmatrix *);
 void SMPprint( SMPmatrix * , char *);
@@ -39,5 +39,7 @@ SMPelement * SMPfindElt( SMPmatrix *, int , int , int );
 int SMPcZeroCol(SMPmatrix *Matrix, int Col);
 int SMPcAddCol(SMPmatrix *Matrix, int Accum_Col, int Addend_Col);
 int SMPzeroRow(SMPmatrix *Matrix, int Row);
+void SMPconstMult(SMPmatrix *, double);
+void SMPmultiply(SMPmatrix *, double *, double *, double *, double *);
 
 #endif

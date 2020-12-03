@@ -64,7 +64,7 @@ int HSMHVsetup(
   double Lbin=0.0, Wbin=0.0, LWbin =0.0; /* binning */
   
   /*  loop through all the HSMHV device models */
-  for ( ;model != NULL ;model = model->HSMHVnextModel ) {
+  for ( ;model != NULL ;model = HSMHVnextModel(model)) {
     /* Default value Processing for HVMOS Models */
     if ( !model->HSMHV_type_Given )
       model->HSMHV_type = NMOS ;
@@ -77,9 +77,8 @@ int HSMHVsetup(
         model->HSMHV_version = "1.24" ;
        printf("          1.24 is selected for VERSION. (default) \n");
     } else {
-      if (strcmp(model->HSMHV_version,"1.24") != 0 ) {
+      if (strncmp(model->HSMHV_version,"1.24", 4) != 0 ) {
        model->HSMHV_version = "1.24" ;
-//       printf("          1.24 is only available for VERSION. \n");
        printf("          1.24 is selected for VERSION. (default) \n");
       } else {
        printf("           %s is selected for VERSION \n", model->HSMHV_version);
@@ -416,7 +415,7 @@ int HSMHVsetup(
     if ( !model->HSMHV_rdsp_Given     ) model->HSMHV_rdsp      = 1.0 ;
     if ( !model->HSMHV_rdtemp1_Given  ) model->HSMHV_rdtemp1   = 0.0 ;
     if ( !model->HSMHV_rdtemp2_Given  ) model->HSMHV_rdtemp2   = 0.0 ;
-                                        model->HSMHV_rth0r     = 0.0 ; /* not used in this version */
+    model->HSMHV_rth0r     = 0.0 ; /* not used in this version */
     if ( !model->HSMHV_rdvdtemp1_Given) model->HSMHV_rdvdtemp1 = 0.0 ;
     if ( !model->HSMHV_rdvdtemp2_Given) model->HSMHV_rdvdtemp2 = 0.0 ;
     if ( !model->HSMHV_rth0w_Given    ) model->HSMHV_rth0w     = 0.0 ;
@@ -744,6 +743,11 @@ int HSMHVsetup(
     if (!model->HSMHVvdsMaxGiven) model->HSMHVvdsMax = 1e99;
     if (!model->HSMHVvbsMaxGiven) model->HSMHVvbsMax = 1e99;
     if (!model->HSMHVvbdMaxGiven) model->HSMHVvbdMax = 1e99;
+    if (!model->HSMHVvgsrMaxGiven) model->HSMHVvgsrMax = 1e99;
+    if (!model->HSMHVvgdrMaxGiven) model->HSMHVvgdrMax = 1e99;
+    if (!model->HSMHVvgbrMaxGiven) model->HSMHVvgbrMax = 1e99;
+    if (!model->HSMHVvbsrMaxGiven) model->HSMHVvbsrMax = 1e99;
+    if (!model->HSMHVvbdrMaxGiven) model->HSMHVvbdrMax = 1e99;
 
     /* For Symmetrical Device */
     if (  model->HSMHV_cosym ) {
@@ -775,8 +779,8 @@ int HSMHVsetup(
     modelMKS = &model->modelMKS ;
 
     /* loop through all the instances of the model */
-    for ( here = model->HSMHVinstances ;here != NULL ;
-         here = here->HSMHVnextInstance ) {
+    for ( here = HSMHVinstances(model);here != NULL ;
+         here = HSMHVnextInstance(here)) {
       /* allocate a chunk of the state vector */
       here->HSMHVstates = *states;
       if (model->HSMHV_conqs)
@@ -841,7 +845,7 @@ int HSMHVsetup(
 
       if (  model->HSMHV_cosym ) {
          if ( !here->HSMHV_lovers_Given   && !model->HSMHV_lovers_Given ) here->HSMHV_lovers = here->HSMHV_loverld ;
-                                                                          here->HSMHV_lover  = here->HSMHV_lovers ;
+         here->HSMHV_lover  = here->HSMHV_lovers ;
          if ( !here->HSMHV_ldrift1s_Given && !model->HSMHV_ldrift1s_Given ) here->HSMHV_ldrift1s = here->HSMHV_ldrift1 ;
          if ( !here->HSMHV_ldrift2s_Given && !model->HSMHV_ldrift2s_Given ) here->HSMHV_ldrift2s = here->HSMHV_ldrift2 ;
       }
@@ -915,6 +919,9 @@ int HSMHVsetup(
       } else {
 	here->HSMHVdbNode = here->HSMHVbNodePrime = here->HSMHVsbNode = here->HSMHVbNode;
       }
+
+      here->HSMHVtempNode = here->HSMHVtempNodeExt;
+      here->HSMHVsubNode = here->HSMHVsubNodeExt;
 
       if ( here->HSMHV_cosubnode == 0 && here->HSMHVsubNode >= 0 ) {
         if ( here->HSMHVtempNode >= 0 ) {
@@ -1463,47 +1470,57 @@ HSMHVunsetup(
     HSMHVinstance *here;
  
     for (model = (HSMHVmodel *)inModel; model != NULL;
-            model = model->HSMHVnextModel)
+            model = HSMHVnextModel(model))
     {
-        for (here = model->HSMHVinstances; here != NULL;
-                here=here->HSMHVnextInstance)
+        for (here = HSMHVinstances(model); here != NULL;
+                here=HSMHVnextInstance(here))
         {
-            if (here->HSMHVdNodePrime
-                    && here->HSMHVdNodePrime != here->HSMHVdNode)
-            {
-                CKTdltNNum(ckt, here->HSMHVdNodePrime);
-                here->HSMHVdNodePrime = 0;
-            }
-            if (here->HSMHVsNodePrime
-                    && here->HSMHVsNodePrime != here->HSMHVsNode)
-            {
-                CKTdltNNum(ckt, here->HSMHVsNodePrime);
-                here->HSMHVsNodePrime = 0;
-            }
-            if (here->HSMHVgNodePrime
-                    && here->HSMHVgNodePrime != here->HSMHVgNode)
-            {
-                CKTdltNNum(ckt, here->HSMHVgNodePrime);
-                here->HSMHVgNodePrime = 0;
-            }
-            if (here->HSMHVbNodePrime
-                    && here->HSMHVbNodePrime != here->HSMHVbNode)
-            {
-                CKTdltNNum(ckt, here->HSMHVbNodePrime);
-                here->HSMHVbNodePrime = 0;
-            }
-            if (here->HSMHVdbNode
-                    && here->HSMHVdbNode != here->HSMHVbNode)
-            {
-                CKTdltNNum(ckt, here->HSMHVdbNode);
-                here->HSMHVdbNode = 0;
-            }
-            if (here->HSMHVsbNode
+            if (here->HSMHVqbNode > 0)
+                CKTdltNNum(ckt, here->HSMHVqbNode);
+            here->HSMHVqbNode = 0;
+
+            if (here->HSMHVqiNode > 0)
+                CKTdltNNum(ckt, here->HSMHVqiNode);
+            here->HSMHVqiNode = 0;
+
+            if (here->HSMHVtempNode > 0 &&
+                here->HSMHVtempNode != here->HSMHVtempNodeExt &&
+                here->HSMHVtempNode != here->HSMHVsubNodeExt)
+                CKTdltNNum(ckt, here->HSMHVtempNode);
+            here->HSMHVtempNode = 0;
+
+            here->HSMHVsubNode = 0;
+
+            if (here->HSMHVsbNode > 0
                     && here->HSMHVsbNode != here->HSMHVbNode)
-            {
                 CKTdltNNum(ckt, here->HSMHVsbNode);
-                here->HSMHVsbNode = 0;
-            }
+            here->HSMHVsbNode = 0;
+
+            if (here->HSMHVbNodePrime > 0
+                    && here->HSMHVbNodePrime != here->HSMHVbNode)
+                CKTdltNNum(ckt, here->HSMHVbNodePrime);
+            here->HSMHVbNodePrime = 0;
+
+            if (here->HSMHVdbNode > 0
+                    && here->HSMHVdbNode != here->HSMHVbNode)
+                CKTdltNNum(ckt, here->HSMHVdbNode);
+            here->HSMHVdbNode = 0;
+
+            if (here->HSMHVgNodePrime > 0
+                    && here->HSMHVgNodePrime != here->HSMHVgNode)
+                CKTdltNNum(ckt, here->HSMHVgNodePrime);
+            here->HSMHVgNodePrime = 0;
+
+            if (here->HSMHVsNodePrime > 0
+                    && here->HSMHVsNodePrime != here->HSMHVsNode)
+                CKTdltNNum(ckt, here->HSMHVsNodePrime);
+            here->HSMHVsNodePrime = 0;
+
+            if (here->HSMHVdNodePrime > 0
+                    && here->HSMHVdNodePrime != here->HSMHVdNode)
+                CKTdltNNum(ckt, here->HSMHVdNodePrime);
+            here->HSMHVdNodePrime = 0;
+
         }
     }
 #endif

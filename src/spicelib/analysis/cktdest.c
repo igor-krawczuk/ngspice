@@ -18,6 +18,7 @@ Author: 1985 Thomas L. Quarles
 #ifdef XSPICE
 #include "ngspice/evtproto.h"
 #include "ngspice/mif.h"
+#include "ngspice/enh.h"
 #endif
 
 int
@@ -26,6 +27,9 @@ CKTdestroy(CKTcircuit *ckt)
     int i;
     CKTnode *node;
     CKTnode *nnode;
+
+    if (!ckt)
+        return (E_NOTFOUND);
 
 
 #ifdef WANT_SENSE2
@@ -37,11 +41,28 @@ CKTdestroy(CKTcircuit *ckt)
     }
 #endif
 
-    for (i=0;i<DEVmaxnum;i++) {
-        if ( DEVices[i] && DEVices[i]->DEVdestroy && ckt->CKThead[i] ) {
-            DEVices[i]->DEVdestroy (&(ckt->CKThead[i]));
+    for (i = 0; i < DEVmaxnum; i++)
+        if (DEVices[i]) {
+            GENmodel *model = ckt->CKThead[i];
+            while (model) {
+                GENmodel *next_model = model->GENnextModel;
+                GENinstance *inst = model->GENinstances;
+                while (inst) {
+                    GENinstance *next_inst = inst->GENnextInstance;
+                    if (DEVices[i]->DEVdelete)
+                        DEVices[i]->DEVdelete(inst);
+                    GENinstanceFree(inst);
+                    inst = next_inst;
+                }
+                if (DEVices[i]->DEVmodDelete)
+                    DEVices[i]->DEVmodDelete(model);
+                GENmodelFree(model);
+                model = next_model;
+            }
+            if (DEVices[i]->DEVdestroy)
+                DEVices[i]->DEVdestroy();
         }
-    }
+
     for(i=0;i<=ckt->CKTmaxOrder+1;i++){
         FREE(ckt->CKTstates[i]);
     }
@@ -71,6 +92,8 @@ CKTdestroy(CKTcircuit *ckt)
 
 #ifdef XSPICE
     EVTdest(ckt->evt);
+    if (ckt->enh->rshunt_data.enabled)
+        FREE(ckt->enh->rshunt_data.diag);
     FREE(ckt->enh);
     FREE(ckt->evt);
 #endif

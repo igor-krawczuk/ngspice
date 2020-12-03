@@ -44,8 +44,13 @@ run_test() {
 
     simname="$1"
 
-    localPlatform=`${testProgramName} -platform`
-    localVersion=`${testProgramName} -sv -s ${simname} ${qaSpecFile}`
+    for i in $(${testProgramName} ${testProgramFlags} -s ${simname} --tuple) ; do
+        case "${i%%=*}" in
+            platform)  localPlatform="${i#*=}";;
+            version)   localVersion="${i#*=}";;
+            vaVersion) localVaVersion="${i#*=}";;
+        esac
+    done
 
     echo ""
     echo "******"
@@ -64,6 +69,9 @@ run_test() {
                 -s ${simname} \
                 -r -t ${test} \
                 -var ${variant} \
+                --version=${localVersion} \
+                --vaVersion=${localVaVersion} \
+                --platform=${platform} \
                 --results=${qaResultsDirectory} \
                 ${qaSpecFile}
         done
@@ -72,7 +80,7 @@ run_test() {
     for version in `ls -C1 ${qaResultsDirectory}/${simname}` ; do
         for platform in `ls -C1 ${qaResultsDirectory}/${simname}/${version}` ; do
 
-            if [ ${version} = ${localVersion}  -a  ${platform} = ${localPlatform} ]
+            if [ "${version}" = "${localVersion}" -a "${platform}" = "${localPlatform}" ]
             then
                 break
             fi
@@ -94,6 +102,9 @@ run_test() {
                         -s ${simname} \
                         -t ${test} \
                         -var ${variant} \
+                        --version=${localVersion} \
+                        --vaVersion=${localVaVersion} \
+                        --platform=${platform} \
                         --results=${qaResultsDirectory} \
                         ${qaSpecFile}
                 done

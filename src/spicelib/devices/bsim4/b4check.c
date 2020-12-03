@@ -1,26 +1,62 @@
-/**** BSIM4.8.0 Released by Navid Paydavosi 11/01/2013 ****/
+/* ******************************************************************************
+   *  BSIM4 4.8.1 released by Chetan Kumar Dabhi 2/15/2017                      *
+   *  BSIM4 Model Equations                                                     *
+   ******************************************************************************
 
-/**********
- * Copyright 2006 Regents of the University of California. All rights reserved.
- * File: b4check.c of BSIM4.8.0.
- * Author: 2000 Weidong Liu
- * Authors: 2001- Xuemei Xi, Mohan Dunga, Ali Niknejad, Chenming Hu.
- * Authors: 2006- Mohan Dunga, Ali Niknejad, Chenming Hu
- * Authors: 2007- Mohan Dunga, Wenwei Yang, Ali Niknejad, Chenming Hu
- * Project Director: Prof. Chenming Hu.
- * Modified by Xuemei Xi, 04/06/2001.
- * Modified by Xuemei Xi, 10/05/2001.
- * Modified by Xuemei Xi, 11/15/2002.
- * Modified by Xuemei Xi, 05/09/2003.
- * Modified by Xuemei Xi, 03/04/2004.
- * Modified by Xuemei Xi, 07/29/2005.
- * Modified by Mohan Dunga, 12/13/2006
- * Modified by Mohan Dunga, Wenwei Yang, 05/18/2007.
- * Modified by  Wenwei Yang, 07/31/2008 .
- * Modified by Tanvir Morshed, Darsen Lu 03/27/2011
- * Modified by Pankaj Kumar Thakur, 07/23/2012
- * Modified by Navid Paydavosi, 08/21/2013
- **********/
+   ******************************************************************************
+   *  Copyright 2017 Regents of the University of California.                   *
+   *  All rights reserved.                                                      *
+   *                                                                            *
+   *  Project Director: Prof. Chenming Hu.                                      *
+   *  Authors: Gary W. Ng, Weidong Liu, Xuemei Xi, Mohan Dunga, Wenwei Yang     *
+   *           Ali Niknejad, Shivendra Singh Parihar, Chetan Kumar Dabhi        *
+   *           Yogesh Singh Chauhan, Sayeef Salahuddin, Chenming Hu             *
+   ******************************************************************************
+
+   ******************************************************************************
+   *                          CMC In-Code Statement                             *
+   *                                                                            *
+   *  The Developer agrees that the following statement will appear in the      *
+   *  model code that has been adopted as a CMC Standard.                       *
+   *                                                                            *
+   *  Software is distributed as is, completely without warranty or service     *
+   *  support. The University of California and its employees are not liable    *
+   *  for the condition or performance of the software.                         *
+   *                                                                            *
+   *  The University of California owns the copyright and grants users a        *
+   *  perpetual, irrevocable, worldwide, non-exclusive, royalty-free license    *
+   *  with respect to the software as set forth below.                          *
+   *                                                                            *
+   *  The University of California hereby disclaims all implied warranties.     *
+   *                                                                            *
+   *  The University of California grants the users the right to modify,        *
+   *  copy, and redistribute the software and documentation, both within        *
+   *  the user's organization and externally, subject to the following          *
+   *  restrictions:                                                             *
+   *                                                                            *
+   *  1. The users agree not to charge for the University of California code    *
+   *     itself but may charge for additions, extensions, or support.           *
+   *                                                                            *
+   *  2. In any product based on the software, the users agree to               *
+   *     acknowledge the University of California that developed the            *
+   *     software. This acknowledgment shall appear in the product              *
+   *     documentation.                                                         *
+   *                                                                            *
+   *  3. Redistributions to others of source code and documentation must        *
+   *     retain the copyright notice, disclaimer, and list of conditions.       *
+   *                                                                            *
+   *  4. Redistributions to others in binary form must reproduce the            *
+   *     copyright notice, disclaimer, and list of conditions in the            *
+   *     documentation and/or other materials provided with the                 *
+   *     distribution.                                                          *
+   *                                                                            *
+   *  Agreed to on ______Feb. 15, 2017______________                            *
+   *                                                                            *
+   *  By: ____University of California, Berkeley___                             *
+   *      ____Chenming Hu__________________________                             *
+   *      ____Professor in Graduate School ________                             *
+   *                                                                            *
+   ****************************************************************************** */
 
 #include "ngspice/ngspice.h"
 #include "ngspice/cktdefs.h"
@@ -48,9 +84,9 @@ FILE *fplog;
         fprintf(fplog, "\n");
         fprintf(fplog, "++++++++++ BSIM4 PARAMETER CHECKING BELOW ++++++++++\n");
 
-        if ((strcmp(model->BSIM4version, "4.8.0")) && (strcmp(model->BSIM4version, "4.80")) && (strcmp(model->BSIM4version, "4.8")))
-        {  fprintf(fplog, "Warning: This model is BSIM4.8.0; you specified a wrong version number.\n");
-           printf("Warning: This model is BSIM4.8.0; you specified a wrong version number.\n");
+        if ((strcmp(model->BSIM4version, "4.8.1")) && (strncmp(model->BSIM4version, "4.81", 4)) && (strncmp(model->BSIM4version, "4.8", 3)))
+        {  fprintf(fplog, "Warning: This model is BSIM4.8.1; you specified a deviating version number.\n");
+           printf("Warning: This model is BSIM4.8.1; you specified a deviating version number.\n");
         }
         fprintf(fplog, "Model = %s\n", model->BSIM4modName);
 
@@ -772,42 +808,72 @@ FILE *fplog;
             printf("Warning: cgbo = %g is negative. Set to zero.\n", model->BSIM4cgbo);
             model->BSIM4cgbo = 0.0;
         }      
-
-        /* v4.7 */
-        if (model->BSIM4tnoiMod == 1 || model->BSIM4tnoiMod == 2) { 
-            if (model->BSIM4tnoia < 0.0) {   
-                fprintf(fplog, "Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
-                printf("Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
-                model->BSIM4tnoia = 0.0;
-            }
-            if (model->BSIM4tnoib < 0.0) {   
-                fprintf(fplog, "Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
-                printf("Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
-                model->BSIM4tnoib = 0.0;
-            }
-            if (model->BSIM4rnoia < 0.0) { 
-                fprintf(fplog, "Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
-                printf("Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
-                model->BSIM4rnoia = 0.0;
-            }
-            if (model->BSIM4rnoib < 0.0) {
-                fprintf(fplog, "Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
-                printf("Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
-                model->BSIM4rnoib = 0.0;
-            }
+        if (model->BSIM4tnoiMod == 1){
+            printf("Warning: TNOIMOD=1 is not supported and may be removed from future version.\n");
         }
 
+        if ((strcmp(model->BSIM4version, "4.8.1")) && (strncmp(model->BSIM4version, "4.81", 4))) {
         /* v4.7 */
-        if (model->BSIM4tnoiMod == 2) { 
-            if (model->BSIM4tnoic < 0.0) {
-                fprintf(fplog, "Warning: tnoic = %g is negative. Set to zero.\n", model->BSIM4tnoic);
-                printf("Warning: tnoic = %g is negative. Set to zero.\n", model->BSIM4tnoic);
-                model->BSIM4tnoic = 0.0;
+            if (model->BSIM4tnoiMod == 1 || model->BSIM4tnoiMod == 2) { 
+                if (model->BSIM4tnoia < 0.0) {   
+                    fprintf(fplog, "Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
+                    printf("Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
+                    model->BSIM4tnoia = 0.0;
+                }
+                if (model->BSIM4tnoib < 0.0) {   
+                    fprintf(fplog, "Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
+                    printf("Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
+                    model->BSIM4tnoib = 0.0;
+                }
+                if (model->BSIM4rnoia < 0.0) { 
+                    fprintf(fplog, "Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
+                    printf("Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
+                    model->BSIM4rnoia = 0.0;
+                }
+                if (model->BSIM4rnoib < 0.0) {
+                    fprintf(fplog, "Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
+                    printf("Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
+                    model->BSIM4rnoib = 0.0;
+                }
             }
-            if (model->BSIM4rnoic < 0.0) {
-                fprintf(fplog, "Warning: rnoic = %g is negative. Set to zero.\n", model->BSIM4rnoic);
-                printf("Warning: rnoic = %g is negative. Set to zero.\n", model->BSIM4rnoic);
-                model->BSIM4rnoic = 0.0;
+
+            /* v4.7 */
+            if (model->BSIM4tnoiMod == 2) { 
+                if (model->BSIM4tnoic < 0.0) {
+                    fprintf(fplog, "Warning: tnoic = %g is negative. Set to zero.\n", model->BSIM4tnoic);
+                    printf("Warning: tnoic = %g is negative. Set to zero.\n", model->BSIM4tnoic);
+                    model->BSIM4tnoic = 0.0;
+                }
+                if (model->BSIM4rnoic < 0.0) {
+                    fprintf(fplog, "Warning: rnoic = %g is negative. Set to zero.\n", model->BSIM4rnoic);
+                    printf("Warning: rnoic = %g is negative. Set to zero.\n", model->BSIM4rnoic);
+                    model->BSIM4rnoic = 0.0;
+                }
+            }
+        }
+        else
+        {
+            if (model->BSIM4tnoiMod == 1){
+                if (model->BSIM4tnoia < 0.0) {
+                    fprintf(fplog, "Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
+                    printf("Warning: tnoia = %g is negative. Set to zero.\n", model->BSIM4tnoia);
+                    model->BSIM4tnoia = 0.0;
+                }
+                if (model->BSIM4tnoib < 0.0) {
+                    fprintf(fplog, "Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
+                    printf("Warning: tnoib = %g is negative. Set to zero.\n", model->BSIM4tnoib);
+                    model->BSIM4tnoib = 0.0;
+                }
+                if (model->BSIM4rnoia < 0.0) {
+                    fprintf(fplog, "Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
+                    printf("Warning: rnoia = %g is negative. Set to zero.\n", model->BSIM4rnoia);
+                    model->BSIM4rnoia = 0.0;
+                }
+                if (model->BSIM4rnoib < 0.0) {
+                    fprintf(fplog, "Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
+                    printf("Warning: rnoib = %g is negative. Set to zero.\n", model->BSIM4rnoib);
+                    model->BSIM4rnoib = 0.0;
+                }
             }
         }
 

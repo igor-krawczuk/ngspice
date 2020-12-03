@@ -85,7 +85,7 @@ TXLsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit*ckt, int *state)
   NG_IGNORE(state);
 
     /*  loop through all the models */
-    for( ; model != NULL; model = model->TXLnextModel ) {
+    for( ; model != NULL; model = TXLnextModel(model)) {
 
         if (!model->Rgiven) {
            SPfrontEnd->IFerrorf (ERR_FATAL,
@@ -114,8 +114,8 @@ TXLsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit*ckt, int *state)
         }
 
         /* loop through all the instances of the model */
-        for (here = model->TXLinstances; here != NULL ;
-                here=here->TXLnextInstance) {
+        for (here = TXLinstances(model); here != NULL ;
+                here=TXLnextInstance(here)) {
             
 /* macro to make elements with built in test for out of memory */
 #define TSTALLOC(ptr,first,second) \
@@ -134,20 +134,20 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
                     here->TXLibr2 = tmp->number;
             }
 
-            TSTALLOC(TXLposPosptr, TXLposNode, TXLposNode);
-            TSTALLOC(TXLposNegptr, TXLposNode, TXLnegNode);
-            TSTALLOC(TXLnegPosptr, TXLnegNode, TXLposNode);
-            TSTALLOC(TXLnegNegptr, TXLnegNode, TXLnegNode);
-            TSTALLOC(TXLibr1Posptr, TXLibr1, TXLposNode);
-            TSTALLOC(TXLibr2Negptr, TXLibr2, TXLnegNode);
-            TSTALLOC(TXLnegIbr2ptr, TXLnegNode, TXLibr2);
-            TSTALLOC(TXLposIbr1ptr, TXLposNode, TXLibr1);
-            TSTALLOC(TXLibr1Ibr1ptr, TXLibr1, TXLibr1);
-            TSTALLOC(TXLibr2Ibr2ptr, TXLibr2, TXLibr2);
-            TSTALLOC(TXLibr1Negptr, TXLibr1, TXLnegNode);
-            TSTALLOC(TXLibr2Posptr, TXLibr2, TXLposNode);
-            TSTALLOC(TXLibr1Ibr2ptr, TXLibr1, TXLibr2);
-            TSTALLOC(TXLibr2Ibr1ptr, TXLibr2, TXLibr1);
+            TSTALLOC(TXLposPosPtr, TXLposNode, TXLposNode);
+            TSTALLOC(TXLposNegPtr, TXLposNode, TXLnegNode);
+            TSTALLOC(TXLnegPosPtr, TXLnegNode, TXLposNode);
+            TSTALLOC(TXLnegNegPtr, TXLnegNode, TXLnegNode);
+            TSTALLOC(TXLibr1PosPtr, TXLibr1, TXLposNode);
+            TSTALLOC(TXLibr2NegPtr, TXLibr2, TXLnegNode);
+            TSTALLOC(TXLnegIbr2Ptr, TXLnegNode, TXLibr2);
+            TSTALLOC(TXLposIbr1Ptr, TXLposNode, TXLibr1);
+            TSTALLOC(TXLibr1Ibr1Ptr, TXLibr1, TXLibr1);
+            TSTALLOC(TXLibr2Ibr2Ptr, TXLibr2, TXLibr2);
+            TSTALLOC(TXLibr1NegPtr, TXLibr1, TXLnegNode);
+            TSTALLOC(TXLibr2PosPtr, TXLibr2, TXLposNode);
+            TSTALLOC(TXLibr1Ibr2Ptr, TXLibr1, TXLibr2);
+            TSTALLOC(TXLibr2Ibr1Ptr, TXLibr2, TXLibr1);
 
 			here->in_node_name = CKTnodName(ckt,here->TXLposNode);
 			here->out_node_name = CKTnodName(ckt,here->TXLnegNode);
@@ -166,18 +166,18 @@ TXLunsetup(GENmodel *inModel, CKTcircuit *ckt)
   TXLinstance *here;
   
   for (model = (TXLmodel *) inModel; model != NULL;
-      model = model->TXLnextModel) {
-    for (here = model->TXLinstances; here != NULL;
-        here = here->TXLnextInstance) {
+      model = TXLnextModel(model)) {
+    for (here = TXLinstances(model); here != NULL;
+         here = TXLnextInstance(here)) {
   
-          if (here->TXLibr1) {
-               CKTdltNNum(ckt, here->TXLibr1);
-               here->TXLibr1 = 0;
-          }
-
           if (here->TXLibr2) {
                CKTdltNNum(ckt, here->TXLibr2);
                here->TXLibr2 = 0;
+          }
+
+          if (here->TXLibr1) {
+               CKTdltNNum(ckt, here->TXLibr1);
+               here->TXLibr1 = 0;
           }
 
     here->TXLdcGiven=0;
@@ -257,14 +257,14 @@ ReadTxL(TXLinstance *tx, CKTcircuit *ckt)
    t2->lsl = 0;
    l = 0.0;
 
-   R = tx->TXLmodPtr->R;
-   L = tx->TXLmodPtr->L;
+   R = TXLmodPtr(tx)->R;
+   L = TXLmodPtr(tx)->L;
    L = MAX(L, LL);
-   C = tx->TXLmodPtr->C;
-   G = tx->TXLmodPtr->G;
+   C = TXLmodPtr(tx)->C;
+   G = TXLmodPtr(tx)->G;
    if (tx->TXLlengthgiven == TRUE)
    		l = tx->TXLlength;
-   else l = tx->TXLmodPtr->length;	
+   else l = TXLmodPtr(tx)->length;	
 
 
    if (l == 0.0) {
@@ -571,24 +571,24 @@ Gaussian_Elimination1(int dims)
    return(1);
 }
 
-static double 
-root3(double a1, double a2, double a3, double x)
+static double root3(double a1_in, double a2_in, double a3_in, double x)
 {
    double t1, t2;
 
-   t1 = x*x*x + a1*x*x + a2*x + a3;
-   t2 = 3.0*x*x + 2.0*a1*x + a2;
+   t1 = x*x*x + a1_in*x*x + a2_in*x + a3_in;
+   t2 = 3.0*x*x + 2.0*a1_in*x + a2_in;
 
    return(x - t1 / t2);
 }
 
 static int 
-div3(double a1, double a2, double a3, double x, double *p1, double *p2)
+div3(double a1_in, double a2_in, double a3_in,
+        double x, double *p1_in, double *p2_in)
 {
-   NG_IGNORE(a2);
+   NG_IGNORE(a2_in);
 
-   *p1 = a1 + x;
-   *p2 = - a3 / x;
+   *p1_in = a1_in + x;
+   *p2_in = -a3_in / x;
 
    return(1);
 }
@@ -656,8 +656,8 @@ static double f2(a, b, z)
 }   
 ***/
 
-static int 
-mac(double at, double bt, double *b1, double *b2, double *b3, double *b4, double *b5)
+static int mac(double at, double bt, double *b1_in, double *b2_in,
+        double *b3_in, double *b4_in, double *b5_in)
    /* float at, bt; */
 {
    double a, b;
@@ -666,7 +666,7 @@ mac(double at, double bt, double *b1, double *b2, double *b3, double *b4, double
    a = at;
    b = bt;
 
-   y1 = *b1 = 0.5 * (a - b);
+   y1 = *b1_in = 0.5 * (a - b);
    y2 = 0.5 * (3.0 * b * b - 2.0 * a * b - a * a) * y1 / (a - b);
    y3 = ((3.0 * b * b + a * a) * y1 * y1 + 0.5 * (3.0 * b * b 
 	- 2.0 * a * b - a * a) * y2) / (a - b);
@@ -678,12 +678,12 @@ mac(double at, double bt, double *b1, double *b2, double *b3, double *b4, double
 	 (y2 * y2 + y1 * y3) + (3.0 * b * b + a * a) * y1 * y3 +
 	 0.5 * (3.0 * b * b - 2.0 * a * b - a * a) * y4) / (a - b);
 
-   *b2 = y2 / 2.0;
-   *b3 = y3 / 6.0;
-   *b4 = y4 / 24.0;
-   *b5 = y5 / 120.0;
+   *b2_in = y2 / 2.0;
+   *b3_in = y3 / 6.0;
+   *b4_in = y4 / 24.0;
+   *b5_in = y5 / 120.0;
 
-   return(1);
+   return 1;
 }
 
 
@@ -705,19 +705,18 @@ static double exp_approx1(double st)
 }
 ***/
 
-static int 
-get_c(double eq1, double eq2, double eq3, double ep1, double ep2, double a, double b, 
-      double *cr, double *ci)
+static int get_c(double eq1_in, double eq2_in, double eq3_in,
+        double ep1_in, double ep2_in, double a, double b, double *cr, double *ci)
 {
    double d, n;
 
-   d = (3.0*(a*a-b*b)+2.0*ep1*a+ep2)*(3.0*(a*a-b*b)+2.0*ep1*a+ep2);
-   d += (6.0*a*b+2.0*ep1*b)*(6.0*a*b+2.0*ep1*b);
-   n = -(eq1*(a*a-b*b)+eq2*a+eq3)*(6.0*a*b+2.0*ep1*b);
-   n += (2.0*eq1*a*b+eq2*b)*(3.0*(a*a-b*b)+2.0*ep1*a+ep2);
+   d = (3.0*(a*a-b*b)+2.0*ep1_in*a+ep2_in)*(3.0*(a*a-b*b)+2.0*ep1_in*a+ep2_in);
+   d += (6.0*a*b+2.0*ep1_in*b)*(6.0*a*b+2.0*ep1_in*b);
+   n = -(eq1_in*(a*a-b*b)+eq2_in*a+eq3_in)*(6.0*a*b+2.0*ep1_in*b);
+   n += (2.0*eq1_in*a*b+eq2_in*b)*(3.0*(a*a-b*b)+2.0*ep1_in*a+ep2_in);
    *ci = n/d;
-   n = (3.0*(a*a-b*b)+2.0*ep1*a+ep2)*(eq1*(a*a-b*b)+eq2*a+eq3);
-   n += (6.0*a*b+2.0*ep1*b)*(2.0*eq1*a*b+eq2*b);
+   n = (3.0*(a*a-b*b)+2.0*ep1_in*a+ep2_in)*(eq1_in*(a*a-b*b)+eq2_in*a+eq3_in);
+   n += (6.0*a*b+2.0*ep1_in*b)*(2.0*eq1_in*a*b+eq2_in*b);
    *cr = n/d;
 
    return(1);
@@ -947,41 +946,44 @@ exp_div3(double a1, double a2, double a3, double x,
 /***
  ***/
 
-static int 
-exp_find_roots(double a1, double a2, double a3, double *ex1, double *ex2, double *ex3)
+static int exp_find_roots(double a1_in, double a2_in, double a3_in,
+        double *ex1_in, double *ex2_in, double *ex3_in)
 {
    double x, t;
    double p, q;
 
-   q = (a1*a1-3.0*a2) / 9.0;
-   p = (2.0*a1*a1*a1-9.0*a1*a2+27.0*a3) / 54.0;
+   q = (a1_in*a1_in-3.0*a2_in) / 9.0;
+   p = (2.0*a1_in*a1_in*a1_in-9.0*a1_in*a2_in+27.0*a3_in) / 54.0;
    t = q*q*q - p*p;
    if (t >= 0.0) {
       t = acos(p /(q * sqrt(q)));
-      x = -2.0*sqrt(q)*cos(t / 3.0) - a1/3.0;
+      x = -2.0*sqrt(q)*cos(t / 3.0) - a1_in/3.0;
    } else {
       if (p > 0.0) {
          t = pow(sqrt(-t)+p, 1.0 / 3.0);
-         x = -(t + q / t) - a1/3.0;
+         x = -(t + q / t) - a1_in/3.0;
       } else if (p == 0.0) {
-         x = -a1/3.0;
+         x = -a1_in/3.0;
       } else {
          t = pow(sqrt(-t)-p, 1.0 / 3.0);
-         x = (t + q / t) - a1/3.0;
+         x = (t + q / t) - a1_in/3.0;
       }
    }
-   {
-      double ex1;
-      int i = 0;
-      ex1 = x;
-      for (t = root3(a1, a2, a3, x); ABS(t-x) > 5.0e-4;
-           t = root3(a1, a2, a3, x))
-	 if (++i == 32) {
-            x = ex1;
-            break;
-         } else
-            x = t;
-   }
+    {
+        double ex1a;
+        int i = 0;
+        ex1a = x;
+        for (t = root3(a1_in, a2_in, a3_in, x); ABS(t-x) > 5.0e-4;
+                t = root3(a1_in, a2_in, a3_in, x)) {
+            if (++i == 32) {
+                x = ex1a;
+                break;
+            }
+            else {
+                x = t;
+            }
+        }
+    }
    /***
    x = a1;
    for (t = root3(a1, a2, a3, x); ABS(t-x) > epsi2; 
@@ -997,24 +999,24 @@ exp_find_roots(double a1, double a2, double a3, double *ex1, double *ex2, double
       }
    }
     ***/
-   *ex1 = x;
-   div3(a1, a2, a3, x, &a1, &a2);
+   *ex1_in = x;
+   div3(a1_in, a2_in, a3_in, x, &a1_in, &a2_in);
 
-   t = a1 * a1 - 4.0 * a2;
+   t = a1_in * a1_in - 4.0 * a2_in;
    if (t < 0) {
       ifImg = 1;
       printf("***** Two Imaginary Roots.\n");
-      *ex3 = 0.5 * sqrt(-t);
-      *ex2 = -0.5 * a1;
+      *ex3_in = 0.5 * sqrt(-t);
+      *ex2_in = -0.5 * a1_in;
    } else {
       ifImg = 0;
       t *= 1.0e-16;
       t = sqrt(t)*1.0e8;
-      if (a1 >= 0.0)
-         *ex2 = t = -0.5 * (a1 + t);
+      if (a1_in >= 0.0)
+         *ex2_in = t = -0.5 * (a1_in + t);
       else
-         *ex2 = t = -0.5 * (a1 - t);
-      *ex3 = a2 / t;
+         *ex2_in = t = -0.5 * (a1_in - t);
+      *ex3_in = a2_in / t;
       /*
       *ex2 = 0.5 * (-a1 + t);
       *ex3 = 0.5 * (-a1 - t);
@@ -1095,34 +1097,34 @@ static NODE
    return(n);
 }
 
-static int 
-find_roots(double a1, double a2, double a3, double *x1, double *x2, double *x3)
+static int find_roots(double a1_in, double a2_in, double a3_in,
+        double *x1r, double *x2r, double *x3r)
 {
    double x, t;
    double p, q;
 
-   q = (a1*a1-3.0*a2) / 9.0;
-   p = (2.0*a1*a1*a1-9.0*a1*a2+27.0*a3) / 54.0;
+   q = (a1_in*a1_in-3.0*a2_in) / 9.0;
+   p = (2.0*a1_in*a1_in*a1_in-9.0*a1_in*a2_in+27.0*a3_in) / 54.0;
    t = q*q*q - p*p;
    if (t >= 0.0) {
       t = acos(p /(q * sqrt(q)));
-      x = -2.0*sqrt(q)*cos(t / 3.0) - a1/3.0;
+      x = -2.0*sqrt(q)*cos(t / 3.0) - a1_in/3.0;
    } else {
       if (p > 0.0) {
 	 t = pow(sqrt(-t)+p, 1.0 / 3.0);
-         x = -(t + q / t) - a1/3.0;
+         x = -(t + q / t) - a1_in/3.0;
       } else if (p == 0.0) {
-	 x = -a1/3.0;
+	 x = -a1_in/3.0;
       } else {
  	 t = pow(sqrt(-t)-p, 1.0 / 3.0);
-	 x = (t + q / t) - a1/3.0;
+	 x = (t + q / t) - a1_in/3.0;
       }
    }
    {
       double x_backup = x;
       int i = 0;
-      for (t = root3(a1, a2, a3, x); ABS(t-x) > 5.0e-4;
-			t = root3(a1, a2, a3, x))
+      for (t = root3(a1_in, a2_in, a3_in, x); ABS(t-x) > 5.0e-4;
+			t = root3(a1_in, a2_in, a3_in, x))
          if (++i == 32) {
 	    x = x_backup;
 	    break;
@@ -1147,10 +1149,10 @@ find_roots(double a1, double a2, double a3, double *x1, double *x2, double *x3)
    }
     */
 
-   *x1 = x;
-   div3(a1, a2, a3, x, &a1, &a2);
+   *x1r = x;
+   div3(a1_in, a2_in, a3_in, x, &a1_in, &a2_in);
 
-   t = a1 * a1 - 4.0 * a2;
+   t = a1_in * a1_in - 4.0 * a2_in;
    if (t < 0) {
       printf("***** Two Imaginary Roots in Characteristic Admittance.\n");
       controlled_exit(EXIT_FAILURE);
@@ -1158,11 +1160,11 @@ find_roots(double a1, double a2, double a3, double *x1, double *x2, double *x3)
 
    t *= 1.0e-18;
    t = sqrt(t) * 1.0e9;
-   if (a1 >= 0.0)
-      *x2 = t = -0.5 * (a1 + t);
+   if (a1_in >= 0.0)
+      *x2r = t = -0.5 * (a1_in + t);
    else
-      *x2 = t = -0.5 * (a1 - t);
-   *x3 = a2 / t;
+      *x2r = t = -0.5 * (a1_in - t);
+   *x3r = a2_in / t;
    /*
    *x2 = 0.5 * (-a1 + t);
    *x3 = 0.5 * (-a1 - t);

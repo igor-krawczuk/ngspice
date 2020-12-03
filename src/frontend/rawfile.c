@@ -33,10 +33,10 @@ int raw_prec = -1;        /* How many sigfigs to use, default 15 (max).  */
 #endif
 
 
-/* Write a raw file.  We write everything in the plot pointed to. */
-
-void
-raw_write(char *name, struct plot *pl, bool app, bool binary)
+/* Write a raw file with the 'write' command.  We write everything in the plot pointed to.
+   Writing a raw file in batch mode is handled by fileInit_pass1() and fileInit_pass2()
+   in outitf.c */
+void raw_write(char *name, struct plot *pl, bool app, bool binary)
 {
     FILE *fp;
     bool realflag = TRUE, writedims;
@@ -50,7 +50,7 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
     char buf[BSIZE_SP];
     char *branch;
 
-    raw_padding = !cp_getvar("nopadding", CP_BOOL, NULL);
+    raw_padding = !cp_getvar("nopadding", CP_BOOL, NULL, 0);
 
     /* Why bother printing out an empty plot? */
     if (!pl->pl_dvecs) {
@@ -58,12 +58,12 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
         return;
     }
 
-    if (raw_prec != -1)
+    if (raw_prec != -1) {
         prec = raw_prec;
-    else
+    }
+    else {
         prec = DEFPREC;
-
-#if defined(__MINGW32__) || defined(_MSC_VER)
+    }
 
     /* - Binary file binary write -  hvogt 15.03.2000 ---------------------*/
     if (binary) {
@@ -71,29 +71,22 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
             perror(name);
             return;
         }
-        fprintf(cp_out, "binary raw file\n");
-    } else {
+        fprintf(cp_out, "binary raw file \"%s\"\n", name);
+    }
+    else {
         if ((fp = fopen(name, app ? "a" : "w")) == NULL) {
             perror(name);
             return;
         }
-        fprintf(cp_out, "ASCII raw file\n");
+        fprintf(cp_out, "ASCII raw file \"%s\"\n", name);
     }
     /* --------------------------------------------------------------------*/
 
-#else
-
-    if (!(fp = fopen(name, app ? "a" : "w"))) {
-        perror(name);
-        return;
-    }
-
-#endif
-
     numdims = nvars = length = 0;
     for (v = pl->pl_dvecs; v; v = v->v_next) {
-        if (iscomplex(v))
+        if (iscomplex(v)) {
             realflag = FALSE;
+        }
         nvars++;
         /* Find the length and dimensions of the longest vector
          * in the plot.
@@ -125,20 +118,24 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
         fprintf(fp, "Dimensions: %s\n", buf);
     }
 
-    for (wl = pl->pl_commands; wl; wl = wl->wl_next)
+    for (wl = pl->pl_commands; wl; wl = wl->wl_next) {
         fprintf(fp, "Command: %s\n", wl->wl_word);
+    }
 
     for (vv = pl->pl_env; vv; vv = vv->va_next) {
         wl = cp_varwl(vv);
         if (vv->va_type == CP_BOOL) {
             fprintf(fp, "Option: %s\n", vv->va_name);
-        } else {
+        }
+        else {
             fprintf(fp, "Option: %s = ", vv->va_name);
-            if (vv->va_type == CP_LIST)
+            if (vv->va_type == CP_LIST) {
                 fprintf(fp, "( ");
+            }
             wl_print(wl, fp);
-            if (vv->va_type == CP_LIST)
+            if (vv->va_type == CP_LIST) {
                 fprintf(fp, " )");
+            }
             (void) putc('\n', fp);
         }
     }
@@ -146,8 +143,9 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
     /* Before we write the stuff out, make sure that the scale is the first
      * in the list.
      */
-    for (lv = NULL, v = pl->pl_dvecs; v != pl->pl_scale; v = v->v_next)
+    for (lv = NULL, v = pl->pl_dvecs; v != pl->pl_scale; v = v->v_next) {
         lv = v;
+    }
     if (lv) {
         lv->v_next = v->v_next;
         v->v_next = pl->pl_dvecs;
@@ -156,33 +154,50 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
 
     fprintf(fp, "Variables:\n");
     for (i = 0, v = pl->pl_dvecs; v; v = v->v_next) {
+        /* write i(name) instaed of name#branch */
         if (v->v_type == SV_CURRENT) {
             branch = NULL;
+            /* get name only*/
             if ((branch = strstr(v->v_name, "#branch")) != NULL) {
                 *branch = '\0';
             }
             fprintf(fp, "\t%d\ti(%s)\t%s", i++, v->v_name, ft_typenames(v->v_type));
+            /* restore name#branch */
             if (branch != NULL) *branch = '#';
-        } else if (v->v_type == SV_VOLTAGE) {
-            fprintf(fp, "\t%d\t%s\t%s", i++, v->v_name, ft_typenames(v->v_type));
-        } else {
+        }
+        /* write v(name)*/
+        else if (v->v_type == SV_VOLTAGE) {
+            /* If the node name is a number, the vector is already called v(name) */
+            if (ciprefix("v(", v->v_name))
+               fprintf(fp, "\t%d\t%s\t%s", i++, v->v_name, ft_typenames(v->v_type));
+            else
+               fprintf(fp, "\t%d\tv(%s)\t%s", i++, v->v_name, ft_typenames(v->v_type));
+        }
+        /* write 'name' only for all other vector types */
+        else {
             fprintf(fp, "\t%d\t%s\t%s", i++, v->v_name, ft_typenames(v->v_type));
         }
-        if (v->v_flags & VF_MINGIVEN)
+        if (v->v_flags & VF_MINGIVEN) {
             fprintf(fp, " min=%e", v->v_minsignal);
-        if (v->v_flags & VF_MAXGIVEN)
+        }
+        if (v->v_flags & VF_MAXGIVEN) {
             fprintf(fp, " max=%e", v->v_maxsignal);
-        if (v->v_defcolor)
+        }
+        if (v->v_defcolor) {
             fprintf(fp, " color=%s", v->v_defcolor);
-        if (v->v_gridtype)
+        }
+        if (v->v_gridtype) {
             fprintf(fp, " grid=%d", v->v_gridtype);
-        if (v->v_plottype)
+        }
+        if (v->v_plottype) {
             fprintf(fp, " plot=%d", v->v_plottype);
+        }
         /* Only write dims if they are different from default. */
         writedims = FALSE;
         if (v->v_numdims != numdims) {
             writedims = TRUE;
-        } else {
+        }
+        else {
             for (j = 0; j < numdims; j++)
                 if (dims[j] != v->v_dims[j])
                     writedims = TRUE;
@@ -204,58 +219,70 @@ raw_write(char *name, struct plot *pl, bool app, bool binary)
                         dd = (isreal(v) ? v->v_realdata[i] :
                               realpart(v->v_compdata[i]));
                         (void) fwrite(&dd, sizeof(double), 1, fp);
-                    } else if (isreal(v)) {
+                    }
+                    else if (isreal(v)) {
                         dd = v->v_realdata[i];
                         (void) fwrite(&dd, sizeof(double), 1, fp);
                         dd = 0.0;
                         (void) fwrite(&dd, sizeof(double), 1, fp);
-                    } else {
+                    }
+                    else {
                         dd = realpart(v->v_compdata[i]);
                         (void) fwrite(&dd, sizeof(double), 1, fp);
                         dd = imagpart(v->v_compdata[i]);
                         (void) fwrite(&dd, sizeof(double), 1, fp);
                     }
-                } else if (raw_padding) {
+                }
+                else if (raw_padding) {
                     dd = 0.0;
                     if (realflag) {
                         (void) fwrite(&dd, sizeof(double), 1, fp);
-                    } else {
+                    }
+                    else {
                         (void) fwrite(&dd, sizeof(double), 1, fp);
                         (void) fwrite(&dd, sizeof(double), 1, fp);
                     }
                 }
             }
         }
-    } else {
+    }
+    else {
         fprintf(fp, "Values:\n");
         for (i = 0; i < length; i++) {
             fprintf(fp, " %d", i);
             for (v = pl->pl_dvecs; v; v = v->v_next) {
                 if (i < v->v_length) {
-                    if (realflag)
+                    if (realflag) {
                         fprintf(fp, "\t%.*e\n", prec,
                                 isreal(v) ? v->v_realdata[i] :
                                 realpart(v->v_compdata[i]));
-                    else if (isreal(v))
+                    }
+                    else if (isreal(v)) {
                         fprintf(fp, "\t%.*e,0.0\n", prec,
                                 v->v_realdata[i]);
-                    else
+                    }
+                    else {
                         fprintf(fp, "\t%.*e,%.*e\n", prec,
                                 realpart(v->v_compdata[i]),
                                 prec,
                                 imagpart(v->v_compdata[i]));
-                } else if (raw_padding) {
-                    if (realflag)
+                    }
+                }
+                else if (raw_padding) {
+                    if (realflag) {
                         fprintf(fp, "\t%.*e\n", prec, 0.0);
-                    else
+                    }
+                    else {
                         fprintf(fp, "\t%.*e,%.*e\n", prec, 0.0, prec, 0.0);
+                    }
                 }
             }
             (void) putc('\n', fp);
         }
     }
     (void) fclose(fp);
-}
+} /* end of function raw_write */
+
 
 
 /* Read a raw file.  Returns a list of plot structures.  This routine should be
@@ -304,7 +331,7 @@ raw_read(char *name) {
 
     if ((fp = fopen(name, "rb")) == NULL) {
         perror(name);
-        controlled_exit(EXIT_FAILURE);
+        return NULL;
     }
 
     /* Since we call cp_evloop() from here, we have to do this junk. */
@@ -332,6 +359,8 @@ raw_read(char *name) {
             s = SKIP(buf);
             NONL(s);
             date = copy(s);
+        } else if (ciprefix("offset:", buf)) {
+            fprintf(cp_err, "Warning: Offset: is not supported\n");
         } else if (ciprefix("plotname:", buf)) {
             s = SKIP(buf);
             NONL(s);
@@ -445,7 +474,11 @@ raw_read(char *name) {
             }
             s = SKIP(buf);
             if (!*s) {
-                (void) fgets(buf, BSIZE_SP, fp);
+                if (fgets(buf, BSIZE_SP, fp) == (char *) NULL) {
+                    fprintf(cp_err, "Error: unable to read line\n");
+                    plots = NULL;
+                    break;
+                }
                 s = buf;
             }
             if (numdims == 0) {
@@ -471,10 +504,13 @@ raw_read(char *name) {
                 if (!i) {
                     curpl->pl_scale = v;
                 } else {
-                    (void) fgets(buf, BSIZE_SP, fp);
+                    if (fgets(buf, BSIZE_SP, fp) == (char *) NULL) {
+                        fprintf(cp_err, "Error: unable to read variable line\n");
+                        break;
+                    }
                     s = buf;
                 }
-                (void) gettok(&s);  /* The strchr field. */
+                s = nexttok(s);  /* The strchr field. */
                 if ((t = gettok(&s)) != NULL) {
                     v->v_name = t;
                 } else {
@@ -572,7 +608,10 @@ raw_read(char *name) {
             for (i = 0; i < npoints; i++) {
                 if (is_ascii) {
                     /* It's an ASCII file. */
-                    (void) fscanf(fp, " %d", &j);
+                    if (fscanf(fp, " %d", &j) != 1) {
+                        fprintf(cp_err, "Error: unable to read point count\n");
+                        break;
+                    }
                     for (v = curpl->pl_dvecs; v; v = v->v_next) {
                         if (i < v->v_length) {
                             if (flags & VF_REAL) {
@@ -638,7 +677,7 @@ raw_read(char *name) {
                 return (NULL);
             }
         }
-    }
+    } /* end of loop */
 
     if (curpl) {    /* reverse commands list */
         for (wl = curpl->pl_commands, curpl->pl_commands = NULL;

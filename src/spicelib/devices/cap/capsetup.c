@@ -25,7 +25,7 @@ CAPsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CAPinstance *here;
 
     /*  loop through all the capacitor models */
-    for( ; model != NULL; model = model->CAPnextModel ) {
+    for( ; model != NULL; model = CAPnextModel(model)) {
 
         /*Default Value Processing for Model Parameters */
         if (!model->CAPmCapGiven) {
@@ -88,8 +88,8 @@ CAPsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         }
 
         /* loop through all the instances of the model */
-        for (here = model->CAPinstances; here != NULL ;
-                here=here->CAPnextInstance) {
+        for (here = CAPinstances(model); here != NULL ;
+                here=CAPnextInstance(here)) {
 
             /* Default Value Processing for Capacitor Instance */
             if (!here->CAPlengthGiven) {
@@ -100,9 +100,9 @@ CAPsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
             }
 
             here->CAPqcap = *states;
-            *states += 2;
+            *states += CAPnumStates;
             if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                *states += 2 * (ckt->CKTsenInfo->SENparms);
+                *states += CAPnumSenStates * (ckt->CKTsenInfo->SENparms);
             }
 
 /* macro to make elements with built in test for out of memory */
@@ -111,10 +111,10 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(CAPposPosptr,CAPposNode,CAPposNode);
-            TSTALLOC(CAPnegNegptr,CAPnegNode,CAPnegNode);
-            TSTALLOC(CAPposNegptr,CAPposNode,CAPnegNode);
-            TSTALLOC(CAPnegPosptr,CAPnegNode,CAPposNode);
+            TSTALLOC(CAPposPosPtr,CAPposNode,CAPposNode);
+            TSTALLOC(CAPnegNegPtr,CAPnegNode,CAPnegNode);
+            TSTALLOC(CAPposNegPtr,CAPposNode,CAPnegNode);
+            TSTALLOC(CAPnegPosPtr,CAPnegNode,CAPposNode);
         }
     }
     return(OK);

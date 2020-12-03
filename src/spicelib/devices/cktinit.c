@@ -65,6 +65,7 @@ CKTinit(CKTcircuit **ckt)		/* new circuit to create */
     sckt->CKTintegrateMethod = TRAPEZOIDAL;
     sckt->CKTorder = 1;
     sckt->CKTmaxOrder = 2;
+    sckt->CKTindverbosity = 2;
     sckt->CKTxmu = 0.5;
     sckt->CKTpivotAbsTol = 1e-13;
     sckt->CKTpivotRelTol = 1e-3;
@@ -87,14 +88,13 @@ CKTinit(CKTcircuit **ckt)		/* new circuit to create */
     sckt->CKTtroubleNode = 0;
     sckt->CKTtroubleElt = NULL;
     sckt->CKTtimePoints = NULL;
-    if (sckt->CKTstat == NULL)
-	return E_NOMEM;
     sckt->CKTnodeDamping = 0;
     sckt->CKTabsDv = 0.5;
     sckt->CKTrelDv = 2.0;
     sckt->CKTvarHertz = 0;
     sckt->DEVnameHash = nghash_init_pointer(100);
     sckt->MODnameHash = nghash_init_pointer(100);
+    sckt->CKTepsmin = 1e-28;
 
 #ifdef XSPICE
 /* gtri - begin - wbk - allocate/initialize substructs */

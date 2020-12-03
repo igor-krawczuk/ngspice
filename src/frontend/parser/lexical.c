@@ -7,6 +7,7 @@ Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
  * Initial lexer.
  */
 
+#include "ngspice/defines.h"
 #include "ngspice/ngspice.h"
 #include "ngspice/cpdefs.h"
 
@@ -44,6 +45,23 @@ Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 #include "ngspice/fteinput.h"
 #include "lexical.h"
 
+/** Constants related to characters that form their own words.
+ ** These expressions will be resolved at compile time */
+#define ID_SOLO_CHAR 1 /* Identifier for special chars */
+
+/* Largest of the special chars */
+#define MAX_SOLO_CHAR1 ('<' > '>' ? '<' : '>')
+#define MAX_SOLO_CHAR2 (MAX_SOLO_CHAR1 > ';' ? MAX_SOLO_CHAR1 : ';')
+#define MAX_SOLO_CHAR (MAX_SOLO_CHAR2 > '&' ? MAX_SOLO_CHAR2 : '&')
+
+/* Smallest of the special chars */
+#define MIN_SOLO_CHAR1 ('<' < '>' ? '<' : '>')
+#define MIN_SOLO_CHAR2 (MIN_SOLO_CHAR1 < ';' ? MIN_SOLO_CHAR1 : ';')
+#define MIN_SOLO_CHAR (MIN_SOLO_CHAR2 < '&' ? MIN_SOLO_CHAR2 : '&')
+
+/* Largest index of solo char array */
+#define MAX_INDEX_SOLO_CHAR (MAX_SOLO_CHAR - MIN_SOLO_CHAR)
+
 static void prompt(void);
 
 extern bool cp_echo;  /* For CDHW patches: defined in variable.c */
@@ -54,7 +72,6 @@ bool cp_interactive = TRUE;
 bool cp_bqflag = FALSE;
 char *cp_promptstring = NULL;
 char *cp_altprompt = NULL;
-char cp_hash = '#';
 
 static int numeofs = 0;
 
@@ -183,13 +200,10 @@ nloop:
         if (c != EOF)
             numeofs = 0;
 
-        if (c != EOF)           /* Don't need to do this really. */
-            c = strip(c);
-
         /* if '\' or '^', add following character to linebuf */
         if ((c == '\\' && DIR_TERM != '\\') || (c == '\026') /* ^V */ ) {
-            c = quote(cp_readchar(&string, cp_inp_cur));
-            push(&linebuf, strip(c));
+            c = cp_readchar(&string, cp_inp_cur);
+            push(&linebuf, c);
         }
 
         /* if reading from fcn backeval() for backquote subst. */
@@ -199,17 +213,20 @@ nloop:
         if ((c == EOF) && cp_bqflag)
             c = '\n';
 
-        /* '#' as the first character in a line,
+        /* '#' or '*' as the first character in a line,
            starts a comment line, drop it */
-        if ((c == cp_hash) && !cp_interactive && (linebuf.i == 1)) {
+        if ((c == '#' || c == '*') && (linebuf.i == 1)) {
             if (string) {
                 wl_free(wlist);
                 tfree(buf.s);
                 tfree(linebuf.s);
                 return NULL;
             }
-            while (((c = cp_readchar(&string, cp_inp_cur)) != '\n') && (c != EOF))
+            while (((c = cp_readchar(&string, cp_inp_cur)) != '\n') &&
+                    (c != EOF)) {
                 ;
+            }
+            prompt();
             goto nloop;
         }
 
@@ -245,7 +262,7 @@ nloop:
             {
                 if ((c == '\n') || (c == EOF) || (c == ESCAPE))
                     goto gotchar;
-                push(&buf, quote(c));
+                push(&buf, c);
                 push(&linebuf, c);
             }
             push(&linebuf, '\'');
@@ -265,7 +282,7 @@ nloop:
                 if (c == '\\') {
                     push(&linebuf, c);
                     c = cp_readchar(&string, cp_inp_cur);
-                    push(&buf, quote(c));
+                    push(&buf, c);
                     push(&linebuf, c);
                 } else {
                     push(&buf, c);
@@ -371,19 +388,48 @@ nloop:
             goto ldefault;
 
         default:
-            /* We have to remember the special case $<
-             * here
-             */
-        ldefault:
-            if ((cp_chars[c] & CPC_BRL) && (buf.i > 0))
-                if ((c != '<') || (buf.s[buf.i - 1] != '$'))
-                    newword;
-            push(&buf, c);
-            if (cp_chars[c] & CPC_BRR)
-                if ((c != '<') || (buf.i < 2) || (buf.s[buf.i - 2] != '$'))
-                    newword;
-        }
-    }
+            /* $< is a special case where the '<' is not treated
+             * as a character forming its own word */
+        ldefault: {
+            /* Lookup table for "solo" chars forming their own word */
+            static const char id_solo_chars[MAX_INDEX_SOLO_CHAR + 1] = {
+                ['<' - MIN_SOLO_CHAR] = ID_SOLO_CHAR,
+                ['>' - MIN_SOLO_CHAR] = ID_SOLO_CHAR,
+                [';' - MIN_SOLO_CHAR] = ID_SOLO_CHAR,
+                ['&' - MIN_SOLO_CHAR] = ID_SOLO_CHAR
+            };
+
+            /* Find index into solo chars table */
+            const unsigned int index_char =
+                    (unsigned int) c - (unsigned int) MIN_SOLO_CHAR;
+
+            /* Flag that the current character c is a solo character */
+            const bool f_solo_char = index_char <= MAX_INDEX_SOLO_CHAR &&
+                    id_solo_chars[index_char];
+            bool f_is_dollar_lt = FALSE;
+
+            if (f_solo_char && buf.i > 0) {
+                /* The current char is a character forming its own word,
+                 * unless it is "$<" */
+                if (c == '<' && buf.s[buf.i - 1] == '$') { /* is "$<" */
+                    f_is_dollar_lt = TRUE; /* set flag that "$<" found */
+                }
+                else {
+                    /* not "$<", so terminate current word and start
+                     * another one */
+                     newword;
+                }
+            }
+
+            push(&buf, c); /* Add the current char to the current word */
+
+            if (f_solo_char && !f_is_dollar_lt) {
+                /* Split into a new word if this char forms its own word */
+                newword;
+            }
+        } /* end of ldefault block */
+        } /* end of switch over character value */
+    } /* end of loop over characters */
 
 done:
     if (wlist->wl_word)
@@ -410,15 +456,18 @@ prompt(void)
         s = "-> ";
 
     while (*s) {
-        switch (strip(*s)) {
+        /* NOTE: The FALLTHROUGH comment is used to suppress a GCC warning
+         * when flag -Wimplicit-fallthrough is present */
+        switch (*s) {
         case '!':
             fprintf(cp_out, "%d", cp_event);
             break;
         case '\\':
             if (s[1])
-                (void) putc(strip(*++s), cp_out);
+                (void) putc((*++s), cp_out);
+            /* FALLTHROUGH */
         default:
-            (void) putc(strip(*s), cp_out);
+            (void) putc((*s), cp_out);
         }
         s++;
     }

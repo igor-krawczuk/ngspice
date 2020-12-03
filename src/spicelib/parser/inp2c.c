@@ -10,7 +10,7 @@ Author: 1988 Thomas L. Quarles
 #include "ngspice/fteext.h"
 #include "inpxx.h"
 
-void INP2C(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2C(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
 /* parse a capacitor card */
@@ -48,7 +48,7 @@ void INP2C(CKTcircuit *ckt, INPtables * tab, card * current)
         }
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);
     INPtermInsert(ckt, &nname1, tab, &node1);
@@ -58,14 +58,13 @@ void INP2C(CKTcircuit *ckt, INPtables * tab, card * current)
     
     saveline = line;
     
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
     
     if (*model && (strcmp(model, "c") != 0)) {
     /* token isn't null */
       if (INPlookMod(model)) {
           /* If this is a valid model connect it */
           INPinsert(&model, tab);
-          thismodel = NULL;
           current->error = INPgetMod(ckt, model, &thismodel, tab);
           if (thismodel != NULL) {
           if (mytype != thismodel->INPmodType) {

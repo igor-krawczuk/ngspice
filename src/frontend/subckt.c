@@ -74,7 +74,7 @@ Modified: 2000 AlansFixes
 
 #include "numparam/numpaif.h"
 
-extern void line_free_x(struct line * deck, bool recurse);
+extern void line_free_x(struct card *deck, bool recurse);
 
 #define line_free(line, flag)                   \
     do {                                        \
@@ -85,18 +85,20 @@ extern void line_free_x(struct line * deck, bool recurse);
 
 
 struct subs;
-static struct line *doit(struct line *deck, wordlist *modnames);
-static int translate(struct line *deck, char *formal, char *actual, char *scname,
+static struct card *doit(struct card *deck, wordlist *modnames);
+static int translate(struct card *deck, char *formal, char *actual, char *scname,
                      const char *subname, struct subs *subs, wordlist const *modnames);
 struct bxx_buffer;
 static void finishLine(struct bxx_buffer *dst, char *src, char *scname);
 static int settrans(char *formal, char *actual, const char *subname);
 static char *gettrans(const char *name, const char *name_end);
-static int numnodes(char *name, struct subs *subs, wordlist const *modnames);
+static int numnodes(const char *line, struct subs *subs, wordlist const *modnames);
 static int  numdevs(char *s);
-static wordlist *modtranslate(struct line *deck, char *subname, wordlist *new_modnames);
-static void devmodtranslate(struct line *deck, char *subname, wordlist * const orig_modnames);
+static wordlist *modtranslate(struct card *deck, char *subname, wordlist *new_modnames);
+static void devmodtranslate(struct card *deck, char *subname, wordlist * const orig_modnames);
 static int inp_numnodes(char c);
+
+#define N_GLOBAL_NODES 1005
 
 /*---------------------------------------------------------------------
  * table is used in settrans and gettrans -- it holds the netnames used
@@ -106,7 +108,7 @@ static int inp_numnodes(char c);
 static struct tab {
     char *t_old;
     char *t_new;
-} table[512];   /* That had better be enough. */
+} table[N_GLOBAL_NODES];   /* That had better be enough. */
 
 
 /*---------------------------------------------------------------------
@@ -117,7 +119,7 @@ struct subs {
     char *su_name;          /* The .subckt name. */
     char *su_args;          /* The .subckt arguments, space separated. */
     int su_numargs;
-    struct line *su_def;    /* Pointer to the .subckt definition. */
+    struct card *su_def;    /* Pointer to the .subckt definition. */
     struct subs *su_next;
 };
 
@@ -126,18 +128,17 @@ struct subs {
  * list of translated names (i.e. after subckt expansion)
  */
 
-static bool nobjthack = FALSE;
 /* flag indicating use of the experimental numparams library */
 static bool use_numparams = FALSE;
 
 static char start[32], sbend[32], invoke[32], model[32];
 
-static char *global_nodes[128];
+static char *global_nodes[N_GLOBAL_NODES];
 static int num_global_nodes;
 
 
 static void
-collect_global_nodes(struct line *c)
+collect_global_nodes(struct card *c)
 {
     num_global_nodes = 0;
 
@@ -147,16 +148,20 @@ collect_global_nodes(struct line *c)
     global_nodes[num_global_nodes++] = copy("null");
 #endif
 
-    for (; c; c = c->li_next)
-        if (ciprefix(".global", c->li_line)) {
-            char *s = c->li_line;
-            txfree(gettok(&s));
+    for (; c; c = c->nextcard)
+        if (ciprefix(".global", c->line)) {
+            char *s = c->line;
+            s = nexttok(s);
             while (*s) {
+                if (num_global_nodes == N_GLOBAL_NODES) {
+                    fprintf(stderr, "ERROR, N_GLOBAL_NODES overflow\n");
+                    controlled_exit(EXIT_FAILURE);
+                }
                 char *t = skip_non_ws(s);
                 global_nodes[num_global_nodes++] = copy_substring(s, t);
                 s = skip_ws(t);
             }
-            c->li_line[0] = '*'; /* comment it out */
+            c->line[0] = '*'; /* comment it out */
         }
 
 #ifdef TRACE
@@ -203,25 +208,23 @@ free_global_nodes(void)
   it returns a pointer to the same deck after the new subcircuits
   are spliced in.
   -------------------------------------------------------------------*/
-struct line *
-inp_subcktexpand(struct line *deck) {
-    struct line *c;
-    int ok = 0;
+struct card *
+inp_subcktexpand(struct card *deck) {
+    struct card *c;
     wordlist *modnames = NULL;
 
-    if (!cp_getvar("substart", CP_STRING, start))
-        (void) strcpy(start, ".subckt");
-    if (!cp_getvar("subend", CP_STRING, sbend))
-        (void) strcpy(sbend, ".ends");
-    if (!cp_getvar("subinvoke", CP_STRING, invoke))
-        (void) strcpy(invoke, "x");
-    if (!cp_getvar("modelcard", CP_STRING, model))
-        (void) strcpy(model, ".model");
-    if (!cp_getvar("modelline", CP_STRING, model))
-        (void) strcpy(model, ".model");
-    nobjthack = cp_getvar("nobjthack", CP_BOOL, NULL);
+    if (!cp_getvar("substart", CP_STRING, start, sizeof(start)))
+        strcpy(start, ".subckt");
+    if (!cp_getvar("subend", CP_STRING, sbend, sizeof(sbend)))
+        strcpy(sbend, ".ends");
+    if (!cp_getvar("subinvoke", CP_STRING, invoke, sizeof(invoke)))
+        strcpy(invoke, "x");
+    if (!cp_getvar("modelcard", CP_STRING, model, sizeof(model)))
+        strcpy(model, ".model");
+    if (!cp_getvar("modelline", CP_STRING, model, sizeof(model)))
+        strcpy(model, ".model");
 
-    use_numparams = cp_getvar("numparams", CP_BOOL, NULL);
+/*    use_numparams = cp_getvar("numparams", CP_BOOL, NULL, 0); */
 
     use_numparams = TRUE;
 
@@ -230,26 +233,30 @@ inp_subcktexpand(struct line *deck) {
 
 #ifdef TRACE
         fprintf(stderr, "Numparams is processing this deck:\n");
-        for (c = deck; c; c = c->li_next)
-            fprintf(stderr, "%3d:%s\n", c->li_linenum, c->li_line);
+        for (c = deck; c; c = c->nextcard)
+            fprintf(stderr, "%3d:%s\n", c->linenum, c->line);
 #endif
 
-        ok = nupa_signal(NUPADECKCOPY, NULL);
-        /* get the subckt/model names from the deck */
-        for (c = deck; c; c = c->li_next) {  /* first Numparam pass */
-            if (ciprefix(".subckt", c->li_line))
-                nupa_scan(c->li_line, c->li_linenum, TRUE);
-            if (ciprefix(".model", c->li_line))
-                nupa_scan(c->li_line, c->li_linenum, FALSE);
+        nupa_signal(NUPADECKCOPY);
+        /* get the subckt names from the deck */
+        for (c = deck; c; c = c->nextcard) {    /* first Numparam pass */
+            if (ciprefix(".subckt", c->line)) {
+                nupa_scan(c);
+            }
         }
-        for (c = deck; c; c = c->li_next)  /* first Numparam pass */
-            c->li_line = nupa_copy(c->li_line, c->li_linenum);
+
         /* now copy instances */
+        for (c = deck; c; c = c->nextcard) {  /* first Numparam pass */
+            if (*(c->line) == '*') {
+                continue;
+            }
+            c->line = nupa_copy(c);
+        }
 
 #ifdef TRACE
         fprintf(stderr, "Numparams transformed deck:\n");
-        for (c = deck; c; c = c->li_next)
-            fprintf(stderr, "%3d:%s\n", c->li_linenum, c->li_line);
+        for (c = deck; c; c = c->nextcard)
+            fprintf(stderr, "%3d:%s\n", c->linenum, c->line);
 #endif
 
     }
@@ -259,20 +266,19 @@ inp_subcktexpand(struct line *deck) {
      */
     {
         int nest = 0;
-        for (c = deck; c; c = c->li_next) {
+        for (c = deck; c; c = c->nextcard) {
 
-            if (ciprefix(".subckt", c->li_line))
+            if (ciprefix(".subckt", c->line))
                 nest++;
-            else if (ciprefix(".ends", c->li_line))
+            else if (ciprefix(".ends", c->line))
                 nest--;
             else if (nest > 0)
                 continue;
 
-            if (ciprefix(model, c->li_line)) {
-                char *s = c->li_line;
-                txfree(gettok(&s)); /* discard the model keyword */
+            if (ciprefix(model, c->line)) {
+                char *s = nexttok(c->line);
                 modnames = wl_cons(gettok(&s), modnames);
-            } /* model name finding routine */
+            }
         }
     }
 
@@ -289,9 +295,9 @@ inp_subcktexpand(struct line *deck) {
     collect_global_nodes(deck);
 
     /* Let's do a few cleanup things... Get rid of ( ) around node lists... */
-    for (c = deck; c; c = c->li_next) {    /* iterate on lines in deck */
+    for (c = deck; c; c = c->nextcard) {    /* iterate on lines in deck */
 
-        char *s = c->li_line;
+        char *s = c->line;
 
         if (*s == '*')           /* skip comment */
             continue;
@@ -353,62 +359,62 @@ inp_subcktexpand(struct line *deck) {
     /* Count numbers of line in deck after expansion */
     if (deck) {
         dynMaxckt = 0; /* number of lines in deck after expansion */
-        for (c = deck; c; c = c->li_next)
+        for (c = deck; c; c = c->nextcard)
             dynMaxckt++;
     }
 
     /* Now check to see if there are still subckt instances undefined... */
-    for (c = deck; c; c = c->li_next)
-        if (ciprefix(invoke, c->li_line)) {
-            fprintf(cp_err, "Error: unknown subckt: %s\n", c->li_line);
+    for (c = deck; c; c = c->nextcard)
+        if (ciprefix(invoke, c->line)) {
+            fprintf(cp_err, "Error: unknown subckt: %s\n", c->line);
             if (use_numparams)
-                ok = ok && nupa_signal(NUPAEVALDONE, NULL);
+                nupa_signal(NUPAEVALDONE);
             return NULL;
         }
 
     if (use_numparams) {
         /* the NUMPARAM final line translation pass */
-        ok = ok && nupa_signal(NUPASUBDONE, NULL);
-        for (c = deck; c; c = c->li_next)
+        nupa_signal(NUPASUBDONE);
+        for (c = deck; c; c = c->nextcard)
             /* 'param' .meas statements can have dependencies on measurement values */
             /* need to skip evaluating here and evaluate after other .meas statements */
-            if (ciprefix(".meas", c->li_line) && strstr(c->li_line, "param")) {
+            if (ciprefix(".meas", c->line) && strstr(c->line, "param")) {
                 ;
             } else {
-                nupa_eval(c->li_line, c->li_linenum, c->li_linenum_orig);
+                nupa_eval(c);
             }
 
 #ifdef TRACE
         fprintf(stderr, "Numparams converted deck:\n");
-        for (c = deck; c; c = c->li_next)
-            fprintf(stderr, "%3d:%s\n", c->li_linenum, c->li_line);
+        for (c = deck; c; c = c->nextcard)
+            fprintf(stderr, "%3d:%s\n", c->linenum, c->line);
 #endif
 
         /*nupa_list_params(stdout);*/
         nupa_copy_inst_dico();
-        ok = ok && nupa_signal(NUPAEVALDONE, NULL);
+        nupa_signal(NUPAEVALDONE);
     }
 
     return (deck);  /* return the spliced deck.  */
 }
 
 
-static struct line *
-find_ends(struct line *l)
+static struct card *
+find_ends(struct card *l)
 {
     int nest = 1;
 
-    while (l->li_next) {
+    while (l->nextcard) {
 
-        if (ciprefix(sbend, l->li_next->li_line)) /* found a .ends */
+        if (ciprefix(sbend, l->nextcard->line)) /* found a .ends */
             nest--;
-        else if (ciprefix(start, l->li_next->li_line))  /* found a .subckt */
+        else if (ciprefix(start, l->nextcard->line))  /* found a .subckt */
             nest++;
 
         if (!nest)
             break;
 
-        l = l->li_next;
+        l = l->nextcard;
     }
 
     return l;
@@ -426,8 +432,8 @@ find_ends(struct line *l)
 /*  It takes as argument a pointer to the deck, and returns a        */
 /*  pointer to the deck after the subcircuit has been spliced in.    */
 /*-------------------------------------------------------------------*/
-static struct line *
-doit(struct line *deck, wordlist *modnames) {
+static struct card *
+doit(struct card *deck, wordlist *modnames) {
     struct subs *sss = NULL;   /*  *sss temporarily hold decks to substitute  */
     int numpasses = MAXNEST;
     bool gotone;
@@ -440,31 +446,30 @@ doit(struct line *deck, wordlist *modnames) {
 #ifdef TRACE
     /* SDB debug statement */
     {
-        struct line *c;
+        struct card *c;
         printf("In doit, about to start first pass through deck.\n");
-        for (c = deck; c; c = c->li_next)
-            printf("   %s\n", c->li_line);
+        for (c = deck; c; c = c->nextcard)
+            printf("   %s\n", c->line);
     }
 #endif
 
     {
         /* First pass: xtract all the .subckts and stick pointers to them into sss.  */
 
-        struct line *c = deck;
-        struct line *prev_of_c = NULL;
+        struct card *c = deck;
+        struct card *prev_of_c = NULL;
 
         while (c) {
-
-            if (ciprefix(sbend, c->li_line)) {  /* if line == .ends  */
+            if (ciprefix(sbend, c->line)) {  /* if line == .ends  */
                 fprintf(cp_err, "Error: misplaced %s line: %s\n", sbend,
-                        c->li_line);
+                        c->line);
                 return (NULL);
             }
 
-            if (ciprefix(start, c->li_line)) {  /* if line == .subckt  */
+            if (ciprefix(start, c->line)) {  /* if line == .subckt  */
 
-                struct line *prev_of_ends = find_ends(c);
-                struct line *ends = prev_of_ends->li_next;
+                struct card *prev_of_ends = find_ends(c);
+                struct card *ends = prev_of_ends->nextcard;
 
                 if (!ends) {
                     fprintf(cp_err, "Error: no %s line.\n", sbend);
@@ -478,15 +483,15 @@ doit(struct line *deck, wordlist *modnames) {
                 /*  Now put the .subckt definition found into sss  */
 
                 {
-                    char *s = c->li_line;
+                    char *s = c->line;
 
                     sss = TMALLOC(struct subs, 1);
 
-                    txfree(gettok(&s));
+                    s = nexttok(s);
 
                     sss->su_name = gettok(&s);
                     sss->su_args = copy(s);
-                    sss->su_def = c->li_next;
+                    sss->su_def = c->nextcard;
 
                     /* count the number of args in the .subckt line */
                     sss->su_numargs = 0;
@@ -506,25 +511,25 @@ doit(struct line *deck, wordlist *modnames) {
                 /* cut the whole .subckt ... .ends sequence from the deck chain */
 
                 line_free_x(c, FALSE); /* drop the .subckt card */
-                c = ends->li_next;
+                c = ends->nextcard;
 
                 if (prev_of_c)
-                    prev_of_c->li_next = c;
+                    prev_of_c->nextcard = c;
                 else
                     deck = c;
 
                 if (use_numparams == FALSE) {
                     line_free_x(ends, FALSE); /* drop the .ends card */
-                    prev_of_ends->li_next = NULL;
+                    prev_of_ends->nextcard = NULL;
                 } else {
-                    ends->li_line[0] = '*'; /* comment the .ends card */
-                    ends->li_next = NULL;
+                    ends->line[0] = '*'; /* comment the .ends card */
+                    ends->nextcard = NULL;
                 }
 
             } else {
 
                 prev_of_c = c;
-                c = c->li_next;
+                c = c->nextcard;
             }
         }
     }
@@ -545,27 +550,27 @@ doit(struct line *deck, wordlist *modnames) {
 #ifdef TRACE
     /* SDB debug statement */
     {
-        struct line *c;
+        struct card *c;
         printf("In doit, about to start second pass through deck.\n");
-        for (c = deck; c; c = c->li_next)
-            printf("   %s\n", c->li_line);
+        for (c = deck; c; c = c->nextcard)
+            printf("   %s\n", c->line);
     }
 #endif
 
     error = 0;
     /* Second pass: do the replacements. */
     do {                    /*  while (!error && numpasses-- && gotone)  */
-        struct line *c = deck;
-        struct line *prev_of_c = NULL;
+        struct card *c = deck;
+        struct card *prev_of_c = NULL;
         gotone = FALSE;
-        for (; c; prev_of_c = c, c = c->li_next) {
-            if (ciprefix(invoke, c->li_line)) {  /* found reference to .subckt (i.e. component with refdes X)  */
+        for (; c; prev_of_c = c, c = c->nextcard) {
+            if (ciprefix(invoke, c->line)) {  /* found reference to .subckt (i.e. component with refdes X)  */
 
                 char *tofree, *tofree2, *s, *t;
                 char *scname;
 
                 gotone = TRUE;
-                t = tofree = s = copy(c->li_line);       /*  s & t hold copy of component line  */
+                t = tofree = s = copy(c->line);       /*  s & t hold copy of component line  */
 
                 /*  make scname point to first non-whitepace chars after refdes invocation
                  * e.g. if invocation is Xreference, *scname = reference
@@ -604,8 +609,8 @@ doit(struct line *deck, wordlist *modnames) {
                  */
                 if (sss) {
 
-                    struct line *su_deck = inp_deckcopy(sss->su_def);
-                    struct line *rest_of_c = c->li_next;
+                    struct card *su_deck = inp_deckcopy(sss->su_def);
+                    struct card *rest_of_c = c->nextcard;
 
                     /* Now we have to replace this line with the
                      * macro definition.
@@ -615,7 +620,7 @@ doit(struct line *deck, wordlist *modnames) {
                     /* prepend the translated model names to the list `modnames' */
                     modnames = modtranslate(su_deck, scname, modnames);
 
-                    txfree(gettok(&t));  /* Throw out the subcircuit refdes */
+                    t = nexttok(t);  /* Throw out the subcircuit refdes */
 
                     /* now invoke translate, which handles the remainder of the
                      * translation.
@@ -628,19 +633,19 @@ doit(struct line *deck, wordlist *modnames) {
                     if (use_numparams == FALSE) {
                         line_free_x(c, FALSE); /* drop the invocation */
                         if (prev_of_c)
-                            prev_of_c->li_next = su_deck;
+                            prev_of_c->nextcard = su_deck;
                         else
                             deck = su_deck;
                     } else {
-                        c->li_line[0] = '*'; /* comment the invocation */
-                        c->li_next = su_deck;
+                        c->line[0] = '*'; /* comment the invocation */
+                        c->nextcard = su_deck;
                     }
 
                     c = su_deck;
-                    while (c->li_next)
-                        c = c->li_next;
+                    while (c->nextcard)
+                        c = c->nextcard;
 
-                    c->li_next = rest_of_c;
+                    c->nextcard = rest_of_c;
                 }
 
                 tfree(tofree);
@@ -658,10 +663,10 @@ doit(struct line *deck, wordlist *modnames) {
 #ifdef TRACE
     /* Added by H.Tanaka to display converted deck */
     {
-        struct line *c = deck;
+        struct card *c = deck;
         printf("Converted deck\n");
-        for (; c; c = c->li_next)
-            printf("%s\n", c->li_line);
+        for (; c; c = c->nextcard)
+            printf("%s\n", c->line);
     }
     {
         wordlist *w = modnames;
@@ -695,26 +700,76 @@ doit(struct line *deck, wordlist *modnames) {
 /*-------------------------------------------------------------------*/
 /* Copy a deck, including the actual lines.                          */
 /*-------------------------------------------------------------------*/
-struct line *
-inp_deckcopy(struct line *deck) {
-    struct line *d = NULL, *nd = NULL;
+struct card * inp_deckcopy(struct card *deck) {
+    struct card *d = NULL, *nd = NULL;
 
     while (deck) {
         if (nd) {
-            d->li_next = TMALLOC(struct line, 1);
-            d = d->li_next;
+            d->nextcard = TMALLOC(struct card, 1);
+            d = d->nextcard;
         } else {
-            nd = d = TMALLOC(struct line, 1);
+            nd = d = TMALLOC(struct card, 1);
         }
-        d->li_linenum = deck->li_linenum;
-        d->li_line = copy(deck->li_line);
-        if (deck->li_error)
-            d->li_error = copy(deck->li_error);
-        d->li_actual = inp_deckcopy(deck->li_actual);
-        deck = deck->li_next;
+        d->linenum = deck->linenum;
+        d->line = copy(deck->line);
+        if (deck->error)
+            d->error = copy(deck->error);
+        d->actualLine = inp_deckcopy(deck->actualLine);
+        deck = deck->nextcard;
     }
     return (nd);
 }
+
+
+/*
+ * Copy a deck, without the ->actualLine lines, without comment lines, and
+ * without .control section(s).
+ * First line is always copied (except being .control).
+ */
+struct card *inp_deckcopy_oc(struct card * deck)
+{
+    struct card *d = NULL, *nd = NULL;
+    int skip_control = 0, i = 0;
+
+    while (deck) {
+        /* exclude any command inside .control ... .endc */
+        if (ciprefix(".control", deck->line)) {
+            skip_control++;
+            deck = deck->nextcard;
+            continue;
+        }
+        else if (ciprefix(".endc", deck->line)) {
+            skip_control--;
+            deck = deck->nextcard;
+            continue;
+        }
+        else if (skip_control > 0) {
+            deck = deck->nextcard;
+            continue;
+        }
+        if (nd) { /* First card already found */
+            /* d is the card at the end of the deck */
+            d = d->nextcard = TMALLOC(struct card, 1);
+        }
+        else { /* This is the first card */
+            nd = d = TMALLOC(struct card, 1);
+        }
+        d->linenum_orig = deck->linenum;
+        d->linenum = i++;
+        d->line = copy(deck->line);
+        if (deck->error) {
+            d->error = copy(deck->error);
+        }
+        d->actualLine = NULL;
+        deck = deck->nextcard;
+        while (deck && *(deck->line) == '*') { /* skip comments */
+            deck = deck->nextcard;
+        }
+    } /* end of loop over cards in the source deck */
+
+    return nd;
+} /* end of function inp_deckcopy_oc */
+
 
 
 /*-------------------------------------------------------------------
@@ -811,7 +866,7 @@ bxx_printf(struct bxx_buffer *t, const char *fmt, ...)
         int ret;
         int size = (int)(t->limit - t->dst);
         va_start(ap, fmt);
-        ret  = vsnprintf(t->dst, (size_t) size, fmt, ap);
+        ret = vsnprintf(t->dst, (size_t) size, fmt, ap);
         va_end(ap);
         if (ret == -1) {
             bxx_extend(t, bxx_chunksize);
@@ -869,18 +924,54 @@ bxx_buffer(struct bxx_buffer *t)
  * touch it.
  *
  * Variable name meanings:
- * *deck = pointer to subcircuit definition (lcc) (struct line)
+ * *deck = pointer to subcircuit definition (lcc) (struct card)
  * formal = copy of the .subckt definition line (e.g. ".subckt subcircuitname 1 2 3") (string)
  * actual = copy of the .subcircuit invocation line (e.g. "Xexample 4 5 6 subcircuitname") (string)
  * scname = refdes (- first letter) used at invocation (e.g. "example") (string)
  * subname = copy of the subcircuit name
  *-------------------------------------------------------------------------------------------*/
-static int
-translate(struct line *deck, char *formal, char *actual, char *scname, const char *subname, struct subs *subs, wordlist const *modnames)
+
+static void
+translate_node_name(struct bxx_buffer *buffer, const char *scname, const char *name, const char *name_e)
 {
-    struct line *c;
+
+    const char *t;
+    if (!name_e)
+        name_e = strchr(name, '\0');
+
+    t = gettrans(name, name_e);
+    if (t) {
+        bxx_put_cstring(buffer, t);
+    } else {
+        bxx_put_cstring(buffer, scname);
+        bxx_putc(buffer, '.');
+        bxx_put_substring(buffer, name, name_e);
+    }
+}
+
+
+static void
+translate_inst_name(struct bxx_buffer *buffer, const char *scname, const char *name, const char *name_e)
+{
+    if (!name_e)
+        name_e = strchr(name, '\0');
+
+    if (tolower_c(*name) != 'x') {
+        bxx_putc(buffer, *name);
+        bxx_putc(buffer, '.');
+    }
+    bxx_put_cstring(buffer, scname);
+    bxx_putc(buffer, '.');
+    bxx_put_substring(buffer, name, name_e);
+}
+
+
+static int
+translate(struct card *deck, char *formal, char *actual, char *scname, const char *subname, struct subs *subs, wordlist const *modnames)
+{
+    struct card *c;
     struct bxx_buffer buffer;
-    char *next_name, dev_type, *name, *s, *t, ch, *nametofree, *paren_ptr, *new_str;
+    char *next_name, *name, *t, *nametofree, *paren_ptr;
     int nnodes, i, dim;
     int rtn = 0;
 
@@ -900,55 +991,44 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
         goto quit;
     }
 
-    /* now iterate through the .subckt deck and translate the cards. */
-    for (c = deck; c; c = c->li_next) {
-        dev_type = *(c->li_line);
+    for (c = deck; c; c = c->nextcard) {
+        bool got_vnam = FALSE;
+        char *s = c->line;
+        char dev_type = tolower_c(s[0]);
+
+        bxx_rewind(&buffer);
 
 #ifdef TRACE
-        /* SDB debug statement */
-        printf("\nIn translate, examining line (dev_type: %c, subname: %s, instance: %s) %s \n", dev_type, subname, scname, c->li_line);
+        printf("\nIn translate, examining line (dev_type: %c, subname: %s, instance: %s) %s \n", dev_type, subname, scname, s);
 #endif
 
-        if (ciprefix(".ic", c->li_line) || ciprefix(".nodeset", c->li_line)) {
-            paren_ptr = s = c->li_line;
-            while ((paren_ptr = strstr(paren_ptr, "("))  != NULL) {
-                *paren_ptr = '\0';
-                paren_ptr++;
-                name = paren_ptr;
-
-                if ((paren_ptr = strstr(paren_ptr, ")")) == NULL) {
-                    *(name-1) = '(';
-                    fprintf(cp_err, "Error: missing closing ')' for .ic|.nodeset statement %s\n", c->li_line);
-                    goto quit;
-                }
-                *paren_ptr = '\0';
-                t = gettrans(name, NULL);
-
-                if (t) {
-                    new_str = tprintf("%s(%s)%s", s, t, paren_ptr+1);
-                } else {
-                    new_str = tprintf("%s(%s.%s)%s", s, scname, name, paren_ptr+1);
-                }
-
-                paren_ptr = new_str + strlen(s) + 1;
-
-                tfree(s);
-                s = new_str;
-            }
-            c->li_line = s;
-            continue;
-        }
-
-        /* Rename the device. */
         switch (dev_type) {
+
+        case '.':
+            if (ciprefix(".ic", s) || ciprefix(".nodeset", s)) {
+                while ((paren_ptr = strchr(s, '(')) != NULL) {
+                    name = paren_ptr + 1;
+
+                    if ((paren_ptr = strchr(name, ')')) == NULL) {
+                        fprintf(cp_err, "Error: missing closing ')' for .ic|.nodeset statement %s\n", c->line);
+                        goto quit;
+                    }
+
+                    bxx_put_substring(&buffer, s, name);
+                    translate_node_name(&buffer, scname, name, paren_ptr);
+
+                    s = paren_ptr;
+                }
+                bxx_put_cstring(&buffer, s); /* rest of line */
+                break;
+            } else {
+                continue;
+            }
+
         case '\0':
         case '*':
         case '$':
-        case '.':
-            /* Just a pointer to the line into s and then break */
-            bxx_rewind(&buffer);
-            s = c->li_line;
-            break;
+            continue;
 
 #ifdef XSPICE
             /*===================  case A  ====================*/
@@ -956,15 +1036,12 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
             /* since they have a more involved and variable length node syntax */
 
         case 'a':
-        case 'A':
 
             /* translate the instance name according to normal rules */
-            s = c->li_line;
             name = MIFgettok(&s);
 
-            bxx_rewind(&buffer);
-            bxx_printf(&buffer, "a.%s.%s ", scname, name);
-
+            translate_inst_name(&buffer, scname, name, NULL);
+            bxx_putc(&buffer, ' ');
 
             /* Now translate the nodes, looking ahead one token to recognize */
             /* when we reach the model name which should not be translated   */
@@ -989,42 +1066,44 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
                 case '[':
                 case ']':
                 case '~':
-                    bxx_printf(&buffer, "%s ", name);
+                    bxx_put_cstring(&buffer, name);
                     break;
 
                 case '%':
-                    bxx_printf(&buffer, "%%");
+                    bxx_putc(&buffer, '%');
                     /* don't translate the port type identifier */
                     if (name)
                         tfree(name);
                     name = next_name;
+                    /* vname requires instance translation of token following */
+                    if (eq(name, "vnam"))
+                        got_vnam = TRUE;
                     next_name = MIFgettok(&s);
-                    bxx_printf(&buffer, "%s ", name);
+                    bxx_put_cstring(&buffer, name);
                     break;
 
                 default:
-
-                    /* must be a node name at this point, so translate it */
-                    t = gettrans(name, NULL);
-                    if (t) {
-                        bxx_printf(&buffer, "%s ", t);
-                    } else {
-                        bxx_printf(&buffer, "%s.%s ", scname, name);
+                    if (got_vnam) {
+                        /* after %vnam an instance name is following */
+                        translate_inst_name(&buffer, scname, name, NULL);
+                        got_vnam = FALSE;
+                    }
+                    else {
+                        /* must be a node name at this point, so translate it */
+                        translate_node_name(&buffer, scname, name, NULL);
                     }
                     break;
 
-                } /* switch */
-
-            } /* while */
+                }
+                bxx_putc(&buffer, ' ');
+            }
 
             /* copy in the last token, which is the model name */
             if (name) {
-                bxx_printf(&buffer, "%s ", name);
+                bxx_put_cstring(&buffer, name);
                 tfree(name);
             }
-            /* Set s to null string for compatibility with code */
-            /* after switch statement                           */
-            s = "";
+
             break; /* case 'a' */
 
             /* gtri - end - wbk - 10/23/90 */
@@ -1036,17 +1115,12 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
              * changes were made in here.
              * 4.21.2003 -- SDB.  mailto:sdb@cloud9.net
              */
-        case 'E':
         case 'e':
-        case 'F':
         case 'f':
-        case 'G':
         case 'g':
-        case 'H':
         case 'h':
 
-            s = c->li_line;       /* s now holds the SPICE line */
-            t = name = gettok(&s);    /* name points to the refdes  */
+            name = gettok(&s);    /* name points to the refdes  */
             if (!name)
                 continue;
             if (!*name) {
@@ -1057,52 +1131,41 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
             /* Here's where we translate the refdes to e.g. F:subcircuitname:57
              * and stick the translated name into buffer.
              */
-            ch = *name;           /* ch identifies the type of component */
-            bxx_rewind(&buffer);
-            bxx_printf(&buffer, "%c.%s.%s ", ch, scname, name);
-            tfree(t);
+            translate_inst_name(&buffer, scname, name, NULL);
+            tfree(name);
+            bxx_putc(&buffer, ' ');
 
             /* Next iterate over all nodes (netnames) found and translate them. */
-            nnodes = numnodes(c->li_line, subs, modnames);
+            nnodes = numnodes(c->line, subs, modnames);
 
-            while (nnodes-- > 0) {
+            while (--nnodes >= 0) {
                 name = gettok_node(&s);
                 if (name == NULL) {
                     fprintf(cp_err, "Error: too few nodes: %s\n",
-                            c->li_line);
+                            c->line);
                     goto quit;
                 }
 
-                /* call gettrans and see if netname was used in the invocation */
-                t = gettrans(name, NULL);
-
-                if (t) {   /* the netname was used during the invocation; print it into the buffer */
-                    bxx_printf(&buffer, "%s ", t);
-                } else {
-                    /* net netname was not used during the invocation; place a
-                     * translated name into the buffer.*/
-                    bxx_printf(&buffer, "%s.%s ", scname, name);
-                }
+                translate_node_name(&buffer, scname, name, NULL);
                 tfree(name);
-            }  /* while (nnodes-- . . . . */
+                bxx_putc(&buffer, ' ');
+            }
 
-
-            /*  Next we handle the POLY (if any) */
+            /* Next we handle the POLY (if any) */
             /* get next token */
             t = s;
             next_name = gettok_noparens(&t);
             if ((strcmp(next_name, "POLY") == 0) ||
-                (strcmp(next_name, "poly") == 0)) {         /* found POLY . . . . */
+                (strcmp(next_name, "poly") == 0)) {
 
 #ifdef TRACE
-                /* SDB debug statement */
                 printf("In translate, looking at e, f, g, h found poly\n");
 #endif
 
-                /* move pointer ahead of (  */
+                /* move pointer ahead of '(' */
                 if (get_l_paren(&s) == 1) {
                     fprintf(cp_err, "Error: no left paren after POLY %s\n",
-                            c->li_line);
+                            c->line);
                     tfree(next_name);
                     goto quit;
                 }
@@ -1111,80 +1174,44 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
                 dim = atoi(nametofree);  /* convert returned string to int */
                 tfree(nametofree);
 
-                /* move pointer ahead of ) */
+                /* move pointer ahead of ')' */
                 if (get_r_paren(&s) == 1) {
                     fprintf(cp_err, "Error: no right paren after POLY %s\n",
-                            c->li_line);
+                            c->line);
                     tfree(next_name);
                     goto quit;
                 }
 
                 /* Write POLY(dim) into buffer */
                 bxx_printf(&buffer, "POLY( %d ) ", dim);
-
-            } /* if ((strcmp(next_name, "POLY") == 0) . . .  */
+            }
             else
                 dim = 1;    /* only one controlling source . . . */
             tfree(next_name);
 
             /* Now translate the controlling source/nodes */
-            nnodes = dim * numdevs(c->li_line);
-            while (nnodes-- > 0) {
-                nametofree = name = gettok_node(&s);   /* name points to the returned token  */
+            nnodes = dim * numdevs(c->line);
+            while (--nnodes >= 0) {
+                name = gettok_node(&s);   /* name points to the returned token */
                 if (name == NULL) {
-                    fprintf(cp_err, "Error: too few devs: %s\n", c->li_line);
+                    fprintf(cp_err, "Error: too few devs: %s\n", c->line);
                     goto quit;
                 }
 
-                if ((dev_type == 'f') ||
-                    (dev_type == 'F') ||
-                    (dev_type == 'h') ||
-                    (dev_type == 'H')) {
-
-                    /* Handle voltage source name */
-
-#ifdef TRACE
-                    /* SDB debug statement */
-                    printf("In translate, found type f or h\n");
-#endif
-
-                    ch = *name;         /*  ch is the first char of the token.  */
-
-                    bxx_printf(&buffer, "%c.%s.%s ", ch, scname, name);
-                    /* From Vsense and Urefdes creates V.Urefdes.sense */
-                } else {                            /* Handle netname */
-
-#ifdef TRACE
-                    /* SDB debug statement */
-                    printf("In translate, found type e or g\n");
-#endif
-
-                    /* call gettrans and see if netname was used in the invocation */
-                    t = gettrans(name, NULL);
-
-                    if (t) {   /* the netname was used during the invocation; print it into the buffer */
-                        bxx_printf(&buffer, "%s ", t);
-                    } else {
-                        /* net netname was not used during the invocation; place a
-                         * translated name into the buffer.
-                         */
-                        bxx_printf(&buffer, "%s.%s ", scname, name);
-                        /* From netname and Urefdes creates Urefdes:netname */
-                    }
-                }
-                tfree(nametofree);
-            }      /* while (nnodes--. . . . */
+                if ((dev_type == 'f') || (dev_type == 'h'))
+                    translate_inst_name(&buffer, scname, name, NULL);
+                else
+                    translate_node_name(&buffer, scname, name, NULL);
+                tfree(name);
+                bxx_putc(&buffer, ' ');
+            }
 
             /* Now write out remainder of line (polynomial coeffs) */
             finishLine(&buffer, s, scname);
-            s = "";
             break;
 
-
-            /*=================   Default case  ===================*/
         default:            /* this section handles ordinary components */
-            s = c->li_line;
-            nametofree = name = gettok_node(&s);  /* changed to gettok_node to handle netlists with ( , ) */
+            name = gettok_node(&s);  /* changed to gettok_node to handle netlists with ( , ) */
             if (!name)
                 continue;
             if (!*name) {
@@ -1192,63 +1219,39 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
                 continue;
             }
 
-            /* Here's where we translate the refdes to e.g. R:subcircuitname:57
-             * and stick the translated name into buffer.
-             */
-            ch = *name;
+            translate_inst_name(&buffer, scname, name, NULL);
+            tfree(name);
+            bxx_putc(&buffer, ' ');
 
-            bxx_rewind(&buffer);
-
-            if (ch != 'x')
-                bxx_printf(&buffer, "%c.%s.%s ", ch, scname, name);
-            else
-                bxx_printf(&buffer, "%s.%s ", scname, name);
-
-            tfree(nametofree);
-
-            /* Next iterate over all nodes (netnames) found and translate them. */
-            nnodes = numnodes(c->li_line, subs, modnames);
-            while (nnodes-- > 0) {
+            nnodes = numnodes(c->line, subs, modnames);
+            while (--nnodes >= 0) {
                 name = gettok_node(&s);
                 if (name == NULL) {
-                    fprintf(cp_err, "Error: too few nodes: %s\n", c->li_line);
+                    fprintf(cp_err, "Error: too few nodes: %s\n", c->line);
                     goto quit;
                 }
 
-                /* call gettrans and see if netname was used in the invocation */
-                t = gettrans(name, NULL);
-
-                if (t) {   /* the netname was used during the invocation; print it into the buffer */
-                    bxx_printf(&buffer, "%s ", t);
-                } else {
-                    /* net netname was not used during the invocation; place a
-                     * translated name into the buffer.
-                     */
-                    bxx_printf(&buffer, "%s.%s ", scname, name);
-                }
+                translate_node_name(&buffer, scname, name, NULL);
                 tfree(name);
-            }  /* while (nnodes-- . . . . */
+                bxx_putc(&buffer, ' ');
+            }
 
             /* Now translate any devices (i.e. controlling sources).
              * This may be superfluous because we handle dependent
              * source devices above . . . .
              */
-            nnodes = numdevs(c->li_line);
-            while (nnodes-- > 0) {
-                t = name = gettok_node(&s);
+            nnodes = numdevs(c->line);
+            while (--nnodes >= 0) {
+                name = gettok_node(&s);
                 if (name == NULL) {
-                    fprintf(cp_err, "Error: too few devs: %s\n", c->li_line);
+                    fprintf(cp_err, "Error: too few devs: %s\n", c->line);
                     goto quit;
                 }
-                ch = *name;
 
-                if (ch != 'x')
-                    bxx_printf(&buffer, "%c.%s.%s ", ch, scname, name);
-                else
-                    bxx_printf(&buffer, "%s ", scname);
-
-                tfree(t);
-            } /* while (nnodes--. . . . */
+                translate_inst_name(&buffer, scname, name, NULL);
+                tfree(name);
+                bxx_putc(&buffer, ' ');
+            }
 
             /* Now we finish off the line.  For most components (R, C, etc),
              * this involves adding the component value to the buffer.
@@ -1256,23 +1259,19 @@ translate(struct line *deck, char *formal, char *actual, char *scname, const cha
              * i(something)...
              */
             finishLine(&buffer, s, scname);
-            s = "";
+            break;
+        }
 
-        } /* switch (c->li_line . . . . */
-
-        bxx_printf(&buffer, "%s", s);
-        tfree(c->li_line);
-        c->li_line = copy(bxx_buffer(&buffer));
+        tfree(c->line);
+        c->line = copy(bxx_buffer(&buffer));
 
 #ifdef TRACE
-        /* SDB debug statement */
-        printf("In translate, translated line = %s \n", c->li_line);
+        printf("In translate, translated line = %s \n", c->line);
 #endif
-
-    }  /* for (c = deck . . . . */
+    }
     rtn = 1;
-quit:
-    for (i = 0; ; i++) {
+ quit:
+    for (i = 0; i < N_GLOBAL_NODES; i++) {
         if (!table[i].t_old && !table[i].t_new)
             break;
         FREE(table[i].t_old);
@@ -1308,68 +1307,39 @@ finishLine(struct bxx_buffer *t, char *src, char *scname)
             bxx_putc(t, *src++);
             continue;
         }
+        which = *src;
         s = skip_ws(src + 1);
-        if (!*s || (*s != '(')) {
+        if (*s != '(') {
             lastwasalpha = isalpha_c(*src);
             bxx_putc(t, *src++);
             continue;
         }
+        src = skip_ws(s + 1);
         lastwasalpha = 0;
-        bxx_putc(t, which = *src);
-        src = s;
-        bxx_putc(t, *src++);
-        src = skip_ws(src);
+        bxx_putc(t, which);
+        bxx_putc(t, '(');
         for (buf = src; *src && !isspace_c(*src) && *src != ',' && *src != ')'; )
             src++;
         buf_end = src;
 
-        if ((which == 'v') || (which == 'V'))
-            s = gettrans(buf, buf_end);
-        else
-            s = NULL;
-
-        if (s) {
-            bxx_put_cstring(t, s);
-        } else {  /* just a normal netname . . . . */
-            /*
-              i(vname) -> i(v.subckt.vname)
-              i(ename) -> i(e.subckt.ename)
-              i(hname) -> i(h.subckt.hname)
-              i(bname) -> i(b.subckt.hname)
-            */
-            if ((which == 'i' || which == 'I') &&
-                (buf[0] == 'v' || buf[0] == 'V' || buf[0] == 'e' || buf[0] == 'h'
-                 || buf[0] == 'b' || buf[0] == 'B')) {
-                bxx_putc(t, buf[0]);
-                bxx_putc(t, '.');
-                /*i = 1; */
-            } /* else {
-                 i = 0;
-                 } */
-            bxx_put_cstring(t, scname);
-            bxx_putc(t, '.');
-            bxx_put_substring(t, buf, buf_end);
-        }
-
-        /* translate the reference node, as in the "2" in "v(4,2)" */
-
         if ((which == 'v') || (which == 'V')) {
-            while (*src && (isspace_c(*src) || *src == ',')) {
+            translate_node_name(t, scname, buf, buf_end);
+
+            /* translate the reference node, as in the "2" in "v(4,2)" */
+            while (*src && (isspace_c(*src) || *src == ','))
                 src++;
-            }
+
             if (*src && *src != ')') {
                 for (buf = src; *src && !isspace_c(*src) && (*src != ')'); )
                     src++;
-                s = gettrans(buf, buf_end = src);
                 bxx_putc(t, ',');
-                if (s) {
-                    bxx_put_cstring(t, s);
-                } else {
-                    bxx_put_cstring(t, scname);
-                    bxx_putc(t, '.');
-                    bxx_put_substring(t, buf, buf_end);
-                }
+                translate_node_name(t, scname, buf, buf_end = src);
             }
+        } else {
+            /*
+             * i(instance_name) --> i(instance_name[0].subckt.instance_name)
+             */
+            translate_inst_name(t, scname, buf, buf_end);
         }
     }
 }
@@ -1391,9 +1361,9 @@ settrans(char *formal, char *actual, const char *subname)
 {
     int i;
 
-    memset(table, 0, sizeof(*table));
+    memset(table, 0, N_GLOBAL_NODES * sizeof(*table));
 
-    for (i = 0; ; i++) {
+    for (i = 0; i < N_GLOBAL_NODES; i++) {
         table[i].t_old = gettok(&formal);
         table[i].t_new = gettok(&actual);
 
@@ -1406,6 +1376,11 @@ settrans(char *formal, char *actual, const char *subname)
                 return 1;       /* Too many actual / too few formal */
         }
     }
+    if (i == N_GLOBAL_NODES) {
+        fprintf(stderr, "ERROR, N_GLOBAL_NODES overflow\n");
+        controlled_exit(EXIT_FAILURE);
+    }
+
     return 0;
 }
 
@@ -1452,7 +1427,7 @@ gettrans(const char *name, const char *name_end)
 /*-------------------------------------------------------------------*/
 /*-------------------------------------------------------------------*/
 static int
-numnodes(char *name, struct subs *subs, wordlist const *modnames)
+numnodes(const char *line, struct subs *subs, wordlist const *modnames)
 {
     /* gtri - comment - wbk - 10/23/90 - Do not modify this routine for */
     /* 'A' type devices since the callers will not know how to find the */
@@ -1460,31 +1435,18 @@ numnodes(char *name, struct subs *subs, wordlist const *modnames)
     /* instead.                                                         */
     /* gtri - end - wbk - 10/23/90 */
     char c;
-    struct subs *sss;
-    char *s, *t, buf[4 * BSIZE_SP];
-    const wordlist *wl;
-    int n, i, gotit;
+    int n;
 
-    name = skip_ws(name);
+    line = skip_ws(line);
 
-    c = *name;
-    if (isupper_c(c))
-        c = tolower_c(c);
+    c = tolower_c(*line);
 
-    (void) strncpy(buf, name, sizeof(buf));
-    s = buf;
     if (c == 'x') {     /* Handle this ourselves. */
-        while (*s)
-            s++;
-        s--;
-        while ((*s == ' ') || (*s == '\t'))
-            *s-- = '\0';
-        while ((*s != ' ') && (*s != '\t'))
-            s--;
-        s++;
-        for (sss = subs; sss; sss = sss->su_next)
-            if (eq(sss->su_name, s))
-                return (sss->su_numargs);
+        const char *xname_e = skip_back_ws(strchr(line, '\0'), line);
+        const char *xname = skip_back_non_ws(xname_e, line);
+        for (; subs; subs = subs->su_next)
+            if (eq_substr(xname, xname_e, subs->su_name))
+                return subs->su_numargs;
         /*
          * number of nodes not known so far.
          * lets count the nodes ourselves,
@@ -1493,10 +1455,9 @@ numnodes(char *name, struct subs *subs, wordlist const *modnames)
          */
         {
             int nodes = -2;
-            for (s = buf; *s; ) {
+            while (*line) {
                 nodes++;
-                s = skip_non_ws(s);
-                s = skip_ws(s);
+                line = skip_ws(skip_non_ws(line));
             }
             return (nodes);
         }
@@ -1504,21 +1465,20 @@ numnodes(char *name, struct subs *subs, wordlist const *modnames)
 
     n = inp_numnodes(c);
 
-    /* Added this code for variable number of nodes on BSIM3SOI/CPL devices  */
+    /* Added this code for variable number of nodes on certain devices.  */
     /* The consequence of this code is that the value returned by the    */
     /* inp_numnodes(c) call must be regarded as "maximum number of nodes */
     /* for a given device type.                                          */
     /* Paolo Nenzi Jan-2001                                              */
 
-    /* I hope that works, this code is very very untested */
+    if ((c == 'm') || (c == 'p') || (c == 'q')) { /* IF this is a mos, cpl or bjt*/
+        char *s = nexttok(line);       /* Skip the instance name */
+        int gotit = 0;
+        int i = 0;
 
-    if ((c == 'm') || (c == 'p')) {              /* IF this is a mos or cpl */
-        i = 0;
-        s = buf;
-        gotit = 0;
-        txfree(gettok(&s));          /* Skip component name */
-        while ((i < n) && (*s) && !gotit) {
-            t = gettok_node(&s);       /* get nodenames . . .  */
+        while ((i <= n) && (*s) && !gotit) {
+            char *t = gettok_node(&s);       /* get nodenames . . .  */
+            const wordlist *wl;
             for (wl = modnames; wl; wl = wl->wl_next)
                 if (model_name_match(t, wl->wl_word)) {
                     gotit = 1;
@@ -1526,37 +1486,25 @@ numnodes(char *name, struct subs *subs, wordlist const *modnames)
                 }
             i++;
             tfree(t);
-        } /* while . . . . */
+        }
 
         /* Note: node checks must be done on #_of_node-1 because the */
         /* "while" cycle increments the counter even when a model is */
         /* recognized. This code may be better!                      */
 
-        if (i < 5) {
-            fprintf(cp_err, "Error: too few nodes for MOS or CPL: %s\n", name);
+        if ((i < 4) && ((c == 'm') || (c == 'q'))) {
+            fprintf(cp_err, "Error: too few nodes for MOS or BJT: %s\n", line);
+            return (0);
+        }
+        if ((i < 5) && (c == 'p')) {
+            fprintf(cp_err, "Error: too few nodes for CPL: %s\n", line);
             return (0);
         }
         return (i-1); /* compensate the unnecessary increment in the while cycle */
-    } /* if (c == 'm' . . .  */
-
-    if (nobjthack || (c != 'q'))
+    } else {
+        /* for all other elements */
         return (n);
-
-    for (s = buf, i = 0; *s && (i < 4); i++)
-        txfree(gettok(&s));
-
-    if (i == 3)
-        return (3);
-    else if (i < 4) {
-        fprintf(cp_err, "Error: too few nodes for BJT: %s\n", name);
-        return (0);
     }
-
-    /* Now, is this a model? */
-    t = gettok(&s);
-    wl = wl_find(t, modnames);
-    tfree(t);
-    return wl ? 3 : 4;
 }
 
 
@@ -1606,15 +1554,15 @@ numdevs(char *s)
  *  modtranslate returns the list of model names which have been translated
  *----------------------------------------------------------------------*/
 static wordlist *
-modtranslate(struct line *c, char *subname, wordlist *new_modnames)
+modtranslate(struct card *c, char *subname, wordlist *new_modnames)
 {
     wordlist *orig_modnames = NULL;
-    struct line *lcc = c;
+    struct card *lcc = c;
 
-    for (; c; c = c->li_next)
-        if (ciprefix(".model", c->li_line)) {
+    for (; c; c = c->nextcard)
+        if (ciprefix(".model", c->line)) {
             char *model_name, *new_model_name;
-            char *t = c->li_line;
+            char *t = c->line;
 
 #ifdef TRACE
             printf("modtranslate(), translating:\n"
@@ -1622,7 +1570,7 @@ modtranslate(struct line *c, char *subname, wordlist *new_modnames)
 #endif
 
             /* swallow ".model" */
-            txfree(gettok(&t));
+            t = nexttok(t);
 
             model_name = gettok(&t);
 
@@ -1634,8 +1582,8 @@ modtranslate(struct line *c, char *subname, wordlist *new_modnames)
 
             /* perform the actual translation of this .model line */
             t = tprintf(".model %s %s", new_model_name, t);
-            tfree(c->li_line);
-            c->li_line = t;
+            tfree(c->line);
+            c->line = t;
 
 #ifdef TRACE
             printf("  \"%s\"\n", t);
@@ -1661,17 +1609,40 @@ modtranslate(struct line *c, char *subname, wordlist *new_modnames)
  *            Q1 c b e 2N3904
  *  after:    Q1 c b e U1:2N3904
  *-------------------------------------------------------------------*/
+
 static void
-devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
+translate_mod_name(struct bxx_buffer *buffer, char *modname, char *subname, struct wordlist *orig_modnames)
+{
+    /*
+     *  Note that we compare against orig_modnames,
+     *    which is the list of untranslated names of models.
+     */
+    wordlist *wlsub = wl_find(modname, orig_modnames);
+
+    if (!wlsub)
+        bxx_printf(buffer, "%s", modname);
+    else
+        bxx_printf(buffer, "%s:%s", subname, modname);
+}
+
+
+static void
+devmodtranslate(struct card *s, char *subname, wordlist * const orig_modnames)
 {
     int found;
 
-    for (; s; s = s->li_next) {
+    struct bxx_buffer buffer;
+    bxx_init(&buffer);
 
-        char *buffer, *t, c, *name, *next_name;
+
+    for (; s; s = s->nextcard) {
+
+        char *t, c, *name, *next_name;
         wordlist *wlsub;
 
-        t = s->li_line;
+        bxx_rewind(&buffer);
+
+        t = s->line;
 
 #ifdef TRACE
         /* SDB debug stuff */
@@ -1682,8 +1653,6 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
         c = *t;                           /* set c to first char in line. . . . */
         if (isupper_c(c))
             c = tolower_c(c);
-
-        buffer = TMALLOC(char, strlen(t) + strlen(subname) + 4);
 
         switch (c) {
 
@@ -1703,7 +1672,7 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
 
             /* first do refdes. */
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
 
             /* now do remainder of line. */
@@ -1719,33 +1688,23 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
 
                 } else {
                     /* next_name holds something.  Write name into the buffer and continue. */
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
+                    bxx_printf(&buffer, "%s ", name);
                     tfree(name);
                 }
             }  /* while  */
 
-
-            /*
-             *  Note that we compare against orig_modnames,
-             *    which is the list of untranslated names of models.
-             */
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
-
+            translate_mod_name(&buffer, name, subname, orig_modnames);
             tfree(name);
+            bxx_putc(&buffer, ' ');
 
 #ifdef TRACE
             /* SDB debug statement */
             printf("In devmodtranslate, translated codemodel line= %s\n", buffer);
 #endif
 
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
 #endif /* XSPICE */
@@ -1754,65 +1713,53 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
         case 'c':
         case 'l':
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get first netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get second netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
 
             if (*t) {    /* if there is a model, process it. . . . */
                 name = gettok(&t);
-                wlsub = wl_find(name, orig_modnames);
-
-                if (!wlsub)
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
-                else
-                    (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
+                translate_mod_name(&buffer, name, subname, orig_modnames);
                 tfree(name);
+                bxx_putc(&buffer, ' ');
             }
 
             if (*t) {
                 name = gettok(&t);
-                wlsub = wl_find(name, orig_modnames);
-
-                if (!wlsub)
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
-                else
-                    (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
+                translate_mod_name(&buffer, name, subname, orig_modnames);
                 tfree(name);
+                bxx_putc(&buffer, ' ');
             }
 
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
         case 'd':
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get first attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get second attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
 
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
+            translate_mod_name(&buffer, name, subname, orig_modnames);
 
             tfree(name);
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_putc(&buffer, ' ');
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
         case 'u': /* urc transmissionline */
@@ -1821,30 +1768,25 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
         case 'j': /* jfet */
         case 'z': /* hfet, mesa */
             name = gettok(&t);
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
 
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
-
+            translate_mod_name(&buffer, name, subname, orig_modnames);
             tfree(name);
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_putc(&buffer, ' ');
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
             /* 4 terminal devices */
@@ -1856,53 +1798,49 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
                 which occur in real Analog Devices SPICE models.
             */
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get first attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get second attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get third attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get fourth attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok(&t);
 
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
-
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            translate_mod_name(&buffer, name, subname, orig_modnames);
+            bxx_putc(&buffer, ' ');
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             tfree(name);
             break;
 
-             /* 4-7 terminal mos devices */
+            /* 3-7 terminal mos devices */
         case 'm':
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get first attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get second attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get third attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
-            name = gettok_node(&t);  /* get fourth attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            tfree(name);
-            name = gettok(&t);
+            name = gettok_node(&t);
+
+            if (!name) {
+                break;
+            }
 
             found = 0;
             while (!found) {
@@ -1913,9 +1851,9 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
                         break;
                     }
                 if (!found) { /* name was not a model - was a netname */
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
+                    bxx_printf(&buffer, "%s ", name);
                     tfree(name);
-                    name = gettok(&t);
+                    name = gettok_node(&t);
                     if (name == NULL) {
                         name = copy(""); /* allow 'tfree' */
                         break;
@@ -1924,68 +1862,67 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
             }  /* while  */
 
             if (!found)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
+                bxx_printf(&buffer, "%s", name);
             else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
+                bxx_printf(&buffer, "%s:%s", subname, name);
+            bxx_putc(&buffer, ' ');
 
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             tfree(name);
             break;
 
             /* 3-5 terminal bjt devices */
         case 'q':
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get first attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get second attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* get third attached netname */
-            (void) sprintf(buffer + strlen(buffer), "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
             name = gettok_node(&t);  /* this can be either a model name or a node name. */
 
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                if (*t) { /* There is another token - perhaps a model */
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
-                    tfree(name);
-                    name = gettok(&t);
+            if (name == NULL) {
+                name = copy(""); /* allow 'tfree' */
+            } else {
+                found = 0;
+                while (!found) {
                     wlsub = wl_find(name, orig_modnames);
-                }
+                    if (wlsub) {
+                        found = 1;
+                        break;
+                    } else {
+                        bxx_printf(&buffer, "%s ", name);
+                        tfree(name);
+                        name = gettok(&t);
+                        if (name == NULL) {  /* No token anymore - leave */
+                            name = copy(""); /* allow 'tfree' */
+                            break;
+                        }
+                    }
+                }  /* while  */
+            }
 
-#ifdef ADMS
-            if (!wlsub)
-                if (*t) { /* There is another token - perhaps a model */
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
-                    tfree(name);
-                    name = gettok(&t);
-                    wlsub = wl_find(name, orig_modnames);
-                }
-#endif
-
-            if (!wlsub) /* Fallback w/o subckt name before */
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
-
+            translate_mod_name(&buffer, name, subname, orig_modnames);
             tfree(name);
+            bxx_putc(&buffer, ' ');
 
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
             /* 4-18 terminal devices */
         case 'p': /* cpl */
             name = gettok(&t);  /* get refdes */
-            (void) sprintf(buffer, "%s ", name);
+            bxx_printf(&buffer, "%s ", name);
             tfree(name);
 
             /* now do remainder of line. */
@@ -1999,36 +1936,32 @@ devmodtranslate(struct line *s, char *subname, wordlist * const orig_modnames)
                     break;
                 } else {
                     /* next_name holds something.  Write name into the buffer and continue. */
-                    (void) sprintf(buffer + strlen(buffer), "%s ", name);
+                    bxx_printf(&buffer, "%s ", name);
                     tfree(name);
                 }
             }  /* while  */
 
-            wlsub = wl_find(name, orig_modnames);
-
-            if (!wlsub)
-                (void) sprintf(buffer + strlen(buffer), "%s ", name);
-            else
-                (void) sprintf(buffer + strlen(buffer), "%s:%s ", subname, name);
-
+            translate_mod_name(&buffer, name, subname, orig_modnames);
             tfree(name);
+            bxx_putc(&buffer, ' ');
 
-            (void) strcat(buffer, t);
-            tfree(s->li_line);
-            s->li_line = buffer;
+            bxx_put_cstring(&buffer, t);
+            tfree(s->line);
+            s->line = copy(bxx_buffer(&buffer));
             break;
 
         default:
-            tfree(buffer);
             break;
         }
     }
+
+    bxx_free(&buffer);
 }
 
 
 /*----------------------------------------------------------------------*
- * inp_numnodes returns the number of nodes (netnames) attached to the
- * component.
+ * inp_numnodes returns the maximum number of nodes (netnames) attached
+ * to the component.
  * This is a spice-dependent thing.  It should probably go somewhere
  * else, but...  Note that we pretend that dependent sources and mutual
  * inductors have more nodes than they really do...

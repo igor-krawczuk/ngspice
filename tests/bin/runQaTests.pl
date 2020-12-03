@@ -32,7 +32,6 @@ Options:
     -nw                    do not print warning messages
     -platform              prints the hardware platform and operating system version
     -p                     plot results (limited, only standard test variant)
-    -P                     plot results (complete, for all test variants)
     -r                     re-use previously simulated results if they exist
                            (default is to resimulate, even if results exist)
     -sv                    prints the simulator version being run
@@ -70,6 +69,7 @@ undef($qaSpecFile);
 undef(@Setup);
 undef(@Test);
 undef(@Variants);
+undef(@TestVariants);
 $debug=0;
 $verbose=0;
 $reallyVerbose=0;
@@ -79,6 +79,7 @@ $listVariants=0;
 $onlyDoSimulatorVersion=0;
 $onlyDoPlatformVersion=0;
 $onlyDoComparison=0;
+$onlyTuple=0;
 $forceSimulation=1;
 $printWarnings=1;
 @prog=split("/",$0);
@@ -98,6 +99,7 @@ undef($acClip);undef($acNdigit);undef($acRelTol);
 undef($noiseClip);undef($noiseNdigit);undef($noiseRelTol);
 undef($mFactor);undef($shrinkPercent);undef($scaleFactor);undef(%TestSpec);
 undef($refrnceDirectory);
+undef($simulatorCommand);
 
 #
 #   These are the tolerances used to compare results
@@ -184,6 +186,14 @@ for (;;) {
         $verbose=1;
     } elsif ($ARGV[0] =~ /^-V/) {
         $verbose=1;$reallyVerbose=1;
+    } elsif ($ARGV[0] =~ /^--tuple/) {
+        $onlyTuple=1;
+    } elsif ($ARGV[0]  =~ /^--version=(.*)/i) {
+        $version=$1;
+    } elsif ($ARGV[0]  =~ /^--platform=(.*)/i) {
+        $platform=$1;
+    } elsif ($ARGV[0]  =~ /^--vaVersion=(.*)/i) {
+        $vaVersion=$1;
     } elsif ($ARGV[0] =~ /^-/) {
         &usage();
         die("ERROR: unknown flag $ARGV[0], stopped");
@@ -195,10 +205,10 @@ for (;;) {
 if ($onlyDoSimulatorVersion && !defined($simulatorName) && defined($ARGV[0])) {
     $simulatorName=$ARGV[0]; # assume -sv simulatorName was specified
 }
-if ($#ARGV<0 && !$onlyDoPlatformVersion && !($onlyDoSimulatorVersion && defined($simulatorName))) {
+if ($#ARGV<0 && !$onlyDoPlatformVersion && !($onlyDoSimulatorVersion && defined($simulatorName)) && !$onlyTuple) {
     &usage();exit(0);
 }
-if (!$onlyDoPlatformVersion && !defined($simulatorName)) {
+if (!$onlyDoPlatformVersion && !defined($simulatorName) && !$onlyTuple) {
     &usage();exit(0);
 }
 if(!defined($simulatorCommand)) {
@@ -212,6 +222,22 @@ if(!defined($simulatorCommand)) {
 if (! require "$programDirectory/modelQaTestRoutines.pm") {
     die("ERROR: problem sourcing modelQaTestRoutines.pm, stopped");
 }
+
+if ($onlyTuple) {
+    $platform = &modelQa::platform();
+    if (! -r "$programDirectory/$simulatorName.pm") {
+        die("ERROR: there is no test routine Perl module for simulator $simulatorName, stopped");
+    }
+    if (! require "$programDirectory/$simulatorName.pm") {
+        die("ERROR: problem sourcing test routine Perl module for simulator $simulatorName, stopped");
+    }
+    ($version,$vaVersion) = &simulate::version();
+    print "platform=$platform\n";
+    print "version=$version\n";
+    print "vaVersion=$vaVersion\n";
+    exit(0);
+}
+
 if (!$onlyDoComparison) {
     $platform=&modelQa::platform();
     if ($onlyDoPlatformVersion) {
@@ -230,9 +256,15 @@ if (!$onlyDoComparison) {
 #
 
 if (!$onlyDoComparison) {
-    $version=&simulate::version();
+    if (!defined($version) || !defined($vaVersion)) {
+        ($version,$vaVersion)=&simulate::version();
+    }
     if ($onlyDoSimulatorVersion) {
-        print $version;exit(0);
+        if ($vaVersion eq "unknown") {
+            print $version;exit(0);
+        } else {
+            print $version,$vaVersion;exit(0);
+        }
     }
 }
 $qaSpecFile=$ARGV[0];
@@ -297,7 +329,7 @@ if ($reallyVerbose) {
     $flag="";
 }
 foreach $test (@Test) {
-    next if (!$doTest{$test});
+    next if (%doTest && !$doTest{$test});
 
     if ($verbose) {print "\n****** Running test ($simulatorName): $test"}
 
@@ -305,13 +337,13 @@ foreach $test (@Test) {
     undef($outputAc);
     undef($outputNoise);
     &modelQa::processTestSpec(@{$TestSpec{$test}});
-    foreach $variant (@Variants) {
+    foreach $variant (@TestVariants) {
         if ($variant eq "standard") {
             $refFile="$refrnceDirectory/$test.standard";
         } else {
             $refFile="$resultsDirectory/$test.standard";
         }
-        next if (!$doVariant{$variant});
+        next if (%doVariant && !$doVariant{$variant});
         $simFile="$resultsDirectory/$test.$variant";
         if ($outputDc) {
             if (($forceSimulation || ! -r $simFile) && !$onlyDoComparison) {

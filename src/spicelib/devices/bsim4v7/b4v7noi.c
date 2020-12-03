@@ -92,7 +92,6 @@ NOISEAN *job = (NOISEAN *) ckt->CKTcurJob;
 BSIM4v7model *model = (BSIM4v7model *)inModel;
 BSIM4v7instance *here;
 struct bsim4SizeDependParam *pParam;
-char name[N_MXVLNTH];
 double tempOnoise;
 double tempInoise;
 double noizDens[BSIM4v7NSRCS];
@@ -130,14 +129,14 @@ double m;
         ""                  /* total transistor noise */
     };
 
-    for (; model != NULL; model = model->BSIM4v7nextModel)
+    for (; model != NULL; model = BSIM4v7nextModel(model))
     {
          if(model->BSIM4v7tnoiMod != 2) {
              noizDens[BSIM4v7CORLNOIZ] = 0.0;
              lnNdens[BSIM4v7CORLNOIZ] = N_MINLOG;
          }
-         for (here = model->BSIM4v7instances; here != NULL;
-              here = here->BSIM4v7nextInstance)
+         for (here = BSIM4v7instances(model); here != NULL;
+              here = BSIM4v7nextInstance(here))
          {    pParam = here->pParam;
               switch (operation)
               {  case N_OPEN:
@@ -148,47 +147,13 @@ double m;
                       {   switch (mode)
                           {  case N_DENS:
                                   for (i = 0; i < BSIM4v7NSRCS; i++)
-                                  {    (void) sprintf(name, "onoise.%s%s",
-                                                      here->BSIM4v7name,
-                                                      BSIM4v7nNames[i]);
-                                       data->namelist = TREALLOC(IFuid,
-                                             data->namelist,
-                                             data->numPlots + 1);
-                                       if (!data->namelist)
-                                           return(E_NOMEM);
-                                       SPfrontEnd->IFnewUid (ckt,
-                                          &(data->namelist[data->numPlots++]),
-                                          NULL, name, UID_OTHER, NULL);
-                                       /* we've added one more plot */
+                                  {    NOISE_ADD_OUTVAR(ckt, data, "onoise.%s%s", here->BSIM4v7name, BSIM4v7nNames[i]);
                                   }
                                   break;
                              case INT_NOIZ:
                                   for (i = 0; i < BSIM4v7NSRCS; i++)
-                                  {    (void) sprintf(name, "onoise_total.%s%s",
-                                                      here->BSIM4v7name,
-                                                      BSIM4v7nNames[i]);
-                                       data->namelist = TREALLOC(IFuid,
-                                             data->namelist,
-                                             data->numPlots + 1);
-                                       if (!data->namelist)
-                                           return(E_NOMEM);
-                                       SPfrontEnd->IFnewUid (ckt,
-                                          &(data->namelist[data->numPlots++]),
-                                          NULL, name, UID_OTHER, NULL);
-                                       /* we've added one more plot */
-
-                                       (void) sprintf(name, "inoise_total.%s%s",
-                                                      here->BSIM4v7name,
-                                                      BSIM4v7nNames[i]);
-                                       data->namelist = TREALLOC(IFuid,
-                                             data->namelist,
-                                             data->numPlots + 1);
-                                       if (!data->namelist)
-                                           return(E_NOMEM);
-                                       SPfrontEnd->IFnewUid (ckt,
-                                          &(data->namelist[data->numPlots++]),
-                                          NULL, name, UID_OTHER, NULL);
-                                       /* we've added one more plot */
+                                  {    NOISE_ADD_OUTVAR(ckt, data, "onoise_total.%s%s", here->BSIM4v7name, BSIM4v7nNames[i]);
+                                       NOISE_ADD_OUTVAR(ckt, data, "inoise_total.%s%s", here->BSIM4v7name, BSIM4v7nNames[i]);
                                   }
                                   break;
                           }

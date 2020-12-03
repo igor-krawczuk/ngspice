@@ -70,9 +70,9 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 
 	gmin = 0.1 * ckt->CKTgmin;     /* dc solution */
 
-	for( ; model !=	NULL; model = model->CPLnextModel ) {
-		for (here = model->CPLinstances; here != NULL ;
-			here=here->CPLnextInstance) {
+	for( ; model !=	NULL; model = CPLnextModel(model)) {
+		for (here = CPLinstances(model); here != NULL ;
+			here=CPLnextInstance(here)) {
 
 			cp = here->cplines;
 
@@ -80,10 +80,10 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 
 			for(m =	0 ; m <	noL ; m++)     /* dc solution */
 			{
-			   *here->CPLposPos[m] += gmin;
-			   *here->CPLnegNeg[m] += gmin;
-			   *here->CPLnegPos[m] += gmin;
-			   *here->CPLposNeg[m] += gmin;
+			   *here->CPLposPosPtr[m] += gmin;
+			   *here->CPLnegNegPtr[m] += gmin;
+			   *here->CPLnegPosPtr[m] += gmin;
+			   *here->CPLposNegPtr[m] += gmin;
 			}
 
 			if (cond1 || cp->vi_head == NULL) continue;
@@ -123,11 +123,11 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 
     model = (CPLmodel *)inModel;
     /*	loop through all the models */
-    for( ; model != NULL; model	= model->CPLnextModel )	{
+    for( ; model != NULL; model	= CPLnextModel(model))	{
 
 	/* loop	through	all the	instances of the model */
-	for (here = model->CPLinstances; here != NULL ;
-			here=here->CPLnextInstance) {
+	for (here = CPLinstances(model); here != NULL ;
+			here=CPLnextInstance(here)) {
 
 			double mintaul = 123456789.0;
 
@@ -157,14 +157,14 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 				for (m = 0; m <	noL; m++) {
 					if (here->CPLlengthGiven)
 						g = model->Rm[resindex]	* here->CPLlength;
-					else g = model->Rm[resindex] * here->CPLmodPtr->length;
-					*(here->CPLposIbr1[m]) += 1.0;
-					*(here->CPLnegIbr2[m]) += 1.0;
-					*(here->CPLibr1Ibr1[m])	+= 1.0;
-					*(here->CPLibr1Ibr2[m][m]) += 1.0;
-					*(here->CPLibr2Pos[m][m]) += 1.0;
-					*(here->CPLibr2Neg[m][m]) -= 1.0;
-					*(here->CPLibr2Ibr1[m][m]) -= g;
+					else g = model->Rm[resindex] * CPLmodPtr(here)->length;
+					*(here->CPLposIbr1Ptr[m]) += 1.0;
+					*(here->CPLnegIbr2Ptr[m]) += 1.0;
+					*(here->CPLibr1Ibr1Ptr[m])	+= 1.0;
+					*(here->CPLibr1Ibr2Ptr[m][m]) += 1.0;
+					*(here->CPLibr2PosPtr[m][m]) += 1.0;
+					*(here->CPLibr2NegPtr[m][m]) -= 1.0;
+					*(here->CPLibr2Ibr1Ptr[m][m]) -= g;
 					resindex = resindex + noL - m;
 				}
 				continue;
@@ -267,20 +267,20 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 			}
 
 			for (m = 0; m <	noL; m++) {
-				*(here->CPLibr1Ibr1[m])	= -1.0;
-				*(here->CPLibr2Ibr2[m])	= -1.0;
+				*(here->CPLibr1Ibr1Ptr[m])	= -1.0;
+				*(here->CPLibr2Ibr2Ptr[m])	= -1.0;
 			}
 
 			for (m = 0; m <	noL; m++) {
-				*(here->CPLposIbr1[m]) = 1.0;
-				*(here->CPLnegIbr2[m]) = 1.0;
+				*(here->CPLposIbr1Ptr[m]) = 1.0;
+				*(here->CPLnegIbr2Ptr[m]) = 1.0;
 			}
 
 			for (m = 0; m <	noL; m++) {
 				for (p = 0; p <	noL; p++) {
-					*(here->CPLibr1Pos[m][p]) =
+					*(here->CPLibr1PosPtr[m][p]) =
 						cp->h1t[m][p]->aten + h1 * cp->h1C[m][p];
-					*(here->CPLibr2Neg[m][p]) =
+					*(here->CPLibr2NegPtr[m][p]) =
 						cp->h1t[m][p]->aten + h1 * cp->h1C[m][p];
 				}
 			}
@@ -302,14 +302,14 @@ CPLload(GENmodel *inModel, CKTcircuit *ckt)
 				if (cp->h3t[m][p][q]) {
 				f = ratio[q] * (h1 * cp->h3C[m][p][q] +
 					cp->h3t[m][p][q]->aten);
-						*(here->CPLibr1Neg[m][p]) = -f;
-						*(here->CPLibr2Pos[m][p]) = -f;
+						*(here->CPLibr1NegPtr[m][p]) = -f;
+						*(here->CPLibr2PosPtr[m][p]) = -f;
 				}
 				if (cp->h2t[m][p][q]) {
 				f = ratio[q] * (h1 * cp->h2C[m][p][q] +
 					cp->h2t[m][p][q]->aten);
-						*(here->CPLibr1Ibr2[m][p]) = -f;
-						*(here->CPLibr2Ibr1[m][p]) = -f;
+						*(here->CPLibr1Ibr2Ptr[m][p]) = -f;
+						*(here->CPLibr2Ibr1Ptr[m][p]) = -f;
 				}
 
 						}
@@ -789,45 +789,44 @@ errordetect:
 }
 
 
-static int
-update_delayed_cnv(CPLine *cp, double h)
+static int update_delayed_cnv(CPLine *cp, double h)
 {
    int i, j, k;
-   double *ratio;
+   double *ratio1;
    double f;
    VI_list *vi;
    TMS *tms;
    int noL;
 
    h *=	0.5e-12;
-   ratio = cp->ratio;
+   ratio1 = cp->ratio;
    vi =	cp->vi_tail;
    noL = cp->noL;
 
    for (k = 0; k < noL;	k++)	 /*  mode  */
-      if (ratio[k] > 0.0)
+      if (ratio1[k] > 0.0)
      for (i = 0; i < noL; i++)	/*  current eqn	 */
 	for (j = 0; j <	noL; j++) {
 	   tms = cp->h3t[i][j][k];
 	   if (tms == NULL)
 	  continue;
-	   f = h * ratio[k] * vi->v_i[j];
+	   f = h * ratio1[k] * vi->v_i[j];
 	   tms->tm[0].cnv_i += f *  tms->tm[0].c;
 	   tms->tm[1].cnv_i += f *  tms->tm[1].c;
 	   tms->tm[2].cnv_i += f *  tms->tm[2].c;
 
-	   f = h * ratio[k] * vi->v_o[j];
+	   f = h * ratio1[k] * vi->v_o[j];
 	   tms->tm[0].cnv_o += f *  tms->tm[0].c;
 	   tms->tm[1].cnv_o += f *  tms->tm[1].c;
 	   tms->tm[2].cnv_o += f *  tms->tm[2].c;
 
 	   tms = cp->h2t[i][j][k];
-	   f = h * ratio[k] * vi->i_i[j];
+	   f = h * ratio1[k] * vi->i_i[j];
 	   tms->tm[0].cnv_i += f *  tms->tm[0].c;
 	   tms->tm[1].cnv_i += f *  tms->tm[1].c;
 	   tms->tm[2].cnv_i += f *  tms->tm[2].c;
 
-	   f = h * ratio[k] * vi->i_o[j];
+	   f = h * ratio1[k] * vi->i_o[j];
 	   tms->tm[0].cnv_o += f *  tms->tm[0].c;
 	   tms->tm[1].cnv_o += f *  tms->tm[1].c;
 	   tms->tm[2].cnv_o += f *  tms->tm[2].c;

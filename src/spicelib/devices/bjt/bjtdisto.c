@@ -52,12 +52,12 @@ BJTdisto(int mode, GENmodel *genmodel, CKTcircuit *ckt)
 	(mode == D_2F1MF2)) {
 
 	/* loop through all the BJT models */
-	for( ; model != NULL; model = model->BJTnextModel ) {
+	for( ; model != NULL; model = BJTnextModel(model)) {
 	    td = model->BJTexcessPhaseFactor;
 
 	    /* loop through all the instances of the model */
-	    for (here = model->BJTinstances; here != NULL ;
-		 here=here->BJTnextInstance) {
+	    for (here = BJTinstances(model); here != NULL ;
+		 here=BJTnextInstance(here)) {
 
 		/* getting Volterra kernels */
 		/* until further notice x = vbe, y = vbc, z= vbed */
@@ -133,7 +133,7 @@ BJTdisto(int mode, GENmodel *genmodel, CKTcircuit *ckt)
 		    }
 		}
 
-		if ((mode == D_2F1MF2)){
+		if (mode == D_2F1MF2){
 
 		    r2h1m2x = *(job->r2H1m2ptr + (here->BJTbasePrimeNode)) -
 			*(job->r2H1m2ptr + (here->BJTemitPrimeNode));
@@ -158,7 +158,7 @@ BJTdisto(int mode, GENmodel *genmodel, CKTcircuit *ckt)
 			i2h1m2z = i2h1m2x;
 		    }
 		}
-		if ((mode == D_F1PF2)){
+		if (mode == D_F1PF2){
 
 		    r1h2x = *(job->r1H2ptr + (here->BJTbasePrimeNode)) -
 			*(job->r1H2ptr + (here->BJTemitPrimeNode));

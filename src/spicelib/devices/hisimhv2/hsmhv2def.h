@@ -261,18 +261,22 @@ typedef struct sHSMHV2hereMKSParam {
 
 /* information needed for each instance */
 typedef struct sHSMHV2instance {
-  struct sHSMHV2model *HSMHV2modPtr;           /* pointer to model */
-  struct sHSMHV2instance *HSMHV2nextInstance;  /* pointer to next instance of 
-                                              current model*/
-  IFuid HSMHV2name; /* pointer to character string naming this instance */
-  int HSMHV2states; /* index into state table for this device */
 
-  int HSMHV2dNode;      /* number of the drain node of the mosfet */
-  int HSMHV2gNode;      /* number of the gate node of the mosfet */
-  int HSMHV2sNode;      /* number of the source node of the mosfet */
-  int HSMHV2bNode;      /* number of the bulk node of the mosfet */
+  struct GENinstance gen;
+
+#define HSMHV2modPtr(inst) ((struct sHSMHV2model *)((inst)->gen.GENmodPtr))
+#define HSMHV2nextInstance(inst) ((struct sHSMHV2instance *)((inst)->gen.GENnextInstance))
+#define HSMHV2name gen.GENname
+#define HSMHV2states gen.GENstate
+
+  const int HSMHV2dNode;      /* number of the drain node of the mosfet */
+  const int HSMHV2gNode;      /* number of the gate node of the mosfet */
+  const int HSMHV2sNode;      /* number of the source node of the mosfet */
+  const int HSMHV2bNode;      /* number of the bulk node of the mosfet */
+  const int HSMHV2subNodeExt; /* number of the substrate node */
+  const int HSMHV2tempNodeExt;/* number of the temp node----------SHE--------*/
   int HSMHV2subNode;    /* number of the substrate node */
-  int HSMHV2tempNode;   /* number of the temp node----------SHE--------*/
+  int HSMHV2tempNode;   /* number of the temp node */
   int HSMHV2dNodePrime; /* number od the inner drain node */
   int HSMHV2gNodePrime; /* number of the inner gate node */
   int HSMHV2sNodePrime; /* number od the inner source node */
@@ -1019,14 +1023,13 @@ typedef struct sHSMHV2instance {
 /* per model data */
 
 typedef struct sHSMHV2model {     /* model structure for a resistor */
-  int HSMHV2modType;    		/* type index of this device type */
-  struct sHSMHV2model *HSMHV2nextModel; /* pointer to next possible model 
-					 in linked list */
-  HSMHV2instance * HSMHV2instances;	/* pointer to list of instances 
-				   that have this model */
-  IFuid HSMHV2modName;       	/* pointer to the name of this model */
 
-  /* --- end of generic struct GENmodel --- */
+  struct GENmodel gen;
+
+#define HSMHV2modType gen.GENmodType
+#define HSMHV2nextModel(inst) ((struct sHSMHV2model *)((inst)->gen.GENnextModel))
+#define HSMHV2instances(inst) ((HSMHV2instance *)((inst)->gen.GENinstances))
+#define HSMHV2modName gen.GENmodName
 
   int HSMHV2_type;      		/* device type: 1 = nmos,  -1 = pmos */
   int HSMHV2_level;               /* level */
@@ -1803,6 +1806,11 @@ typedef struct sHSMHV2model {     /* model structure for a resistor */
   double HSMHV2vdsMax;
   double HSMHV2vbsMax;
   double HSMHV2vbdMax;
+  double HSMHV2vgsrMax;
+  double HSMHV2vgdrMax;
+  double HSMHV2vgbrMax;
+  double HSMHV2vbsrMax;
+  double HSMHV2vbdrMax;
 
   HSMHV2modelMKSParam modelMKS ; /* unit-converted parameters */
 
@@ -2570,6 +2578,11 @@ typedef struct sHSMHV2model {     /* model structure for a resistor */
   unsigned HSMHV2vdsMaxGiven  :1;
   unsigned HSMHV2vbsMaxGiven  :1;
   unsigned HSMHV2vbdMaxGiven  :1;
+  unsigned HSMHV2vgsrMaxGiven  :1;
+  unsigned HSMHV2vgdrMaxGiven  :1;
+  unsigned HSMHV2vgbrMaxGiven  :1;
+  unsigned HSMHV2vbsrMaxGiven  :1;
+  unsigned HSMHV2vbdrMaxGiven  :1;
 
 } HSMHV2model;
 
@@ -3463,12 +3476,17 @@ typedef struct sHSMHV2model {     /* model structure for a resistor */
 #define HSMHV2_MOD_TCJBDSWG      96   
 #define HSMHV2_MOD_TCJBSSWG      97   
 
-#define HSMHV2_MOD_VGS_MAX            4001
-#define HSMHV2_MOD_VGD_MAX            4002
-#define HSMHV2_MOD_VGB_MAX            4003
-#define HSMHV2_MOD_VDS_MAX            4004
-#define HSMHV2_MOD_VBS_MAX            4005
-#define HSMHV2_MOD_VBD_MAX            4006
+#define HSMHV2_MOD_VGS_MAX          4001
+#define HSMHV2_MOD_VGD_MAX          4002
+#define HSMHV2_MOD_VGB_MAX          4003
+#define HSMHV2_MOD_VDS_MAX          4004
+#define HSMHV2_MOD_VBS_MAX          4005
+#define HSMHV2_MOD_VBD_MAX          4006
+#define HSMHV2_MOD_VGSR_MAX         4007
+#define HSMHV2_MOD_VGDR_MAX         4008
+#define HSMHV2_MOD_VGBR_MAX         4009
+#define HSMHV2_MOD_VBSR_MAX         4010
+#define HSMHV2_MOD_VBDR_MAX         4011
 
 #include "hsmhv2ext.h"
 

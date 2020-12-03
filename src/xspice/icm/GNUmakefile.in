@@ -7,10 +7,11 @@ include makedefs
 
 
 # The codemodels to make
-CMDIRS = spice2poly digital analog xtradev xtraevt
+CMDIRS = spice2poly digital analog xtradev xtraevt table
 
 
-all:
+#Invoke $(MAKE) for each of the CMDDIRS
+all: dstring.o # One common dstring object file for all code modules
 	for cm in $(CMDIRS) ; do \
 		$(MAKE) cm=$$cm $$cm/$$cm.cm \
 		|| exit 1; \
@@ -29,11 +30,12 @@ install: all
 
 uninstall:
 	for cm in $(CMDIRS) ; do \
-		-rm -f "$(DESTDIR)$(pkglibdir)/$$cm.cm"; \
+		rm -f "$(DESTDIR)$(pkglibdir)/$$cm.cm"; \
 	done
 
 
 clean:
+	rm -f dstring.o
 	for cm in $(CMDIRS) ; do \
 		$(MAKE) cm=$$cm cm-clean \
 		|| exit 1; \
@@ -41,11 +43,21 @@ clean:
 
 
 #-----------------------------------------------------------------------------
+NGSRCDIR = $(srcdir)/../..
+NGSRCBUILDDIR = $(CURDIR)/../..
+
+dstring.o: $(NGSRCDIR)/misc/dstring.c $(NGSRCDIR)/include/ngspice/dstring.h
+	$(CC) $(CFLAGS) -I$(NGSRCDIR)/include -I$(NGSRCBUILDDIR)/include -fPIC -o $@ -c $<
 
 ifdef cm
 
-modlst := $(shell cat $(srcdir)/$(cm)/modpath.lst)
-udnlst := $(shell cat $(srcdir)/$(cm)/udnpath.lst)
+ifeq ($(OS),Windows_NT)
+    cmpp = ../cmpp/cmpp.exe
+else
+    cmpp = ../cmpp/cmpp
+endif
+modlst := $(shell $(cmpp) -p $(srcdir)/$(cm)/modpath.lst)
+udnlst := $(shell $(cmpp) -p $(srcdir)/$(cm)/udnpath.lst)
 
 cm-dirs := $(cm) $(udnlst:%=$(cm)/%) $(modlst:%=$(cm)/%)
 cm-dep-dirs := $(cm-dirs:%=%/.deps)
@@ -57,6 +69,7 @@ cm-gens := \
 
 cm-objs := \
 	$(cm)/dlmain.o \
+	dstring.o \
 	$(modlst:%=$(cm)/%/cfunc.o) \
 	$(modlst:%=$(cm)/%/ifspec.o) \
 	$(udnlst:%=$(cm)/%/udnfunc.o)
@@ -70,8 +83,10 @@ cm-deps := \
 cm-descr := \
 	$(cm)/cmextrn.h \
 	$(cm)/cminfo.h \
+	$(cm)/cminfo2.h \
 	$(cm)/udnextrn.h \
 	$(cm)/udninfo.h \
+	$(cm)/udninfo2.h \
 	$(cm)/objects.inc
 
 
@@ -92,7 +107,7 @@ cm-distclean :
 #-----
 
 $(cm)/$(cm).cm : $(cm-objs)
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(VIS_CFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 # "order-only" prerequisites
 #   (info "(make) Prerequisite Types")
@@ -134,7 +149,7 @@ define do-deps
 	rm $$x.pp
 endef
 
-COMPILE = $(CC) $(INCLUDES) -I$(cm) -I$(srcdir)/$(cm) $(CFLAGS) $(EXTRA_CFLAGS)
+COMPILE = $(CC) $(INCLUDES) -I$(cm) -I$(srcdir)/$(cm) $(CFLAGS) $(EXTRA_CFLAGS) $(VIS_CFLAGS)
 
 $(cm)/dlmain.o : $(srcdir)/dlmain.c $(cm-descr)
 	$(COMPILE) $(gen_pp)  -o $@ -c $<

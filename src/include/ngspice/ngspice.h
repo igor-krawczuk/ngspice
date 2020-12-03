@@ -140,7 +140,7 @@
 #ifdef HAS_WINGUI
 #include "ngspice/wstdio.h"
 #define HAS_PROGREP
-extern void SetAnalyse(char *Analyse, int Percent);
+extern void SetAnalyse(const char *Analyse, int Percent);
 #endif
 
 #if defined (__MINGW32__) || defined (__CYGWIN__) || defined (_MSC_VER)
@@ -190,7 +190,6 @@ extern double x_atanh(double);
 #define write _write
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
-#define snprintf _snprintf
 #define isatty _isatty
 #define inline __inline
 #define popen _popen
@@ -205,6 +204,10 @@ extern double x_atanh(double);
 #pragma warning(disable: 4127)
 #endif
 
+#if defined(__APPLE__) && defined(__MACH__)
+#define finite isfinite
+#endif
+
 #if !defined(NAN)
 #if defined(_MSC_VER)
     /* NAN is not defined in VS 2012 or older */
@@ -212,6 +215,13 @@ extern double x_atanh(double);
     #define NAN (*(const double *) &global_nan)
 #else
     #define NAN (0.0/0.0)
+#endif
+#endif
+
+#ifndef EXT_ASC
+#if defined(__MINGW32__) || defined(_MSC_VER)
+#define fopen newfopen
+extern FILE *newfopen(const char *fn, const char* md);
 #endif
 #endif
 
@@ -238,9 +248,12 @@ extern double x_atanh(double);
 #define HUGE HUGE_VAL
 #endif
 
+void findtok_noparen(char **p_str, char **p_token, char **p_token_end);
 extern char *gettok_noparens(char **s);
 extern char *gettok_node(char **s);
 extern char *gettok_iv(char **s);
+extern char *nexttok(const char *s);
+extern char *gettok_model(char **s);
 extern int get_l_paren(char **s);
 extern int get_r_paren(char **s);
 
@@ -280,7 +293,7 @@ extern int tcl_fprintf(FILE *f, const char *format, ...);
 #define fprintf tcl_fprintf
 
 #undef perror
-#define perror(string) fprintf(stderr,"%s: %s\n",string,sys_errlist[errno])
+#define perror(string) fprintf(stderr, "%s: %s\n", string, strerror(errno))
 
 #elif defined SHARED_MODULE
 
@@ -293,7 +306,7 @@ extern int sh_vfprintf(FILE *fd, const char *format, va_list args);
 extern int sh_fputs(const char *input, FILE *fd);
 extern int sh_fputc(int input, FILE *fd);
 extern int sh_putc(int input, FILE *fd);
-extern void SetAnalyse(char *analyse, int percent);
+extern void SetAnalyse(const char *analyse, int percent);
 
 #define HAS_PROGREP
 
@@ -307,7 +320,7 @@ extern void SetAnalyse(char *analyse, int percent);
 #define fprintf sh_fprintf
 
 #undef perror
-#define perror(string) fprintf(stderr, "%s: %s\n", string, sys_errlist[errno])
+#define perror(string) fprintf(stderr, "%s: %s\n", string, strerror(errno))
 
 #undef fputs
 #define fputs sh_fputs

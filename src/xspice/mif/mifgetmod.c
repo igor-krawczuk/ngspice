@@ -113,7 +113,7 @@ char *MIFgetMod(
 
     /* maschmann : remove : from name
      *    char *pos;
-     * if((pos=strstr(name,":"))!=NULL) *pos=0;   
+     * if((pos=strchr(name,':'))!=NULL) *pos=0;   
      */
 
     /*------------------------------------
@@ -174,7 +174,7 @@ char *MIFgetMod(
                 line = modtmp->INPmodLine->line;
                 INPgetTok(&line,&parm,1);     /* throw away '.model' */
                 tfree(parm);
-                INPgetTok(&line,&parm,1);     /* throw away 'modname' */
+                INPgetNetTok(&line,&parm,1);     /* throw away 'modname' */
                 tfree(parm);
 
                 /* throw away the modtype - we don't treat it as a parameter */
@@ -199,6 +199,21 @@ char *MIFgetMod(
                                     modtmp->INPmodfast,
                                     ft_sim->devices[modtmp->INPmodType]->modelParms[j].id,
                                     val, NULL);
+                            /* free val, allocated by MIFgetValue */
+                            int vtype = (ft_sim->devices[modtmp->INPmodType]->modelParms[j].dataType & IF_VARTYPES);
+                            if (vtype == IF_FLAGVEC || vtype == IF_INTVEC)
+                                tfree(val->v.vec.iVec);
+                            if (vtype == IF_REALVEC)
+                                tfree(val->v.vec.rVec);
+                            if (vtype == IF_CPLXVEC)
+                                tfree(val->v.vec.cVec);
+                            if (vtype == IF_STRING)
+                                tfree(val->sValue);
+                            if (vtype == IF_STRINGVEC) {
+                                for (i = 0; i < val->v.numValue; i++)
+                                    tfree(val->v.vec.sVec[i]);
+                                tfree(val->v.vec.sVec);
+                            }
                             if(error)
                                 return(INPerror(error));
                             break;

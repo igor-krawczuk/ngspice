@@ -26,14 +26,14 @@ CCCSload(GENmodel *inModel, CKTcircuit *ckt)
     NG_IGNORE(ckt);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->CCCSnextModel ) {
+    for( ; model != NULL; model = CCCSnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->CCCSinstances; here != NULL ;
-                here=here->CCCSnextInstance) {
+        for (here = CCCSinstances(model); here != NULL ;
+                here=CCCSnextInstance(here)) {
 
-            *(here->CCCSposContBrptr) += here->CCCScoeff ;
-            *(here->CCCSnegContBrptr) -= here->CCCScoeff ;
+            *(here->CCCSposContBrPtr) += here->CCCScoeff ;
+            *(here->CCCSnegContBrPtr) -= here->CCCScoeff ;
         }
     }
     return(OK);

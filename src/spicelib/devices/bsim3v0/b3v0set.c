@@ -35,7 +35,7 @@ CKTnode *tmpNode;
 IFuid tmpName;
 
     /*  loop through all the BSIM3v0 device models */
-    for( ; model != NULL; model = model->BSIM3v0nextModel )
+    for( ; model != NULL; model = BSIM3v0nextModel(model))
     {
 /* Default value Processing for BSIM3v0 MOSFET Models */
         if (!model->BSIM3v0typeGiven)
@@ -58,7 +58,7 @@ IFuid tmpName;
 	    model->BSIM3v0cdsc = 2.4e-4;   /* unit Q/V/m^2  */
         if (!model->BSIM3v0cdscbGiven)
 	    model->BSIM3v0cdscb = 0.0;   /* unit Q/V/m^2  */    
-	    if (!model->BSIM3v0cdscdGiven)
+        if (!model->BSIM3v0cdscdGiven)
 	    model->BSIM3v0cdscd = 0.0;   /* unit Q/V/m^2  */
         if (!model->BSIM3v0citGiven)
 	    model->BSIM3v0cit = 0.0;   /* unit Q/V/m^2  */
@@ -153,7 +153,6 @@ IFuid tmpName;
         if (!model->BSIM3v0prwbGiven)
             model->BSIM3v0prwb = 0.0;      
         if (!model->BSIM3v0prtGiven)
-        if (!model->BSIM3v0prtGiven)
             model->BSIM3v0prt = 0.0;      
         if (!model->BSIM3v0eta0Given)
             model->BSIM3v0eta0 = 0.08;      /* no unit  */ 
@@ -206,7 +205,7 @@ IFuid tmpName;
 	    model->BSIM3v0lcdsc = 0.0;
         if (!model->BSIM3v0lcdscbGiven)
 	    model->BSIM3v0lcdscb = 0.0;
-	    if (!model->BSIM3v0lcdscdGiven) 
+        if (!model->BSIM3v0lcdscdGiven)
 	    model->BSIM3v0lcdscd = 0.0;
         if (!model->BSIM3v0lcitGiven)
 	    model->BSIM3v0lcit = 0.0;
@@ -297,7 +296,6 @@ IFuid tmpName;
         if (!model->BSIM3v0lprwgGiven)
             model->BSIM3v0lprwg = 0.0;
         if (!model->BSIM3v0lprtGiven)
-        if (!model->BSIM3v0lprtGiven)
             model->BSIM3v0lprt = 0.0;
         if (!model->BSIM3v0leta0Given)
             model->BSIM3v0leta0 = 0.0;
@@ -352,7 +350,7 @@ IFuid tmpName;
 	    model->BSIM3v0wcdsc = 0.0;
         if (!model->BSIM3v0wcdscbGiven)
 	    model->BSIM3v0wcdscb = 0.0;  
-	    if (!model->BSIM3v0wcdscdGiven)
+        if (!model->BSIM3v0wcdscdGiven)
 	    model->BSIM3v0wcdscd = 0.0;
         if (!model->BSIM3v0wcitGiven)
 	    model->BSIM3v0wcit = 0.0;
@@ -497,7 +495,7 @@ IFuid tmpName;
 	    model->BSIM3v0pcdsc = 0.0;
         if (!model->BSIM3v0pcdscbGiven)
 	    model->BSIM3v0pcdscb = 0.0;   
-	    if (!model->BSIM3v0pcdscdGiven)
+        if (!model->BSIM3v0pcdscdGiven)
 	    model->BSIM3v0pcdscd = 0.0;
         if (!model->BSIM3v0pcitGiven)
 	    model->BSIM3v0pcit = 0.0;
@@ -677,7 +675,7 @@ IFuid tmpName;
            model->BSIM3v0dwc = model->BSIM3v0Wint;
         if (!model->BSIM3v0dlcGiven)  
            model->BSIM3v0dlc = model->BSIM3v0Lint;
-	   if (!model->BSIM3v0cfGiven)
+        if (!model->BSIM3v0cfGiven)
             model->BSIM3v0cf = 2.0 * EPSOX / PI
 			   * log(1.0 + 0.4e-6 / model->BSIM3v0tox);
         if (!model->BSIM3v0cgdoGiven)
@@ -749,8 +747,8 @@ IFuid tmpName;
         if (!model->BSIM3v0kfGiven)
             model->BSIM3v0kf = 0.0;
         /* loop through all the instances of the model */
-        for (here = model->BSIM3v0instances; here != NULL ;
-             here=here->BSIM3v0nextInstance) 
+        for (here = BSIM3v0instances(model); here != NULL ;
+             here=BSIM3v0nextInstance(here)) 
 	{
             /* allocate a chunk of the state vector */
             here->BSIM3v0states = *states;
@@ -899,23 +897,24 @@ BSIM3v0unsetup(GENmodel *inModel, CKTcircuit *ckt)
     BSIM3v0instance *here;
 
     for (model = (BSIM3v0model *)inModel; model != NULL;
-            model = model->BSIM3v0nextModel)
+            model = BSIM3v0nextModel(model))
     {
-        for (here = model->BSIM3v0instances; here != NULL;
-                here=here->BSIM3v0nextInstance)
+        for (here = BSIM3v0instances(model); here != NULL;
+                here=BSIM3v0nextInstance(here))
         {
-            if (here->BSIM3v0dNodePrime
-                    && here->BSIM3v0dNodePrime != here->BSIM3v0dNode)
-            {
-                CKTdltNNum(ckt, here->BSIM3v0dNodePrime);
-                here->BSIM3v0dNodePrime = 0;
-            }
-            if (here->BSIM3v0sNodePrime
+            if (here->BSIM3v0qNode > 0)
+                CKTdltNNum(ckt, here->BSIM3v0qNode);
+            here->BSIM3v0qNode = 0;
+
+            if (here->BSIM3v0sNodePrime > 0
                     && here->BSIM3v0sNodePrime != here->BSIM3v0sNode)
-            {
                 CKTdltNNum(ckt, here->BSIM3v0sNodePrime);
-                here->BSIM3v0sNodePrime = 0;
-            }
+            here->BSIM3v0sNodePrime = 0;
+
+            if (here->BSIM3v0dNodePrime > 0
+                    && here->BSIM3v0dNodePrime != here->BSIM3v0dNode)
+                CKTdltNNum(ckt, here->BSIM3v0dNodePrime);
+            here->BSIM3v0dNodePrime = 0;
         }
     }
     return OK;

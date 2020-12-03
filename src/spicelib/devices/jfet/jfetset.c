@@ -27,7 +27,7 @@ JFETsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CKTnode *tmp;
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->JFETnextModel ) {
+    for( ; model != NULL; model = JFETnextModel(model)) {
 
         if( (model->JFETtype != NJF) && (model->JFETtype != PJF) ) {
             model->JFETtype = NJF;
@@ -62,12 +62,6 @@ JFETsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         if(!model->JFETdepletionCapCoeffGiven) {
             model->JFETdepletionCapCoeff = .5;
         }
-        if(!model->JFETfNcoefGiven) {
-            model->JFETfNcoef = 0;
-        }
-        if(!model->JFETfNexpGiven) {
-            model->JFETfNexp = 1;
-        }
 
         /* Modification for Sydney University JFET model */
         if(!model->JFETbGiven) {
@@ -78,8 +72,26 @@ JFETsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         if(!model->JFETtcvGiven) {
             model->JFETtcv = 0.0;
         }
+        if(!model->JFETvtotcGiven) {
+            model->JFETvtotc = 0.0;
+        }
         if(!model->JFETbexGiven) {
             model->JFETbex = 0.0;
+        }
+        if(!model->JFETbetatceGiven) {
+            model->JFETbetatce = 0.0;
+        }
+        if(!model->JFETxtiGiven) {
+            model->JFETxti = 3.0;
+        }
+        if(!model->JFETegGiven) {
+            model->JFETeg = 1.11;
+        }
+        if(!model->JFETfNcoefGiven) {
+            model->JFETfNcoef = 0;
+        }
+        if(!model->JFETfNexpGiven) {
+            model->JFETfNexp = 1;
         }
         if(!model->JFETnlevGiven) {
             model->JFETnlev = 2;
@@ -100,8 +112,8 @@ JFETsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         }
 
         /* loop through all the instances of the model */
-        for (here = model->JFETinstances; here != NULL ;
-                here=here->JFETnextInstance) {
+        for (here = JFETinstances(model); here != NULL ;
+                here=JFETnextInstance(here)) {
 
             if(!here->JFETareaGiven) {
                 here->JFETarea = 1;
@@ -110,7 +122,7 @@ JFETsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
                 here->JFETm = 1;
             }
             here->JFETstate = *states;
-            *states += 13;
+            *states += JFETnumStates;
 
             if(model->JFETsourceResist != 0) {
                 if(here->JFETsourcePrimeNode == 0) {
@@ -190,23 +202,20 @@ JFETunsetup(GENmodel *inModel, CKTcircuit *ckt)
     JFETinstance *here;
 
     for (model = (JFETmodel *)inModel; model != NULL;
-            model = model->JFETnextModel)
+            model = JFETnextModel(model))
     {
-        for (here = model->JFETinstances; here != NULL;
-                here=here->JFETnextInstance)
+        for (here = JFETinstances(model); here != NULL;
+                here=JFETnextInstance(here))
         {
-            if (here->JFETsourcePrimeNode
-                    && here->JFETsourcePrimeNode != here->JFETsourceNode)
-            {
-                CKTdltNNum(ckt, here->JFETsourcePrimeNode);
-                here->JFETsourcePrimeNode = 0;
-            }
-            if (here->JFETdrainPrimeNode
+            if (here->JFETdrainPrimeNode > 0
                     && here->JFETdrainPrimeNode != here->JFETdrainNode)
-            {
                 CKTdltNNum(ckt, here->JFETdrainPrimeNode);
-                here->JFETdrainPrimeNode = 0;
-            }
+            here->JFETdrainPrimeNode = 0;
+
+            if (here->JFETsourcePrimeNode > 0
+                    && here->JFETsourcePrimeNode != here->JFETsourceNode)
+                CKTdltNNum(ckt, here->JFETsourcePrimeNode);
+            here->JFETsourcePrimeNode = 0;
         }
     }
     return OK;

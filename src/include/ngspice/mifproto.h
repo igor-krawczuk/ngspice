@@ -53,7 +53,7 @@ NON-STANDARD FEATURES
 extern void MIF_INP2A(
     CKTcircuit   *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables    *tab,      /* symbol table for node names, etc.            */
-    card         *current   /* the card we are to parse                     */
+    struct card  *current   /* the card we are to parse                     */
 );
 
 
@@ -125,19 +125,15 @@ extern int MIFconvTest(
 );
 
 extern int MIFdelete(
-    GENmodel *inModel,
-    IFuid    name,
-    GENinstance  **inst
+    GENinstance  *inst
 );
 
 extern int MIFmDelete(
-    GENmodel **inModel,
-    IFuid    modname,
-    GENmodel *model
+    GENmodel *gen_model
 );
 
 extern void MIFdestroy(
-    GENmodel **inModel
+    void
 );
 
 extern char  *MIFgettok(
@@ -159,4 +155,8 @@ extern Mif_Cntl_Src_Type_t MIFget_cntl_src_type(
 extern char *MIFcopy(char *);
 
 
+#ifndef CM_IGNORE
+#define CM_IGNORE(x) (void) (x)
 #endif
+
+#endif /* include guard */

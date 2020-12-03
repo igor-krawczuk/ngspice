@@ -66,7 +66,7 @@ BSIM4v5instance **InstArray;
     }
 
     /*  loop through all the BSIM4v5 device models */
-    for( ; model != NULL; model = model->BSIM4v5nextModel )
+    for( ; model != NULL; model = BSIM4v5nextModel(model))
     {   /* process defaults of model parameters */
         if (!model->BSIM4v5typeGiven)
             model->BSIM4v5type = NMOS;     
@@ -204,7 +204,7 @@ BSIM4v5instance **InstArray;
 	    model->BSIM4v5cdsc = 2.4e-4;   /* unit Q/V/m^2  */
         if (!model->BSIM4v5cdscbGiven)
 	    model->BSIM4v5cdscb = 0.0;   /* unit Q/V/m^2  */    
-	    if (!model->BSIM4v5cdscdGiven)
+        if (!model->BSIM4v5cdscdGiven)
 	    model->BSIM4v5cdscd = 0.0;   /* unit Q/V/m^2  */
         if (!model->BSIM4v5citGiven)
 	    model->BSIM4v5cit = 0.0;   /* unit Q/V/m^2  */
@@ -338,7 +338,6 @@ BSIM4v5instance **InstArray;
             model->BSIM4v5prwg = 1.0; /* in 1/V */
         if (!model->BSIM4v5prwbGiven)
             model->BSIM4v5prwb = 0.0;      
-        if (!model->BSIM4v5prtGiven)
         if (!model->BSIM4v5prtGiven)
             model->BSIM4v5prt = 0.0;      
         if (!model->BSIM4v5eta0Given)
@@ -598,7 +597,7 @@ BSIM4v5instance **InstArray;
 	    model->BSIM4v5lcdsc = 0.0;
         if (!model->BSIM4v5lcdscbGiven)
 	    model->BSIM4v5lcdscb = 0.0;
-	    if (!model->BSIM4v5lcdscdGiven) 
+        if (!model->BSIM4v5lcdscdGiven)
 	    model->BSIM4v5lcdscd = 0.0;
         if (!model->BSIM4v5lcitGiven)
 	    model->BSIM4v5lcit = 0.0;
@@ -852,7 +851,7 @@ BSIM4v5instance **InstArray;
 	    model->BSIM4v5wcdsc = 0.0;
         if (!model->BSIM4v5wcdscbGiven)
 	    model->BSIM4v5wcdscb = 0.0;  
-	    if (!model->BSIM4v5wcdscdGiven)
+        if (!model->BSIM4v5wcdscdGiven)
 	    model->BSIM4v5wcdscd = 0.0;
         if (!model->BSIM4v5wcitGiven)
 	    model->BSIM4v5wcit = 0.0;
@@ -1105,7 +1104,7 @@ BSIM4v5instance **InstArray;
 	    model->BSIM4v5pcdsc = 0.0;
         if (!model->BSIM4v5pcdscbGiven)
 	    model->BSIM4v5pcdscb = 0.0;   
-	    if (!model->BSIM4v5pcdscdGiven)
+        if (!model->BSIM4v5pcdscdGiven)
 	    model->BSIM4v5pcdscd = 0.0;
         if (!model->BSIM4v5pcitGiven)
 	    model->BSIM4v5pcit = 0.0;
@@ -1588,6 +1587,16 @@ BSIM4v5instance **InstArray;
             model->BSIM4v5vbsMax = 1e99;
         if (!model->BSIM4v5vbdMaxGiven)
             model->BSIM4v5vbdMax = 1e99;
+        if (!model->BSIM4v5vgsrMaxGiven)
+            model->BSIM4v5vgsrMax = 1e99;
+        if (!model->BSIM4v5vgdrMaxGiven)
+            model->BSIM4v5vgdrMax = 1e99;
+        if (!model->BSIM4v5vgbrMaxGiven)
+            model->BSIM4v5vgbrMax = 1e99;
+        if (!model->BSIM4v5vbsrMaxGiven)
+            model->BSIM4v5vbsrMax = 1e99;
+        if (!model->BSIM4v5vbdrMaxGiven)
+            model->BSIM4v5vbdrMax = 1e99;
 
         /* stress effect */
         if (!model->BSIM4v5sarefGiven)
@@ -1680,8 +1689,8 @@ BSIM4v5instance **InstArray;
          * through all the instances of the model
          */
 
-        for (here = model->BSIM4v5instances; here != NULL ;
-             here=here->BSIM4v5nextInstance) 
+        for (here = BSIM4v5instances(model); here != NULL ;
+             here=BSIM4v5nextInstance(here)) 
         {   
             /* allocate a chunk of the state vector */
             here->BSIM4v5states = *states;
@@ -2088,30 +2097,32 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     /* loop through all the BSIM4v6 device models
     to count the number of instances */
 
-    for (; model != NULL; model = model->BSIM4v5nextModel)
+    for (; model != NULL; model = BSIM4v5nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->BSIM4v5instances; here != NULL;
-            here = here->BSIM4v5nextInstance)
+        for (here = BSIM4v5instances(model); here != NULL;
+             here = BSIM4v5nextInstance(here))
         {
             InstCount++;
         }
+        model->BSIM4v5InstCount = 0;
+        model->BSIM4v5InstanceArray = NULL;
     }
     InstArray = TMALLOC(BSIM4v5instance*, InstCount);
     model = (BSIM4v5model*)inModel;
+    /* store this in the first model only */
+    model->BSIM4v5InstCount = InstCount;
+    model->BSIM4v5InstanceArray = InstArray;
     idx = 0;
-    for (; model != NULL; model = model->BSIM4v5nextModel)
+    for (; model != NULL; model = BSIM4v5nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->BSIM4v5instances; here != NULL;
-            here = here->BSIM4v5nextInstance)
+        for (here = BSIM4v5instances(model); here != NULL;
+             here = BSIM4v5nextInstance(here))
         {
             InstArray[idx] = here;
             idx++;
         }
-        /* set the array pointer and instance count into each model */
-        model->BSIM4v5InstCount = InstCount;
-        model->BSIM4v5InstanceArray = InstArray;
     }
 #endif
 
@@ -2127,24 +2138,55 @@ BSIM4v5unsetup(
     BSIM4v5model *model;
     BSIM4v5instance *here;
 
+#ifdef USE_OMP
+    model = (BSIM4v5model*)inModel;
+    tfree(model->BSIM4v5InstanceArray);
+#endif
+
     for (model = (BSIM4v5model *)inModel; model != NULL;
-            model = model->BSIM4v5nextModel)
+            model = BSIM4v5nextModel(model))
     {
-        for (here = model->BSIM4v5instances; here != NULL;
-                here=here->BSIM4v5nextInstance)
+        for (here = BSIM4v5instances(model); here != NULL;
+                here=BSIM4v5nextInstance(here))
         {
-            if (here->BSIM4v5dNodePrime
-                    && here->BSIM4v5dNodePrime != here->BSIM4v5dNode)
-            {
-                CKTdltNNum(ckt, here->BSIM4v5dNodePrime);
-                here->BSIM4v5dNodePrime = 0;
-            }
-            if (here->BSIM4v5sNodePrime
+            if (here->BSIM4v5qNode > 0)
+                CKTdltNNum(ckt, here->BSIM4v5qNode);
+            here->BSIM4v5qNode = 0;
+
+            if (here->BSIM4v5sbNode > 0 &&
+                here->BSIM4v5sbNode != here->BSIM4v5bNode)
+                CKTdltNNum(ckt, here->BSIM4v5sbNode);
+            here->BSIM4v5sbNode = 0;
+
+            if (here->BSIM4v5bNodePrime > 0 &&
+                here->BSIM4v5bNodePrime != here->BSIM4v5bNode)
+                CKTdltNNum(ckt, here->BSIM4v5bNodePrime);
+            here->BSIM4v5bNodePrime = 0;
+
+            if (here->BSIM4v5dbNode > 0 &&
+                here->BSIM4v5dbNode != here->BSIM4v5bNode)
+                CKTdltNNum(ckt, here->BSIM4v5dbNode);
+            here->BSIM4v5dbNode = 0;
+
+            if (here->BSIM4v5gNodeMid > 0 &&
+                here->BSIM4v5gNodeMid != here->BSIM4v5gNodeExt)
+                CKTdltNNum(ckt, here->BSIM4v5gNodeMid);
+            here->BSIM4v5gNodeMid = 0;
+
+            if (here->BSIM4v5gNodePrime > 0 &&
+                here->BSIM4v5gNodePrime != here->BSIM4v5gNodeExt)
+                CKTdltNNum(ckt, here->BSIM4v5gNodePrime);
+            here->BSIM4v5gNodePrime = 0;
+
+            if (here->BSIM4v5sNodePrime > 0
                     && here->BSIM4v5sNodePrime != here->BSIM4v5sNode)
-            {
                 CKTdltNNum(ckt, here->BSIM4v5sNodePrime);
-                here->BSIM4v5sNodePrime = 0;
-            }
+            here->BSIM4v5sNodePrime = 0;
+
+            if (here->BSIM4v5dNodePrime > 0
+                    && here->BSIM4v5dNodePrime != here->BSIM4v5dNode)
+                CKTdltNNum(ckt, here->BSIM4v5dNodePrime);
+            here->BSIM4v5dNodePrime = 0;
         }
     }
 #endif

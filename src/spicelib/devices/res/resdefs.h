@@ -15,18 +15,29 @@ Modified: 2000 AlansFixes
 
 /* definitions used to describe resistors */
 
+/* indices to array of RES noise sources */
+
+enum {
+    RESTHNOIZ = 0,  /* Thermal noise source */
+    RESFLNOIZ,      /* Flicker noise source */
+    RESTOTNOIZ,     /* Total noise          */
+    /* finally, the number of noise sources */
+    RESNSRCS
+};
 
 /* information used to describe a single instance */
 
 typedef struct sRESinstance {
-    struct sRESmodel *RESmodPtr;            /* backpointer to model */
-    struct sRESinstance *RESnextInstance;   /* pointer to next instance of
-                                             * current model*/
 
-    IFuid RESname;      /* pointer to character string naming this instance */
-    int RESstate;       /* not used but needed for sructure consistency */
-    int RESposNode;     /* number of positive node of resistor */
-    int RESnegNode;     /* number of negative node of resistor */
+    struct GENinstance gen;
+
+#define RESmodPtr(inst) ((struct sRESmodel *)((inst)->gen.GENmodPtr))
+#define RESnextInstance(inst) ((struct sRESinstance *)((inst)->gen.GENnextInstance))
+#define RESname gen.GENname
+#define RESstate gen.GENstate
+
+    const int RESposNode;     /* number of positive node of resistor */
+    const int RESnegNode;     /* number of negative node of resistor */
 
     double REStemp;     /* temperature at which this resistor operates */
     double RESdtemp;    /* delta-temperature of a particular instance  */
@@ -46,13 +57,13 @@ typedef struct sRESinstance {
     double RESbv_max;               /* Maximum resistor voltage */
     int    RESnoisy;                /* Set if the resistor generates noise */
     double RESeffNoiseArea;         /* effective resistor area for noise calculation */
-    double *RESposPosptr;           /* pointer to sparse matrix diagonal at
+    double *RESposPosPtr;           /* pointer to sparse matrix diagonal at
                                      * (positive,positive) */
-    double *RESnegNegptr;           /* pointer to sparse matrix diagonal at
+    double *RESnegNegPtr;           /* pointer to sparse matrix diagonal at
                                      * (negative,negative) */
-    double *RESposNegptr;           /* pointer to sparse matrix offdiagonal at
+    double *RESposNegPtr;           /* pointer to sparse matrix offdiagonal at
                                      * (positive,negative) */
-    double *RESnegPosptr;           /* pointer to sparse matrix offdiagonal at
+    double *RESnegPosPtr;           /* pointer to sparse matrix offdiagonal at
                                      * (negative,positive) */
     unsigned RESresGiven    : 1;    /* flag to indicate resistance was specified */
     unsigned RESwidthGiven  : 1;    /* flag to indicate width given */
@@ -71,15 +82,6 @@ typedef struct sRESinstance {
     int    RESsenParmNo;            /* parameter # for sensitivity use;
                                      * set equal to  0 if not a design parameter*/
 
-    /* indices to array of RES noise sources */
-
-#define RESTHNOIZ  0     /* Thermal noise source */
-#define RESFLNOIZ  1     /* Flicker noise source */
-#define RESTOTNOIZ 2     /* Total noise          */
-
-#define RESNSRCS   3     /* the number of RES noise sources */
-
-
 #ifndef NONOISE
     double RESnVar[NSTATVARS][RESNSRCS];
 #else /* NONOISE */
@@ -92,14 +94,13 @@ typedef struct sRESinstance {
 /* per model data */
 
 typedef struct sRESmodel {       /* model structure for a resistor */
-    int RESmodType; /* type index of this device type */
-    struct sRESmodel *RESnextModel; /* pointer to next possible model in
-                                     * linked list */
-    RESinstance * RESinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid RESmodName;       /* pointer to character string naming this model */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define RESmodType gen.GENmodType
+#define RESnextModel(inst) ((struct sRESmodel *)((inst)->gen.GENnextModel))
+#define RESinstances(inst) ((RESinstance *)((inst)->gen.GENinstances))
+#define RESmodName gen.GENmodName
 
     double REStnom;         /* temperature at which resistance measured */
     double REStempCoeff1;   /* first temperature coefficient of resistors */
@@ -136,55 +137,65 @@ typedef struct sRESmodel {       /* model structure for a resistor */
 } RESmodel;
 
 /* device parameters */
-#define RES_RESIST 1
-#define RES_WIDTH 2
-#define RES_LENGTH 3
-#define RES_CONDUCT 4
-#define RES_RESIST_SENS 5
-#define RES_CURRENT 6
-#define RES_POWER 7
-#define RES_TEMP 8
+enum {
+    RES_RESIST = 1,
+    RES_WIDTH,
+    RES_LENGTH,
+    RES_CONDUCT,
+    RES_RESIST_SENS,
+    RES_CURRENT,
+    RES_POWER,
+    RES_TEMP,
+};
+
 /* serban */
-#define RES_ACRESIST 10
-#define RES_ACCONDUCT 11
-#define RES_M 12 /* pn */
-#define RES_SCALE 13 /* pn */
-#define RES_DTEMP 14 /* pn */
-#define RES_NOISY 15 /* pn */
-/* tanaka */
-#define RES_TC1 16
-#define RES_TC2 17
-#define RES_BV_MAX 18
-#define RES_TCE 19
+enum {
+    RES_ACRESIST = 10,
+    RES_ACCONDUCT,
+    RES_M,
+    RES_SCALE,
+    RES_DTEMP,
+    RES_NOISY,
+    RES_TC1,
+    RES_TC2,
+    RES_BV_MAX,
+    RES_TCE,
+};
 
 /* model parameters */
-#define RES_MOD_TC1 101
-#define RES_MOD_TC2 102
-#define RES_MOD_RSH 103
-#define RES_MOD_DEFWIDTH 104
-#define RES_MOD_DEFLENGTH 105
-#define RES_MOD_NARROW 106
-#define RES_MOD_R 107
-#define RES_MOD_TNOM 108
-#define RES_MOD_SHORT 109
-#define RES_MOD_KF 110
-#define RES_MOD_AF 111
-#define RES_MOD_BV_MAX 112
-#define RES_MOD_LF 113
-#define RES_MOD_WF 114
-#define RES_MOD_EF 115
-#define RES_MOD_TCE 116
+enum {
+    RES_MOD_TC1 = 101,
+    RES_MOD_TC2,
+    RES_MOD_RSH,
+    RES_MOD_DEFWIDTH,
+    RES_MOD_DEFLENGTH,
+    RES_MOD_NARROW,
+    RES_MOD_R,
+    RES_MOD_TNOM,
+    RES_MOD_SHORT,
+    RES_MOD_KF,
+    RES_MOD_AF,
+    RES_MOD_BV_MAX,
+    RES_MOD_LF,
+    RES_MOD_WF,
+    RES_MOD_EF,
+    RES_MOD_TCE,
+};
 
 /* device questions */
-#define RES_QUEST_SENS_REAL      201
-#define RES_QUEST_SENS_IMAG      202
-#define RES_QUEST_SENS_MAG       203
-#define RES_QUEST_SENS_PH        204
-#define RES_QUEST_SENS_CPLX      205
-#define RES_QUEST_SENS_DC        206
+enum {
+    RES_QUEST_SENS_REAL = 201,
+    RES_QUEST_SENS_IMAG,
+    RES_QUEST_SENS_MAG,
+    RES_QUEST_SENS_PH,
+    RES_QUEST_SENS_CPLX,
+    RES_QUEST_SENS_DC,
+};
 
 /* model questions */
 
 #include "resext.h"
+
+extern void RESupdate_conduct(RESinstance *, bool spill_warnings);
 
 #endif /*RES*/

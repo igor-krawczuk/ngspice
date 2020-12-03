@@ -17,7 +17,13 @@ double *asrc_derivs = NULL;
 
 /* actually load the current voltage value into the
  * sparse matrix previously provided
- */
+
+ * Evaluate the B-source parse tree (example: exp function):
+ * ASRCload asrcload.c
+ * IFeval ifeval.c
+ * PTeval ifeval.c
+ * PTexp ptfuncs.c
+*/
 
 int
 ASRCload(GENmodel *inModel, CKTcircuit *ckt)
@@ -29,8 +35,8 @@ ASRCload(GENmodel *inModel, CKTcircuit *ckt)
     double difference;
     double factor;
 
-    for (; model; model = model->ASRCnextModel) {
-        for (here = model->ASRCinstances; here; here=here->ASRCnextInstance) {
+    for (; model; model = ASRCnextModel(model)) {
+        for (here = ASRCinstances(model); here; here=ASRCnextInstance(here)) {
 
             difference = (here->ASRCtemp + here->ASRCdtemp) - 300.15;
             factor = 1.0
@@ -71,15 +77,15 @@ ASRCload(GENmodel *inModel, CKTcircuit *ckt)
 
             if (here->ASRCtype == ASRC_VOLTAGE) {
 
-                *(here->ASRCposptr[j++]) += 1.0;
-                *(here->ASRCposptr[j++]) -= 1.0;
-                *(here->ASRCposptr[j++]) -= 1.0;
-                *(here->ASRCposptr[j++]) += 1.0;
+                *(here->ASRCposPtr[j++]) += 1.0;
+                *(here->ASRCposPtr[j++]) -= 1.0;
+                *(here->ASRCposPtr[j++]) -= 1.0;
+                *(here->ASRCposPtr[j++]) += 1.0;
 
                 for (i = 0; i < here->ASRCtree->numVars; i++) {
                     rhs -= (asrc_vals[i] * asrc_derivs[i]);
 
-                    *(here->ASRCposptr[j++]) -= asrc_derivs[i] * factor;
+                    *(here->ASRCposPtr[j++]) -= asrc_derivs[i] * factor;
                 }
 
                 ckt->CKTrhs[here->ASRCbranch] += factor * rhs;
@@ -89,8 +95,8 @@ ASRCload(GENmodel *inModel, CKTcircuit *ckt)
                 for (i = 0; i < here->ASRCtree->numVars; i++) {
                     rhs -= (asrc_vals[i] * asrc_derivs[i]);
 
-                    *(here->ASRCposptr[j++]) += asrc_derivs[i] * factor;
-                    *(here->ASRCposptr[j++]) -= asrc_derivs[i] * factor;
+                    *(here->ASRCposPtr[j++]) += asrc_derivs[i] * factor;
+                    *(here->ASRCposPtr[j++]) -= asrc_derivs[i] * factor;
                 }
 
                 ckt->CKTrhs[here->ASRCposNode] -= factor * rhs;

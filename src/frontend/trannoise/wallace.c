@@ -20,6 +20,7 @@
 #include <math.h>
 #include "ngspice/wallace.h"
 #include "ngspice/FastNorm3.h"
+#include "ngspice/randnumb.h"
 
 #define POOLSIZE 4096
 #define LPOOLSIZE 12
@@ -42,11 +43,6 @@ static unsigned n = POOLSIZE;
 static double chi1, chi2; /* chi^2 correction values */
 static unsigned int newpools;
 
-extern double drand(void);
-extern unsigned int CombLCGTausInt(void);
-extern void TausSeed(void);
-extern unsigned int CombLCGTausInt2(void);
-
 
 void
 PolarGauss(double* py1, double* py2)
@@ -66,7 +62,7 @@ PolarGauss(double* py1, double* py2)
 }
 
 
-static void
+void
 destroy_wallace(void)
 {
     tfree(pool1);
@@ -96,8 +92,6 @@ initw(void)
     pool2 = TMALLOC(double, n);
     addrif = TMALLOC(unsigned int, (n + NOTRANS));
     addrib = TMALLOC(unsigned int, (n + NOTRANS));
-
-    atexit(destroy_wallace);
 
     /* fill the first pool with normally distributed values */
     PolarGauss(&pool1[0], &pool1[1]);

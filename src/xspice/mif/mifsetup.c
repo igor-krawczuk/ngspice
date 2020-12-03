@@ -3,11 +3,10 @@ FILE    MIFsetup.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -134,7 +133,7 @@ MIFsetup(
 
     /* loop through all models of this type */
 
-    for( ; model != NULL; model = model->MIFnextModel) {
+    for( ; model != NULL; model = MIFnextModel(model)) {
 
 
         /* For each parameter not given explicitly on the .model */
@@ -151,13 +150,12 @@ MIFsetup(
                 if(! param_info->is_array) {
                     model->param[i]->size = 1;
                     model->param[i]->element = TMALLOC(Mif_Value_t, 1);
-                }
-                else {  /* parameter is an array */
+                } else { /* parameter is an array */
                     /* MIF_INP2A() parser assures that there is an associated array connection */
                     /* Since several instances may share this model, we have to create an array    */
                     /* big enough for the instance with the biggest connection array               */
                     max_size = 0;
-                    for(here = model->MIFinstances; here != NULL; here = here->MIFnextInstance) {
+                    for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
                         size = here->conn[param_info->conn_ref]->size;
                         if(size > max_size)
                             max_size = size;
@@ -204,7 +202,7 @@ MIFsetup(
 
         /* For each instance, initialize stuff used by cm_... functions */
 
-        for(here = model->MIFinstances; here != NULL; here = here->MIFnextInstance) {
+        for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
 
             here->num_state = 0;
             here->state = NULL;
@@ -220,59 +218,59 @@ MIFsetup(
         /* For each instance, allocate runtime structs for output connections/ports */
         /* and grab a place in the state vector for all input connections/ports */
 
-        for(here = model->MIFinstances; here != NULL; here = here->MIFnextInstance) {
-	  /* Skip these expensive allocations if the instance is not analog */
-	  if(! here->analog)
-	    continue;
-	  
-	  num_conn = here->num_conn;
-	  for(i = 0; i < num_conn; i++) {
-	    if((here->conn[i]->is_null) || (! here->conn[i]->is_output) )
-	      continue;
-	    num_port = here->conn[i]->size;
-	    for(j = 0; j < num_port; j++) {
-	      here->conn[i]->port[j]->partial =
-		TMALLOC(Mif_Partial_t, num_conn);
-	      here->conn[i]->port[j]->ac_gain =
-		TMALLOC(Mif_AC_Gain_t, num_conn);
-	      here->conn[i]->port[j]->smp_data.input =
-		TMALLOC(Mif_Conn_Ptr_t, num_conn);
-	      for(k = 0; k < num_conn; k++) {
-		if((here->conn[k]->is_null) || (! here->conn[k]->is_input) )
-		  continue;
-		num_port_k = here->conn[k]->size;
-		here->conn[i]->port[j]->partial[k].port =
-		  TMALLOC(double, num_port_k);
-		here->conn[i]->port[j]->ac_gain[k].port =
-		  TMALLOC(Mif_Complex_t, num_port_k);
-                        here->conn[i]->port[j]->smp_data.input[k].port =
-			  TMALLOC(Mif_Port_Ptr_t, num_port_k);
-	      }
-	    }
-	  }
-	  
+        for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
+            /* Skip these expensive allocations if the instance is not analog */
+            if(! here->analog)
+                continue;
+
             num_conn = here->num_conn;
             for(i = 0; i < num_conn; i++) {
-	      if((here->conn[i]->is_null) || (! here->conn[i]->is_input) )
-		continue;
-	      num_port = here->conn[i]->size;
-	      for(j = 0; j < num_port; j++) {
+                if((here->conn[i]->is_null) || (! here->conn[i]->is_output) )
+                    continue;
+                num_port = here->conn[i]->size;
+                for(j = 0; j < num_port; j++) {
+                    here->conn[i]->port[j]->partial =
+                        TMALLOC(Mif_Partial_t, num_conn);
+                    here->conn[i]->port[j]->ac_gain =
+                        TMALLOC(Mif_AC_Gain_t, num_conn);
+                    here->conn[i]->port[j]->smp_data.input =
+                        TMALLOC(Mif_Conn_Ptr_t, num_conn);
+                    for(k = 0; k < num_conn; k++) {
+                        if((here->conn[k]->is_null) || (! here->conn[k]->is_input) )
+                            continue;
+                        num_port_k = here->conn[k]->size;
+                        here->conn[i]->port[j]->partial[k].port =
+                            TMALLOC(double, num_port_k);
+                        here->conn[i]->port[j]->ac_gain[k].port =
+                            TMALLOC(Mif_Complex_t, num_port_k);
+                        here->conn[i]->port[j]->smp_data.input[k].port =
+                            TMALLOC(Mif_Port_Ptr_t, num_port_k);
+                    }
+                }
+            }
+
+            num_conn = here->num_conn;
+            for(i = 0; i < num_conn; i++) {
+                if((here->conn[i]->is_null) || (! here->conn[i]->is_input) )
+                    continue;
+                num_port = here->conn[i]->size;
+                for(j = 0; j < num_port; j++) {
                     here->conn[i]->port[j]->old_input = *states;
                     (*states)++;
-	      }
+                }
             }
         }
-	
-	
+
+
         /* Loop through all instances of this model and for each port of each connection */
         /* create current equations, matrix entries, and matrix pointers as necessary.   */
-	
-        for(here = model->MIFinstances; here != NULL; here = here->MIFnextInstance) {
-	  /* Skip these expensive allocations if the instance is not analog */
-	  if(! here->analog)
-	    continue;
-	  
-	  num_conn = here->num_conn;
+
+        for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
+            /* Skip these expensive allocations if the instance is not analog */
+            if(! here->analog)
+                continue;
+
+            num_conn = here->num_conn;
 
             /* loop through all connections on this instance */
             /* and create matrix data needed for outputs and */
@@ -304,7 +302,7 @@ MIFsetup(
                     /* if it has a voltage source output, */
                     /* create the matrix data needed      */
                     if( (is_output && (type == MIF_VOLTAGE || type == MIF_DIFF_VOLTAGE)) ||
-                                     (type == MIF_RESISTANCE || type == MIF_DIFF_RESISTANCE) ) {
+                            (type == MIF_RESISTANCE || type == MIF_DIFF_RESISTANCE) ) {
 
                         /* first, make the current equation */
                         suffix = tprintf("branch_%d_%d", i, j);
@@ -347,10 +345,10 @@ MIFsetup(
                     /* in the circuit), locate the source and get its equation number  */
                     if(is_input && (type == MIF_VSOURCE_CURRENT)) {
                         smp_data_out->ibranch = CKTfndBranch(ckt,
-                                                 here->conn[i]->port[j]->vsource_str);
+                                                             here->conn[i]->port[j]->vsource_str);
                         if(smp_data_out->ibranch == 0) {
                             SPfrontEnd->IFerrorf (ERR_FATAL,
-                                    "%s: unknown controlling source %s", here->MIFname, here->conn[i]->port[j]->vsource_str);
+                                                  "%s: unknown controlling source %s", here->MIFname, here->conn[i]->port[j]->vsource_str);
                             return(E_BADPARM);
                         }
                     } /* end if vsource current input */
@@ -449,79 +447,113 @@ MIFunsetup(GENmodel *inModel,CKTcircuit *ckt)
     MIFmodel *model;
     MIFinstance *here;
     Mif_Smp_Ptr_t  *smp_data_out;
-/*    Mif_Smp_Ptr_t  *smp_data_cntl;*/
-/*    Mif_Port_Type_t  type, in_type, out_type;*/
-    Mif_Port_Type_t  in_type, out_type;
-    Mif_Cntl_Src_Type_t  cntl_src_type;
-    int num_conn,num_port,i,j,k,l,num_port_k;
+    Mif_Port_Type_t type;
+    Mif_Boolean_t   is_input, is_output;
+    int             num_conn, num_port, i, j, k;
 
 
     for (model = (MIFmodel *)inModel; model != NULL;
-                              model = model->MIFnextModel)
-    {
-      for(here = model->MIFinstances; here != NULL;
-			here = here->MIFnextInstance)
-      {
-        num_conn=here->num_conn;
-        for(i = 0; i < num_conn; i++) {
+            model = MIFnextModel(model)) {
+        for (i = 0; i < model->num_param; i++)
+            if (model->param[i]->is_null)
+                tfree(model->param[i]->element);
+        for(here = MIFinstances(model); here != NULL; here = MIFnextInstance(here)) {
+            /* Skip these expensive allocations if the instance is not analog */
+            if(! here->analog)
+                continue;
 
-           /* if the connection is null, skip to next connection */
-           if(here->conn[i]->is_null) continue;
+            num_conn = here->num_conn;
 
-           /* prepare things for convenient access later */
-           num_port = here->conn[i]->size;
+            /* loop through all connections on this instance */
+            /* and create matrix data needed for outputs and */
+            /* V sources associated with I inputs            */
+            for(i = 0; i < num_conn; i++) {
 
-           /* loop through all ports on this connection */
-           for(j = 0; j < num_port; j++) {
+                /* if the connection is null, skip to next connection */
+                if(here->conn[i]->is_null)
+                    continue;
 
-           /* determine the type of this output port */
-           out_type = here->conn[i]->port[j]->type;
+                /* prepare things for convenient access later */
+                is_input = here->conn[i]->is_input;
+                is_output = here->conn[i]->is_output;
+                num_port = here->conn[i]->size;
 
-           /* create a pointer to the smp data for quick access */
-           smp_data_out = &(here->conn[i]->port[j]->smp_data);
+                /* loop through all ports on this connection */
+                for(j = 0; j < num_port; j++) {
 
-           for(k = 0; k < num_conn; k++) {
-                /* if the connection is null or is not an input
-                   skip to next connection */
-                if((here->conn[k]->is_null) || (! here->conn[k]->is_input))
-                            continue;
-                num_port_k = here->conn[k]->size;
-                /* determine the type of this input port */
-                for(l = 0; l < num_port_k; l++) {
+                    /* if port is null, skip to next */
+                    if(here->conn[i]->port[j]->is_null)
+                        continue;
 
-                  /* if port is null, skip to next */
-                  if(here->conn[k]->port[l]->is_null)
-                                continue;
-                  in_type = here->conn[i]->port[j]->type;
-                  cntl_src_type = MIFget_cntl_src_type(in_type, out_type);
+                    /* determine the type of this port */
+                    type = here->conn[i]->port[j]->type;
 
-                  switch(cntl_src_type) 
-                  {
-                    case MIF_VCVS:
-                    case MIF_ICVS:
-                    case MIF_VCIS:
-                    case MIF_ICIS:
-                    case MIF_minus_one: /* FIXME, really ? */
-                      if(smp_data_out->branch)
-                      {
+                    /* create a pointer to the smp data for quick access */
+                    smp_data_out = &(here->conn[i]->port[j]->smp_data);
+
+                    /* if it has a voltage source output, */
+                    /* create the matrix data needed      */
+                    if( (is_output && (type == MIF_VOLTAGE || type == MIF_DIFF_VOLTAGE)) ||
+                            (type == MIF_RESISTANCE || type == MIF_DIFF_RESISTANCE) ) {
                         CKTdltNNum(ckt, smp_data_out->branch);
                         smp_data_out->branch = 0;
-                      }
+                        smp_data_out->ibranch = 0;
+                    } /* end if current input */
 
-                      if(smp_data_out->ibranch)
-                      {
+                    /* if it is a current input */
+                    /* create the matrix data needed for the associated zero-valued V source */
+                    if(is_input && (type == MIF_CURRENT || type == MIF_DIFF_CURRENT)) {
                         CKTdltNNum(ckt, smp_data_out->ibranch);
                         smp_data_out->ibranch = 0;
-                      }
-                      here->initialized=MIF_FALSE;
-                      break;
-                  }
-                }
-              }
-             }
+                    } /* end if current input */
+
+                    /* if it is a vsource current input (refers to a vsource elsewhere */
+                    /* in the circuit), locate the source and get its equation number  */
+                    if(is_input && (type == MIF_VSOURCE_CURRENT)) {
+                        smp_data_out->ibranch = 0;
+                    } /* end if vsource current input */
+
+                    /* free memory allocated in MIFsetup */
+                    for (k = 0; k < num_conn; k++) {
+                        if ((here->conn[k]->is_null) || (!here->conn[k]->is_input))
+                            continue;
+                        if (here->conn[i]->port[j]->partial)
+                            tfree(here->conn[i]->port[j]->partial[k].port);
+                        if (here->conn[i]->port[j]->ac_gain)
+                            tfree(here->conn[i]->port[j]->ac_gain[k].port);
+                        if (here->conn[i]->port[j]->smp_data.input)
+                            tfree(here->conn[i]->port[j]->smp_data.input[k].port);
+                    }
+                    tfree(here->conn[i]->port[j]->partial);
+                    tfree(here->conn[i]->port[j]->ac_gain);
+                    tfree(here->conn[i]->port[j]->smp_data.input);
+                    /* free memory allocated in mif_inp2.c */
+                    tfree(here->conn[i]->port[j]->type_str);
+                } /* end for number of ports */
+            } /* end for number of connections */
+            /* free memory allocated by cm_analog_alloc and cm_analog_converge */
+            tfree(here->state);
+            tfree(here->conv);
+            tfree(here->intgr);
+
+            /* de-allocate the memory that has been allocated locally in the code model during INIT */
+            if (here->callback) {
+                Mif_Private_t cm_data;
+                /* Prepare the structure to be passed to the code model */
+                cm_data.num_conn = here->num_conn;
+                cm_data.conn = here->conn;
+                cm_data.num_param = here->num_param;
+                cm_data.param = here->param;
+                cm_data.num_inst_var = here->num_inst_var;
+                cm_data.inst_var = here->inst_var;
+                cm_data.callback = &(here->callback);
+
+                here->callback(&cm_data, MIF_CB_DESTROY);
             }
-          }
-	}
+
+            here->initialized = MIF_FALSE;
+        } /* end for all instances */
+    }
     /* printf("MIFunsetup completed.\n");*/
     return OK;
 }

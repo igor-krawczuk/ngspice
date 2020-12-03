@@ -18,7 +18,7 @@ com_option(wordlist *wl)
 
     CKTcircuit *circuit = NULL;
 
-    if (!ft_curckt) {
+    if (!ft_curckt || !ft_curckt->ci_ckt) {
         fprintf(cp_err, "Error: no circuit loaded\n");
         return;
     }
@@ -47,6 +47,8 @@ com_option(wordlist *wl)
         }
         printf("MaxOrder = %d\n", circuit->CKTmaxOrder);
         printf("xmu = %g\n", circuit->CKTxmu);
+        printf("indverbosity = %d\n", circuit->CKTindverbosity);
+        printf("epsmin = %g\n", circuit->CKTepsmin);
 
         printf("\nTolerances (absolute):\n");
         printf("abstol      (current) = %g\n", circuit->CKTabstol);

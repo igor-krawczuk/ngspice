@@ -16,10 +16,13 @@ Author: 1985 Thomas L. Quarles
 double DEVlimvds(double,double);
 double DEVpnjlim(double,double,double,double,int*);
 double DEVfetlim(double,double,double);
+double DEVlimitlog(double, double, double, int*);
 void DEVcmeyer(double,double,double,double,double,double,double,double,double,
         double,double,double*,double*,double*,double,double,double,double);
 void DEVqmeyer(double,double,double,double,double,double*,double*,double*,
         double,double);
+void DevCapVDMOS(double, double, double, double, double,
+                 double*, double*);
 double DEVpred(CKTcircuit*,int);
 
 /* Cider integration */
@@ -53,15 +56,15 @@ typedef struct SPICEdev {
         /* routine to input a paramater to a model */
     int (*DEVload)(GENmodel*,CKTcircuit*);   
         /* routine to load the device into the matrix */
-    int (*DEVsetup)(SMPmatrix*,GENmodel*,CKTcircuit*,int*);  
+    int (*DEVsetup)(SMPmatrix *, GENmodel *, CKTcircuit *, int *);
         /* setup routine to preprocess devices once before soloution begins */
     int (*DEVunsetup)(GENmodel*,CKTcircuit*);
 	/* clean up before running again */
-    int (*DEVpzSetup)(SMPmatrix*,GENmodel*,CKTcircuit*,int*);  
+    int (*DEVpzSetup)(SMPmatrix *, GENmodel *, CKTcircuit *, int *);
         /* setup routine to process devices specially for pz analysis */
-    int (*DEVtemperature)(GENmodel*,CKTcircuit*);    
+    int (*DEVtemperature)(GENmodel*,CKTcircuit*);
         /* subroutine to do temperature dependent setup processing */
-    int (*DEVtrunc)(GENmodel*,CKTcircuit*,double*);  
+    int (*DEVtrunc)(GENmodel*,CKTcircuit*,double*);
         /* subroutine to perform truncation error calc. */
     int (*DEVfindBranch)(CKTcircuit*,GENmodel*,IFuid); 
         /* subroutine to search for device branch eq.s */
@@ -69,11 +72,11 @@ typedef struct SPICEdev {
         /* ac analysis loading function */
     int (*DEVaccept)(CKTcircuit*,GENmodel*); 
         /* subroutine to call on acceptance of a timepoint */
-    void (*DEVdestroy)(GENmodel**);   
-        /* subroutine to destroy all models and instances */
-    int (*DEVmodDelete)(GENmodel**,IFuid,GENmodel*);  
-        /* subroutine to delete a model and all instances */
-    int (*DEVdelete)(GENmodel*,IFuid,GENinstance**); 
+    void (*DEVdestroy)(void);
+        /* subroutine to delete device specfic extra data */
+    int (*DEVmodDelete)(GENmodel*);
+        /* subroutine to delete a model */
+    int (*DEVdelete)(GENinstance*);
         /* subroutine to delete an instance */
     int (*DEVsetic)(GENmodel*,CKTcircuit*);  
         /* routine to pick up device init conds from rhs */
@@ -142,29 +145,39 @@ extern int        DEVmaxnum;    /* size of DEVices array */
 
 # define IOP(a,b,c,d)   { a, b, c|IF_SET|IF_ASK,			d }
 # define IOPU(a,b,c,d)   { a, b, c|IF_SET|IF_ASK|IF_UNINTERESTING,	d }
+# define IOPUR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_UNINTERESTING|IF_REDUNDANT, d }
 # define IOPP(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_PRINCIPAL,		d }
+# define IOPPR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_PRINCIPAL|IF_REDUNDANT, d }
 # define IOPA(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_AC,			d }
+# define IOPAR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_AC|IF_REDUNDANT,    d }
 # define IOPAU(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC|IF_UNINTERESTING,d }
 # define IOPAP(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC|IF_PRINCIPAL,	d }
+# define IOPAPR(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC|IF_PRINCIPAL|IF_REDUNDANT, d }
 # define IOPAA(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC_ONLY,		d }
 # define IOPAAU(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC_ONLY|IF_UNINTERESTING,d}
 # define IOPPA(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_AC_ONLY|IF_PRINCIPAL, d }
 # define IOPN(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_NOISE,		d }
 # define IOPR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_REDUNDANT,		NULL }
 # define IOPX(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_NONSENSE,		d }
+# define IOPXR(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_NONSENSE|IF_REDUNDANT, d }
 # define IOPXU(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_NONSENSE|IF_UNINTERESTING,\
 									d }
 # define IOPQ(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_SETQUERY,		d }
+# define IOPQR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_SETQUERY|IF_REDUNDANT, d }
 # define IOPQU(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_SETQUERY|IF_UNINTERESTING,\
 									d }
 # define IOPZ(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_CHKQUERY,		d }
+# define IOPZR(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_CHKQUERY|IF_REDUNDANT, d }
 # define IOPZU(a,b,c,d)  { a, b, c|IF_SET|IF_ASK|IF_CHKQUERY|IF_UNINTERESTING,\
 									d }
 # define IOPQO(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_ORQUERY,		d }
+# define IOPQOR(a,b,c,d) { a, b, c|IF_SET|IF_ASK|IF_ORQUERY|IF_REDUNDANT, d }
 
 # define IP(a,b,c,d) { a , b , c|IF_SET , d }
+# define IPR(a,b,c,d) { a , b , c|IF_SET|IF_REDUNDANT , d }
 # define OP(a,b,c,d) { a , b , c|IF_ASK , d }
 # define OPU(a,b,c,d) { a , b , c|IF_ASK|IF_UNINTERESTING , d }
+# define OPUR(a,b,c,d) { a , b , c|IF_ASK|IF_UNINTERESTING|IF_REDUNDANT , d }
 # define OPR(a,b,c,d) { a , b , c|IF_ASK|IF_REDUNDANT , d }
 # define P(a,b,c,d) { a , b , c , d }
 

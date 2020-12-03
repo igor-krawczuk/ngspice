@@ -29,6 +29,8 @@ DIOmAsk (CKTcircuit *ckt, GENmodel *inModel, int which, IFvalue *value)
             return (OK);
         case DIO_MOD_IS:
             value->rValue = model->DIOsatCur;
+            if (value->rValue < ckt->CKTepsmin)
+                value->rValue = ckt->CKTepsmin;
             return(OK);
         case DIO_MOD_JSW:
             value->rValue = model->DIOsatSWCur;
@@ -169,6 +171,12 @@ DIOmAsk (CKTcircuit *ckt, GENmodel *inModel, int which, IFvalue *value)
             return(OK);
         case DIO_MOD_BV_MAX:
             value->rValue = model->DIObv_max;
+            return(OK);
+        case DIO_MOD_ISR:
+            value->rValue = model->DIOrecSatCur;
+            return(OK);
+        case DIO_MOD_NR:
+            value->rValue = model->DIOrecEmissionCoeff;
             return(OK);
         default:
             return(E_BADPARM);

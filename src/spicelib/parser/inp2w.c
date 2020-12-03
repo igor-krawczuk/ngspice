@@ -11,7 +11,7 @@ Author: 1988 Thomas L. Quarles
 #include "ngspice/fteext.h"
 #include "inpxx.h"
 
-void INP2W(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2W(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
     /* Wname <node> <node> <vctrl> [<modname>] [IC] */
@@ -42,7 +42,7 @@ void INP2W(CKTcircuit *ckt, INPtables * tab, card * current)
 	return;
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);
     INPtermInsert(ckt, &nname1, tab, &node1);
@@ -51,7 +51,7 @@ void INP2W(CKTcircuit *ckt, INPtables * tab, card * current)
     parm = INPgetValue(ckt, &line, IF_INSTANCE, tab);
     ptemp.uValue = parm->uValue;
 
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
     INPinsert(&model, tab);
     current->error = INPgetMod(ckt, model, &thismodel, tab);
     if (thismodel != NULL) {

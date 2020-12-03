@@ -249,10 +249,10 @@ SMPmatSize(SMPmatrix *Matrix)
  * SMPnewMatrix()
  */
 int
-SMPnewMatrix(SMPmatrix **pMatrix)
+SMPnewMatrix(SMPmatrix **pMatrix, int size)
 {
     int Error;
-    *pMatrix = spCreate( 0, 1, &Error );
+    *pMatrix = spCreate( size, 1, &Error );
     return Error;
 }
 
@@ -460,6 +460,11 @@ SMPfindElt(SMPmatrix *Matrix, int Row, int Col, int CreateIfMissing)
     assert( IS_SPARSE( Matrix ) );
     Row = Matrix->ExtToIntRowMap[Row];
     Col = Matrix->ExtToIntColMap[Col];
+
+    if (Col == -1)
+    /* No element available */
+        return NULL;
+
     Element = Matrix->FirstInCol[Col];
     Element = spcFindElementInCol(Matrix, &Element, Row, Col, CreateIfMissing);
     return Element;
@@ -550,4 +555,22 @@ SMPzeroRow(SMPmatrix *Matrix, int Row)
     }
 
     return spError( Matrix );
+}
+
+/*
+ * SMPconstMult()
+ */
+void
+SMPconstMult(SMPmatrix *Matrix, double constant)
+{
+    spConstMult(Matrix, constant);
+}
+
+/*
+ * SMPmultiply()
+ */
+void
+SMPmultiply(SMPmatrix *Matrix, double *RHS, double *Solution, double *iRHS, double *iSolution)
+{
+    spMultiply(Matrix, RHS, Solution, iRHS, iSolution);
 }

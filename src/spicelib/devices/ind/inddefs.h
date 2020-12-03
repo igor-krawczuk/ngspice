@@ -6,28 +6,33 @@ Author: 1985 Thomas L. Quarles
 #ifndef IND
 #define IND
 
-
-/* turn on mutual inductor code */
-#define MUTUAL
-
 #include "ngspice/ifsim.h"
 #include "ngspice/complex.h"
 #include "ngspice/gendefs.h"
 #include "ngspice/cktdefs.h"
+
+typedef struct sINDinstance INDinstance;
+typedef struct sINDmodel INDmodel;
+typedef struct sMUTinstance MUTinstance;
+typedef struct sMUTmodel MUTmodel;
+
 
 /* structures used to descrive inductors */
 
 
 /* information needed for each instance */
 
-typedef struct sINDinstance {
-    struct sINDmodel *INDmodPtr;    /* backpointer to model */
-    struct sINDinstance *INDnextInstance;   /* pointer to next instance of
-                                             * current model*/
-    IFuid INDname;  /* pointer to character string naming this instance */
-    int INDstate;   /* pointer to beginning of state vector for inductor */
-    int INDposNode; /* number of positive node of inductor */
-    int INDnegNode; /* number of negative node of inductor */
+struct sINDinstance {
+
+    struct GENinstance gen;
+
+#define INDmodPtr(inst) ((INDmodel *)((inst)->gen.GENmodPtr))
+#define INDnextInstance(inst) ((INDinstance *)((inst)->gen.GENnextInstance))
+#define INDname gen.GENname
+#define INDstate gen.GENstate
+
+    const int INDposNode; /* number of positive node of inductor */
+    const int INDnegNode; /* number of negative node of inductor */
 
     int INDbrEq;    /* number of the branch equation added for current */
     double INDinduct;    /* inductance */
@@ -38,17 +43,17 @@ typedef struct sINDinstance {
     double INDdtemp;     /* Delta temp. of instance */
     double INDscale;     /* Scale factor */
     double INDnt;        /* Number of turns */
-    double INDinitCond; /* initial inductor voltage if specified */
+    double INDinitCond;  /* initial inductor voltage if specified */
 
-    double *INDposIbrptr;    /* pointer to sparse matrix diagonal at
+    double *INDposIbrPtr;    /* pointer to sparse matrix diagonal at
                               * (positive,branch eq) */
-    double *INDnegIbrptr;    /* pointer to sparse matrix diagonal at
+    double *INDnegIbrPtr;    /* pointer to sparse matrix diagonal at
                               * (negative,branch eq) */
-    double *INDibrNegptr;    /* pointer to sparse matrix offdiagonal at
+    double *INDibrNegPtr;    /* pointer to sparse matrix offdiagonal at
                               * (branch eq,negative) */
-    double *INDibrPosptr;    /* pointer to sparse matrix offdiagonal at
+    double *INDibrPosPtr;    /* pointer to sparse matrix offdiagonal at
                               * (branch eq,positive) */
-    double *INDibrIbrptr;    /* pointer to sparse matrix offdiagonal at
+    double *INDibrIbrPtr;    /* pointer to sparse matrix offdiagonal at
                               * (branch eq,branch eq) */
 
     unsigned INDindGiven   : 1;   /* flag to indicate inductance was specified */
@@ -60,29 +65,36 @@ typedef struct sINDinstance {
     unsigned INDdtempGiven : 1;   /* flag to indicate delta temp. given */
     unsigned INDscaleGiven : 1;   /* flag to indicate scale factor given */
     unsigned INDntGiven    : 1;   /* flag to indicate number of turns given */
-    int  INDsenParmNo;   /* parameter # for sensitivity use;
-            set equal to  0 if not a design parameter*/
+    int  INDsenParmNo;       /* parameter # for sensitivity use;
+                              * set equal to  0 if not a design parameter */
 
-} INDinstance ;
+    struct INDsystem *system;
+    INDinstance *system_next_ind;
+    int system_idx;
+};
 
-#define INDflux INDstate    /* flux in the inductor */
-#define INDvolt INDstate+1  /* voltage - save an entry in table */
+#define INDflux INDstate     /* flux in the inductor */
+#define INDvolt INDstate+1   /* voltage - save an entry in table */
+
+#define INDnumStates 2
+
 #define INDsensxp INDstate+2 /* charge sensitivities and their derivatives.
-+3 for the derivatives - pointer to the
-beginning of the array */
+                              *  +3 for the derivatives - pointer to the
+                              *  beginning of the array */
+
+#define INDnumSenStates 2
 
 
 /* per model data */
 
-typedef struct sINDmodel {       /* model structure for an inductor */
-    int INDmodType; /* type index of this device type */
-    struct sINDmodel *INDnextModel; /* pointer to next possible model in
-                                     * linked list */
-    INDinstance * INDinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid INDmodName;       /* pointer to character string naming this model */
+struct sINDmodel {             /* model structure for an inductor */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define INDmodType gen.GENmodType
+#define INDnextModel(inst) ((INDmodel *)((inst)->gen.GENnextModel))
+#define INDinstances(inst) ((INDinstance *)((inst)->gen.GENinstances))
+#define INDmodName gen.GENmodName
 
     double INDmInd;        /* Model inductance */
     double INDtnom;        /* temperature at which inductance measured */
@@ -103,107 +115,122 @@ typedef struct sINDmodel {       /* model structure for an inductor */
     unsigned INDmIndGiven  : 1; /* flag to indicate model inductance given */
 
     double INDspecInd;     /* Specific (one turn) inductance */
-} INDmodel;
+};
 
-
-#ifdef MUTUAL
 
 /* structures used to describe mutual inductors */
 
 
 /* information needed for each instance */
 
-typedef struct sMUTinstance {
-struct sMUTmodel *MUTmodPtr;    /* backpointer to model */
-struct sMUTinstance *MUTnextInstance;   /* pointer to next instance of
-                                             * current model*/
-IFuid MUTname;  /* pointer to character string naming this instance */
-double MUTcoupling;     /* mutual inductance input by user */
-double MUTfactor;       /* mutual inductance scaled for internal use */
-IFuid MUTindName1;  /* name of coupled inductor 1 */
-IFuid MUTindName2;  /* name of coupled inductor 2 */
-INDinstance *MUTind1;   /* pointer to coupled inductor 1 */
-INDinstance *MUTind2;   /* pointer to coupled inductor 2 */
-double *MUTbr1br2;  /* pointers to off-diagonal intersections of */
-double *MUTbr2br1;  /* current branch equations in matrix */
+struct sMUTinstance {
 
-unsigned MUTindGiven : 1;   /* flag to indicate inductance was specified */
-int  MUTsenParmNo;   /* parameter # for sensitivity use;
-            set equal to  0 if not a design parameter*/
+    struct GENinstance gen;
 
+#define MUTmodPtr(inst) ((MUTmodel *)((inst)->gen.GENmodPtr))
+#define MUTnextInstance(inst) ((MUTinstance *)((inst)->gen.GENnextInstance))
+#define MUTname gen.GENname
+#define MUTstates gen.GENstate
 
-} MUTinstance ;
+    double MUTcoupling;   /* mutual inductance input by user */
+    double MUTfactor;     /* mutual inductance scaled for internal use */
+    IFuid MUTindName1;    /* name of coupled inductor 1 */
+    IFuid MUTindName2;    /* name of coupled inductor 2 */
+    INDinstance *MUTind1; /* pointer to coupled inductor 1 */
+    INDinstance *MUTind2; /* pointer to coupled inductor 2 */
+    double *MUTbr1br2Ptr;    /* pointers to off-diagonal intersections of */
+    double *MUTbr2br1Ptr;    /* current branch equations in matrix */
+
+    unsigned MUTindGiven : 1;   /* flag to indicate inductance was specified */
+    int  MUTsenParmNo;          /* parameter # for sensitivity use;
+                                 * set equal to  0 if not a design parameter */
+
+    MUTinstance *system_next_mut;
+};
 
 
 /* per model data */
 
-typedef struct sMUTmodel {       /* model structure for a mutual inductor */
-int MUTmodType; /* type index of this device type */
-struct sMUTmodel *MUTnextModel; /* pointer to next possible model in
-                                     * linked list */
-MUTinstance * MUTinstances; /* pointer to list of instances that have this
-                                 * model */
-IFuid MUTmodName;       /* pointer to character string naming this model */
+struct sMUTmodel {             /* model structure for a mutual inductor */
 
-/* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
 
-} MUTmodel;
+#define MUTmodType gen.GENmodType
+#define MUTnextModel(inst) ((MUTmodel *)((inst)->gen.GENnextModel))
+#define MUTinstances(inst) ((MUTinstance *)((inst)->gen.GENinstances))
+#define MUTmodName gen.GENmodName
 
-#endif /*MUTUAL*/
+};
+
+
+struct INDsystem {
+    int size;
+    INDinstance *first_ind;
+    MUTinstance *first_mut;
+    struct INDsystem *next_system;
+};
+
 
 /* device parameters */
-#define IND_IND 1
-#define IND_IC 2
-#define IND_FLUX 3
-#define IND_VOLT 4
-#define IND_IND_SENS 5
-#define IND_CURRENT 6
-#define IND_POWER 7
-#define IND_M 8
-#define IND_TEMP 9
-#define IND_DTEMP 10
-#define IND_SCALE 11
-#define IND_NT 12
-#define IND_TC1 13
-#define IND_TC2 14
+enum {
+    IND_IND = 1,
+    IND_IC,
+    IND_FLUX,
+    IND_VOLT,
+    IND_IND_SENS,
+    IND_CURRENT,
+    IND_POWER,
+    IND_M,
+    IND_TEMP,
+    IND_DTEMP,
+    IND_SCALE,
+    IND_NT,
+    IND_TC1,
+    IND_TC2,
+};
 
 /* model parameters */
-#define IND_MOD_IND    100
-#define IND_MOD_TC1    101
-#define IND_MOD_TC2    102
-#define IND_MOD_TNOM   103
-#define IND_MOD_CSECT  104
-#define IND_MOD_LENGTH 105
-#define IND_MOD_NT     106
-#define IND_MOD_MU     107
-#define IND_MOD_L      108
+enum {
+    IND_MOD_IND = 100,
+    IND_MOD_TC1,
+    IND_MOD_TC2,
+    IND_MOD_TNOM,
+    IND_MOD_CSECT,
+    IND_MOD_LENGTH,
+    IND_MOD_NT,
+    IND_MOD_MU,
+    IND_MOD_L,
+};
 
 /* device questions */
-#define IND_QUEST_SENS_REAL      201
-#define IND_QUEST_SENS_IMAG      202
-#define IND_QUEST_SENS_MAG       203
-#define IND_QUEST_SENS_PH        204
-#define IND_QUEST_SENS_CPLX      205
-#define IND_QUEST_SENS_DC        206
+enum {
+    IND_QUEST_SENS_REAL = 201,
+    IND_QUEST_SENS_IMAG,
+    IND_QUEST_SENS_MAG,
+    IND_QUEST_SENS_PH,
+    IND_QUEST_SENS_CPLX,
+    IND_QUEST_SENS_DC,
+};
 
-#ifdef MUTUAL
 /* device parameters */
-#define MUT_COEFF 401
-#define MUT_IND1 402
-#define MUT_IND2 403
-#define MUT_COEFF_SENS 404
+enum {
+    MUT_COEFF = 401,
+    MUT_IND1,
+    MUT_IND2,
+    MUT_COEFF_SENS,
+};
 
 /* model parameters */
 
 /* device questions */
-#define MUT_QUEST_SENS_REAL      601
-#define MUT_QUEST_SENS_IMAG      602
-#define MUT_QUEST_SENS_MAG       603
-#define MUT_QUEST_SENS_PH        604
-#define MUT_QUEST_SENS_CPLX      605
-#define MUT_QUEST_SENS_DC        606
-
-#endif /*MUTUAL*/
+enum {
+    MUT_QUEST_SENS_REAL = 601,
+    MUT_QUEST_SENS_IMAG,
+    MUT_QUEST_SENS_MAG,
+    MUT_QUEST_SENS_PH,
+    MUT_QUEST_SENS_CPLX,
+    MUT_QUEST_SENS_DC,
+};
 
 #include "indext.h"
 

@@ -1,6 +1,6 @@
 /**********
 Copyright 1992 Regents of the University of California.  All rights reserved.
-Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
+Author: 1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 **********/
 
 /*
@@ -10,28 +10,18 @@ Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 
 #include "ngspice/ngspice.h"
 #include "nbjt2def.h"
+#include "../../../ciderlib/twod/twoddefs.h"
+#include "../../../ciderlib/twod/twodext.h"
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
+
 int
-NBJT2delete(GENmodel *inModel, IFuid name, GENinstance **kill)
+NBJT2delete(GENinstance *gen_inst)
 {
+    NBJT2instance *inst = (NBJT2instance *) gen_inst;
 
-  NBJT2model *model = (NBJT2model *) inModel;
-  NBJT2instance **fast = (NBJT2instance **) kill;
-  NBJT2instance **prev = NULL;
-  NBJT2instance *inst;
+    TWOdestroy(inst->NBJT2pDevice);
 
-  for (; model; model = model->NBJT2nextModel) {
-    prev = &(model->NBJT2instances);
-    for (inst = *prev; inst; inst = *prev) {
-      if (inst->NBJT2name == name || (fast && inst == *fast)) {
-	*prev = inst->NBJT2nextInstance;
-	FREE(inst);
-	return (OK);
-      }
-      prev = &(inst->NBJT2nextInstance);
-    }
-  }
-  return (E_NODEV);
+    return OK;
 }

@@ -3,11 +3,10 @@ FILE    EVTload.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -225,13 +224,14 @@ int EVTload(
     cm_data.param = inst->param;
     cm_data.num_inst_var = inst->num_inst_var;
     cm_data.inst_var = inst->inst_var;
+    cm_data.callback = &(inst->callback);
 
 
     /* ******************* */
     /* Call the code model */
     /* ******************* */
 
-    mod_type = inst->MIFmodPtr->MIFmodType;
+    mod_type = MIFmodPtr(inst)->MIFmodType;
     DEVices[mod_type]->DEVpublic.cm_func (&cm_data);
 
 
@@ -339,6 +339,7 @@ static void EVTcreate_state(
 	{
         new_state = state_data->free[inst_index];
         state_data->free[inst_index] = new_state->next;
+        new_state->next = NULL; // reusing dirty memory: next must be reset
     }
     else 
 	{
@@ -518,9 +519,12 @@ static void EVTprocess_output(
     if(g_mif_info.circuit.anal_type == MIF_TRAN) {
         /* If model signaled that output was not posted, */
         /* leave the event struct on the free list and return */
-        if((! changed) || (delay <= 0.0)) {
-            if(changed && (delay <= 0.0))
-                printf("\nERROR - Output delay <= 0 not allowed - output ignored!\n");
+        if(!changed)
+            return;
+        if(delay <= 0.0) {
+            printf("\nERROR - Output delay <= 0 not allowed - output ignored!\n");
+            printf("  Instance: %s\n  Node: %s\n  Time: %f \n",
+                    g_mif_info.instance->MIFname, node_table[node_index]->name, g_mif_info.ckt->CKTtime);
             return;
         }
         /* Remove the (now used) struct from the head of the free list */

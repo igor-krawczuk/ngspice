@@ -1,24 +1,62 @@
-/**** BSIM4.8.0 Released by Navid Paydavosi 11/01/2013 ****/
+/* ******************************************************************************
+   *  BSIM4 4.8.1 released by Chetan Kumar Dabhi 2/15/2017                      *
+   *  BSIM4 Model Equations                                                     *
+   ******************************************************************************
 
-/**********
-Copyright 2006 Regents of the University of California.  All rights reserved.
-File: bsim4def.h
-Author: 2000 Weidong Liu.
-Authors: 2001- Xuemei Xi, Mohan Dunga, Ali Niknejad, Chenming Hu.
-Authors: 2006- Mohan Dunga, Ali Niknejad, Chenming Hu
-Authors: 2007- Mohan Dunga, Wenwei Yang, Ali Niknejad, Chenming Hu
-Authors: 2008- Wenwei Yang, Ali Niknejad, Chenming Hu
-Modified by Xuemei Xi, 11/15/2002.
-Modified by Xuemei Xi, 05/09/2003.
-Modified by Xuemei Xi, 03/04/2004.
-Modified by Xuemei Xi, Mohan Dunga, 09/24/2004.
-Modified by Xuemei Xi, 07/29/2005.
-Modified by Mohan Dunga, 12/13/2006
-Modified by Mohan Dunga, Wenwei Yang, 05/18/2007.
-Modified by Wenwei Yang, 07/31/2008.
-Modified by Tanvir Morshed, Darsen Lu 03/27/2011
-Modified by Pankaj Kumar Thakur, 07/23/2012
-**********/
+   ******************************************************************************
+   *  Copyright 2017 Regents of the University of California.                   *
+   *  All rights reserved.                                                      *
+   *                                                                            *
+   *  Project Director: Prof. Chenming Hu.                                      *
+   *  Authors: Gary W. Ng, Weidong Liu, Xuemei Xi, Mohan Dunga, Wenwei Yang     *
+   *           Ali Niknejad, Shivendra Singh Parihar, Chetan Kumar Dabhi        *
+   *           Yogesh Singh Chauhan, Sayeef Salahuddin, Chenming Hu             *
+   ******************************************************************************
+
+   ******************************************************************************
+   *                          CMC In-Code Statement                             *
+   *                                                                            *
+   *  The Developer agrees that the following statement will appear in the      *
+   *  model code that has been adopted as a CMC Standard.                       *
+   *                                                                            *
+   *  Software is distributed as is, completely without warranty or service     *
+   *  support. The University of California and its employees are not liable    *
+   *  for the condition or performance of the software.                         *
+   *                                                                            *
+   *  The University of California owns the copyright and grants users a        *
+   *  perpetual, irrevocable, worldwide, non-exclusive, royalty-free license    *
+   *  with respect to the software as set forth below.                          *
+   *                                                                            *
+   *  The University of California hereby disclaims all implied warranties.     *
+   *                                                                            *
+   *  The University of California grants the users the right to modify,        *
+   *  copy, and redistribute the software and documentation, both within        *
+   *  the user's organization and externally, subject to the following          *
+   *  restrictions:                                                             *
+   *                                                                            *
+   *  1. The users agree not to charge for the University of California code    *
+   *     itself but may charge for additions, extensions, or support.           *
+   *                                                                            *
+   *  2. In any product based on the software, the users agree to               *
+   *     acknowledge the University of California that developed the            *
+   *     software. This acknowledgment shall appear in the product              *
+   *     documentation.                                                         *
+   *                                                                            *
+   *  3. Redistributions to others of source code and documentation must        *
+   *     retain the copyright notice, disclaimer, and list of conditions.       *
+   *                                                                            *
+   *  4. Redistributions to others in binary form must reproduce the            *
+   *     copyright notice, disclaimer, and list of conditions in the            *
+   *     documentation and/or other materials provided with the                 *
+   *     distribution.                                                          *
+   *                                                                            *
+   *  Agreed to on ______Feb. 15, 2017______________                            *
+   *                                                                            *
+   *  By: ____University of California, Berkeley___                             *
+   *      ____Chenming Hu__________________________                             *
+   *      ____Professor in Graduate School ________                             *
+   *                                                                            *
+   ****************************************************************************** */
 
 #ifndef BSIM4
 #define BSIM4
@@ -31,14 +69,18 @@ Modified by Pankaj Kumar Thakur, 07/23/2012
 
 typedef struct sBSIM4instance
 {
-    struct sBSIM4model *BSIM4modPtr;
-    struct sBSIM4instance *BSIM4nextInstance;
-    IFuid BSIM4name;
-    int BSIM4states;     /* index into state table for this device */
-    int BSIM4dNode;
-    int BSIM4gNodeExt;
-    int BSIM4sNode;
-    int BSIM4bNode;
+
+    struct GENinstance gen;
+
+#define BSIM4modPtr(inst) ((struct sBSIM4model *)((inst)->gen.GENmodPtr))
+#define BSIM4nextInstance(inst) ((struct sBSIM4instance *)((inst)->gen.GENnextInstance))
+#define BSIM4name gen.GENname
+#define BSIM4states gen.GENstate
+
+    const int BSIM4dNode;
+    const int BSIM4gNodeExt;
+    const int BSIM4sNode;
+    const int BSIM4bNode;
     int BSIM4dNodePrime;
     int BSIM4gNodePrime;
     int BSIM4gNodeMid;
@@ -110,6 +152,7 @@ typedef struct sBSIM4instance
 
     double BSIM4delvto;
     double BSIM4mulu0;
+    int BSIM4wnflag;
     double BSIM4xgw;
     double BSIM4ngcon;
 
@@ -297,6 +340,7 @@ typedef struct sBSIM4instance
     unsigned BSIM4rbpsGiven   :1;
     unsigned BSIM4delvtoGiven   :1;
     unsigned BSIM4mulu0Given   :1;
+    unsigned BSIM4wnflagGiven   :1;
     unsigned BSIM4xgwGiven   :1;
     unsigned BSIM4ngconGiven   :1;
     unsigned BSIM4icVDSGiven :1;
@@ -819,12 +863,13 @@ struct bsim4SizeDependParam
 
 typedef struct sBSIM4model
 {
-    int BSIM4modType;
-    struct sBSIM4model *BSIM4nextModel;
-    BSIM4instance *BSIM4instances;
-    IFuid BSIM4modName;
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define BSIM4modType gen.GENmodType
+#define BSIM4nextModel(inst) ((struct sBSIM4model *)((inst)->gen.GENnextModel))
+#define BSIM4instances(inst) ((BSIM4instance *)((inst)->gen.GENinstances))
+#define BSIM4modName gen.GENmodName
 
     int BSIM4type;
 
@@ -1781,6 +1826,11 @@ typedef struct sBSIM4model
     double BSIM4vdsMax;
     double BSIM4vbsMax;
     double BSIM4vbdMax;
+    double BSIM4vgsrMax;
+    double BSIM4vgdrMax;
+    double BSIM4vgbrMax;
+    double BSIM4vbsrMax;
+    double BSIM4vbdrMax;
 
     struct bsim4SizeDependParam *pSizeDependParamKnot;
 
@@ -2644,6 +2694,11 @@ typedef struct sBSIM4model
     unsigned  BSIM4vdsMaxGiven  :1;
     unsigned  BSIM4vbsMaxGiven  :1;
     unsigned  BSIM4vbdMaxGiven  :1;
+    unsigned  BSIM4vgsrMaxGiven  :1;
+    unsigned  BSIM4vgdrMaxGiven  :1;
+    unsigned  BSIM4vgbrMaxGiven  :1;
+    unsigned  BSIM4vbsrMaxGiven  :1;
+    unsigned  BSIM4vbdrMaxGiven  :1;
 
     unsigned  BSIM4LintGiven   :1;
     unsigned  BSIM4LlGiven   :1;
@@ -2758,6 +2813,7 @@ typedef struct sBSIM4model
 #define BSIM4_SC                  37
 #define BSIM4_M                   38
 #define BSIM4_MULU0               39
+#define BSIM4_WNFLAG              40
 
 /* Global parameters */
 #define BSIM4_MOD_TEMPEOT         65
@@ -3761,12 +3817,17 @@ typedef struct sBSIM4model
 #define BSIM4_MOD_TNOIC             1272
 #define BSIM4_MOD_RNOIC             1273
 
-#define BSIM4_MOD_VGS_MAX            1301
-#define BSIM4_MOD_VGD_MAX            1302
-#define BSIM4_MOD_VGB_MAX            1303
-#define BSIM4_MOD_VDS_MAX            1304
-#define BSIM4_MOD_VBS_MAX            1305
-#define BSIM4_MOD_VBD_MAX            1306
+#define BSIM4_MOD_VGS_MAX           1301
+#define BSIM4_MOD_VGD_MAX           1302
+#define BSIM4_MOD_VGB_MAX           1303
+#define BSIM4_MOD_VDS_MAX           1304
+#define BSIM4_MOD_VBS_MAX           1305
+#define BSIM4_MOD_VBD_MAX           1306
+#define BSIM4_MOD_VGSR_MAX          1307
+#define BSIM4_MOD_VGDR_MAX          1308
+#define BSIM4_MOD_VGBR_MAX          1309
+#define BSIM4_MOD_VBSR_MAX          1310
+#define BSIM4_MOD_VBDR_MAX          1311
 
 #include "bsim4ext.h"
 

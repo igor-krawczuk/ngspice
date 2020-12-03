@@ -47,6 +47,28 @@ NON-STANDARD FEATURES
 
 #include <math.h>
 
+#if defined(_MSC_VER)
+#include <malloc.h>
+#define fileno _fileno
+#else
+#include <unistd.h>
+#endif
+
+#include "ngspice/const.h"
+
+#ifndef M_PI
+#define M_PI CONSTpi
+#endif
+#ifndef M_E
+#define M_E CONSTnap
+#endif
+#ifndef M_LOG2E
+#define M_LOG2E CONSTlog2e
+#endif
+#ifndef M_LOG10E
+#define M_LOG10E CONSTlog10e
+#endif
+
 #if !defined(NAN)
 #if defined(_MSC_VER)
     /* NAN is not defined in VS 2012 or older */

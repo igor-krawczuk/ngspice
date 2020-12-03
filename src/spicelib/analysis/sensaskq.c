@@ -31,15 +31,15 @@ SENSask(CKTcircuit *ckt, JOB *anal, int which, IFvalue *value)
 	value->iValue = job->n_freq_steps;
         break;
 
-    case SENS_DEC:
-    case SENS_OCT:
-    case SENS_LIN:
+    case SENS_DECADE:
+    case SENS_OCTAVE:
+    case SENS_LINEAR:
     case SENS_DC:
 	value->iValue = job->step_type == which;
         break;
 
     case SENS_DEFTOL:
-	job->deftol = value->rValue;
+	value->rValue = job->deftol;
 	break;
 
     case SENS_DEFPERTURB:

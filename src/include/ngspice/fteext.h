@@ -60,6 +60,7 @@ extern void *cx_unwrap(void *, short int , int , int *, short int *);
 extern void *cx_j(void *, short int , int , int *, short int *);
 extern void *cx_real(void *, short int , int , int *, short int *);
 extern void *cx_imag(void *, short int , int , int *, short int *);
+extern void *cx_conj(void *, short int , int , int *, short int *);
 extern void *cx_pos(void *, short int , int , int *, short int *);
 extern void *cx_db(void *, short int , int , int *, short int *);
 extern void *cx_log10(void *, short int , int , int *, short int *);
@@ -80,7 +81,7 @@ extern void *cx_sortorder(void *, short int , int , int *, short int *);
 
 /* cmath2.c */
 
-extern void * cx_norm(void *, short int , int , int *, short int *);
+extern void *cx_norm(void *, short int , int , int *, short int *);
 extern void *cx_uminus(void *, short int , int , int *, short int *);
 extern void *cx_rnd(void *, short int , int , int *, short int *);
 extern void *cx_sunif(void *, short int , int , int *, short int *);
@@ -88,6 +89,7 @@ extern void *cx_sgauss(void *, short int , int , int *, short int *);
 extern void *cx_poisson(void *, short int , int , int *, short int *);
 extern void *cx_exponential(void *, short int , int , int *, short int *);
 extern void *cx_mean(void *, short int , int , int *, short int *);
+extern void *cx_stddev(void *, short int , int , int *, short int *);
 extern void *cx_length(void *, short int , int , int *, short int *);
 extern void *cx_vector(void *, short int , int , int *, short int *);
 extern void *cx_unitvec(void *, short int , int , int *, short int *);
@@ -139,6 +141,7 @@ extern void com_inventory(wordlist *wl);
 extern bool ft_acctprint;
 extern bool ft_noacctprint;
 extern bool ft_noinitprint;
+extern bool ft_norefprint;
 extern bool ft_listprint;
 extern bool ft_nopage;
 extern bool ft_nomod;
@@ -153,7 +156,7 @@ extern int ft_savedotargs(void);
 extern void fperror(char *mess, int code);
 extern void ft_sperror(int code, char *mess);
 extern char ErrorMessage[];
-extern void internalerror(char *); 
+extern void internalerror(char *);
 extern void externalerror(char *);
 extern bool ft_pipemode;
 
@@ -166,28 +169,28 @@ extern struct dvec *ft_evaluate(struct pnode *node);
 /* ftesopt.c */
 extern struct variable *ft_getstat(struct circ *, char *);
 
-/* ginterface.c 
+/* ginterface.c
 
-extern bool gi_init();
-extern bool gi_endpause;
-extern bool gi_rottext;
-extern int gi_fntheight;
-extern int gi_fntwidth;
-extern int gi_maxx;
-extern int gi_maxy;
-extern int gi_nolst;
-extern int gi_nocolors;
-extern int gi_package;
-extern void gi_arc();
-extern void gi_clearscreen();
-extern void gi_close();
-extern void gi_drawline();
-extern void gi_redraw();
-extern void gi_setcolor();
-extern void gi_resetcolor();
-extern void gi_setlinestyle();
-extern void gi_text();
-extern void gi_update();
+   extern bool gi_init();
+   extern bool gi_endpause;
+   extern bool gi_rottext;
+   extern int gi_fntheight;
+   extern int gi_fntwidth;
+   extern int gi_maxx;
+   extern int gi_maxy;
+   extern int gi_nolst;
+   extern int gi_nocolors;
+   extern int gi_package;
+   extern void gi_arc();
+   extern void gi_clearscreen();
+   extern void gi_close();
+   extern void gi_drawline();
+   extern void gi_redraw();
+   extern void gi_setcolor();
+   extern void gi_resetcolor();
+   extern void gi_setlinestyle();
+   extern void gi_text();
+   extern void gi_update();
 */
 
 /* graf.c */
@@ -205,22 +208,33 @@ extern bool gr_circular;
 
 /* inp.c */
 
-void inp_dodeck(struct line *deck, char *tt, wordlist *end, bool reuse, 
-		struct line *options, char *filename);
-extern void inp_source(char *file);
-void inp_spsource(FILE *fp, bool comfile, char *filename, bool intfile);
+int inp_dodeck(struct card *deck, char *tt, wordlist *end, bool reuse,
+                struct card *options, char *filename);
+extern void inp_source(const char *file);
+int inp_spsource(FILE *fp, bool comfile, char *filename, bool intfile);
 extern void inp_casefix(char *string);
-extern void inp_list(FILE *file, struct line *deck, struct line *extras, int type);
-extern struct line *inp_readall(FILE *fp, char *dir_name, bool comfile, bool intfile);
-extern FILE *inp_pathopen(char *name, char *mode);
+extern void inp_list(FILE *file, struct card *deck, struct card *extras, int type);
+struct card *inp_readall(FILE *fp, const char *dir_name,
+        bool comfile, bool intfile, bool *expr_w_temper_p);
+extern FILE *inp_pathopen(const char *name, const char *mode);
+extern char *search_identifier(char *str, const char *identifier, char *str_begin);
+extern char *find_assignment(const char *s);
+extern char *find_back_assignment(const char *s, const char *start);
 
-extern char** circarray;
+extern struct card *line_nconc(struct card *head, struct card *rest);
+extern struct card *line_reverse(struct card *head);
+extern void inp_mc_free(void);
+extern void inp_source_recent(void);
+extern void inp_remove_recent(void);
+
+extern char **circarray;
+extern void rem_tlist(struct pt_temper *p);
 
 /* nutinp.c */
 
 void inp_nutsource(FILE *fp, bool comfile, char *filename);
-void nutinp_dodeck(struct line *deck, char *tt, wordlist *end, bool reuse, 
-		   struct line *options, char *filename);
+void nutinp_dodeck(struct card *deck, char *tt, wordlist *end, bool reuse,
+                   struct card *options, char *filename);
 extern void nutcom_source(wordlist *wl);
 
 /* interpolate.c */
@@ -233,7 +247,7 @@ extern void ft_polyderiv(double *coeffs, int degree);
 /* numparse.c */
 
 extern bool ft_strictnumparse;
-double * ft_numparse(char **s, bool whole);
+int ft_numparse(char **s, bool whole, double *p_val);
 
 /* options.c */
 
@@ -246,8 +260,8 @@ extern bool ft_gidb;
 extern bool ft_controldb;
 extern bool ft_asyncdb;
 extern char *ft_setkwords[];
-extern struct line *inp_getopts(struct line *deck);
-extern struct line *inp_getoptsc(char *in_line, struct line *com_options);
+extern struct card *inp_getopts(struct card *deck);
+extern struct card *inp_getoptsc(char *line, struct card *options);
 extern bool ft_ngdebug;
 extern bool ft_stricterror;
 
@@ -256,15 +270,20 @@ extern bool ft_stricterror;
 extern struct func ft_funcs[];
 extern struct func func_not;
 extern struct func func_uminus;
-extern struct pnode * ft_getpnames(wordlist *wl, bool check);
+extern struct pnode *ft_getpnames(const wordlist *wl, bool check);
+struct pnode *ft_getpnames_from_string(const char *sz, bool check);
 extern struct pnode *alloc_pnode(void);
-#define free_pnode(ptr)  free_pnode_x(ptr); ptr=NULL
+#define free_pnode(ptr)                         \
+    do {                                        \
+        free_pnode_x(ptr);                      \
+        ptr = NULL;                             \
+    } while(0)
 extern void free_pnode_x(struct pnode *t);
 
 /* plotcurve.c */
 
 extern int ft_findpoint(double pt, double *lims, int maxp, int minp, bool islog);
-extern double * ft_minmax(struct dvec *v, bool real);
+extern double *ft_minmax(struct dvec *v, bool real);
 extern void ft_graf(struct dvec *v, struct dvec *xs, bool nostart);
 
 /* rawfile.c */
@@ -276,11 +295,6 @@ extern struct plot *raw_read(char *name);
 /* meas.c */
 extern bool do_measure(char *what, bool chk_only);
 extern bool check_autostop(char *what);
-
-/* randnumb.c */
-extern void TausSeed(void);
-/* rnorrexp.c */
-extern void zigset(unsigned long jsrseed);
 
 /* resource.c */
 
@@ -304,8 +318,8 @@ extern int main(int argc, char **argv);
 extern bool if_tranparams(struct circ *ci, double *start, double *stop, double *step);
 extern char *if_errstring(int code);
 extern int if_sens_run(CKTcircuit *t, wordlist *args, INPtables *tab);
-extern struct variable *(*if_getparam)(CKTcircuit *ckt, char** name, char* param, int ind, int do_model);
-extern struct variable * nutif_getparam(CKTcircuit *ckt, char **name, char *param, int ind, int do_model);
+extern struct variable *(*if_getparam)(CKTcircuit *ckt, char **name, char *param, int ind, int do_model);
+extern struct variable *nutif_getparam(CKTcircuit *ckt, char **name, char *param, int ind, int do_model);
 extern struct variable *spif_getparam(CKTcircuit *ckt, char **name, char *param, int ind, int do_model);
 extern struct variable *spif_getparam_special(CKTcircuit *ckt, char **name, char *param, int ind, int do_model);
 extern void if_setndnames(char *line);
@@ -313,7 +327,7 @@ extern void if_setparam_model(CKTcircuit *ckt, char **name, char *val );
 extern void if_setparam(CKTcircuit *ckt, char **name, char *param, struct dvec *val, int do_model);
 extern struct variable *if_getstat(CKTcircuit *ckt, char *name);
 extern int ft_find_analysis(char *name);
-extern IFparm * ft_find_analysis_parm(int which, char *name);
+extern IFparm *ft_find_analysis_parm(int which, char *name);
 
 /* typesdef.c */
 
@@ -324,7 +338,7 @@ extern int ft_typnum(char *);
 
 /* vectors.c */
 
-extern bool vec_iszero(struct dvec *v);
+extern bool vec_iszero(const struct dvec *v);
 extern bool vec_eq(struct dvec *v1, struct dvec *v2);
 extern int plot_num;
 extern struct dvec *vec_fromplot(char *word, struct plot *plot);
@@ -336,18 +350,23 @@ extern struct plot *plot_alloc(char *name);
 extern struct plot *plot_list;
 extern int plotl_changed;
 extern void plot_add(struct plot *pl);
-#define vec_free(ptr)  vec_free_x(ptr); ptr=NULL
+#define vec_free(ptr)                           \
+    do {                                        \
+        vec_free_x(ptr);                        \
+        ptr = NULL;                             \
+    } while(0)
 extern void vec_free_x(struct dvec *v);
 extern void vec_gc(void);
 extern void ft_loadfile(char *file);
 extern void vec_new(struct dvec *d);
 extern void plot_docoms(wordlist *wl);
-extern void vec_remove(char *name);
-extern void plot_setcur(char *name);
+extern void vec_remove(const char *name);
+extern void plot_setcur(const char *name);
+extern struct plot *get_plot(const char *name);
 extern void plot_new(struct plot *pl);
 extern char *vec_basename(struct dvec *v);
-extern bool plot_prefix(char *pre, char *str);
 extern void vec_transpose(struct dvec *v);
+extern struct dvec* copycut(struct dvec* ov, struct dvec* newscalevec, int istart, int istop);
 
 /* main.c */
 extern bool ft_intrpt;

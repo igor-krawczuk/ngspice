@@ -34,16 +34,16 @@ VSRCload(GENmodel *inModel, CKTcircuit *ckt)
     double value = 0.0;
 
     /*  loop through all the source models */
-    for( ; model != NULL; model = model->VSRCnextModel ) {
+    for( ; model != NULL; model = VSRCnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->VSRCinstances; here != NULL ;
-                here=here->VSRCnextInstance) {
+        for (here = VSRCinstances(model); here != NULL ;
+                here=VSRCnextInstance(here)) {
 
-            *(here->VSRCposIbrptr) += 1.0 ;
-            *(here->VSRCnegIbrptr) -= 1.0 ;
-            *(here->VSRCibrPosptr) += 1.0 ;
-            *(here->VSRCibrNegptr) -= 1.0 ;
+            *(here->VSRCposIbrPtr) += 1.0 ;
+            *(here->VSRCnegIbrPtr) -= 1.0 ;
+            *(here->VSRCibrPosPtr) += 1.0 ;
+            *(here->VSRCibrNegPtr) -= 1.0 ;
             if( (ckt->CKTmode & (MODEDCOP | MODEDCTRANCURVE)) &&
                     here->VSRCdcGiven ) {
                 /* load using DC value */
@@ -349,12 +349,18 @@ VNoi3 3 0  DC 0 TRNOISE(0 0 0 0 15m 22u 50u) : generate RTS noise
                         double TS = state -> TS;
                         double RTSAM = state->RTSAM;
 
-                        /* reset top (hack for repeated tran commands) */
-                        if (time == 0)
-                            state->top = 0;
+                        /* reset top (hack for repeated tran commands)
+                           when there is the jump from time=0 to time>0 */
+                        if (time == 0.0)
+                            state->timezero = TRUE;
+                        else
+                            if (state->timezero) {
+                                state->top = 0;
+                                state->timezero = FALSE;
+                            }
 
-                        /* no noise */
-                        if(TS == 0.0) {
+                        /* no noise or time == 0 */
+                        if(TS == 0.0 || time == 0.0) {
                             value = 0.0;
                         } else {
 

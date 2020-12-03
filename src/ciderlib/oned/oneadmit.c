@@ -40,7 +40,7 @@ NUMDadmittance(ONEdevice *pDevice, double omega, SPcomplex *yd)
   int index, i;
   double yReal, yImag;
   double *solutionReal, *solutionImag;
-  SPcomplex yAc, cOmega;
+  SPcomplex yAc_adm, cOmega;
   SPcomplex *y;
   BOOLEAN SORFailed;
   double startTime;
@@ -91,10 +91,10 @@ NUMDadmittance(ONEdevice *pDevice, double omega, SPcomplex *yd)
     if (SORFailed && AcAnalysisMethod == SOR) {
       AcAnalysisMethod = DIRECT;
       printf("SOR failed at %g Hz, switching to direct-method ac analysis.\n",
-	  omega / (TWO_PI * TNorm) );
+	  omega / (2 * M_PI * TNorm) );
     } else if (SORFailed) {	/* Told to only do SOR, so give up. */
       printf("SOR failed at %g Hz, returning null admittance.\n",
-	  omega / (TWO_PI * TNorm) );
+	  omega / (2 * M_PI * TNorm) );
       CMPLX_ASSIGN_VALUE(*yd, 0.0, 0.0);
       return (AcAnalysisMethod);
     }
@@ -146,13 +146,13 @@ NUMDadmittance(ONEdevice *pDevice, double omega, SPcomplex *yd)
   startTime = SPfrontEnd->IFseconds();
   pNode = pDevice->elemArray[1]->pLeftNode;
   y = computeAdmittance(pNode, FALSE, solutionReal, solutionImag, &cOmega);
-  CMPLX_ASSIGN_VALUE(yAc, -y->real, -y->imag);
-  CMPLX_ASSIGN(*yd, yAc);
+  CMPLX_ASSIGN_VALUE(yAc_adm, -y->real, -y->imag);
+  CMPLX_ASSIGN(*yd, yAc_adm);
   CMPLX_MULT_SELF_SCALAR(*yd, GNorm * pDevice->area);
   pDevice->pStats->miscTime[STAT_AC] += SPfrontEnd->IFseconds() - startTime;
 
   return (AcAnalysisMethod);
-}
+} /* end of function NUMDadmittance */
 
 
 int
@@ -215,10 +215,10 @@ NBJTadmittance(ONEdevice *pDevice, double omega, SPcomplex *yIeVce,
     if (SORFailed && (AcAnalysisMethod == SOR)) {
       AcAnalysisMethod = DIRECT;
       printf("SOR failed at %g Hz, switching to direct-method ac analysis.\n",
-	  omega / (TWO_PI * TNorm) );
+	  omega / (2 * M_PI * TNorm) );
     } else if (SORFailed) {	/* Told to only do SOR, so give up. */
       printf("SOR failed at %g Hz, returning null admittance.\n",
-	  omega / (TWO_PI * TNorm) );
+	  omega / (2 * M_PI * TNorm) );
       CMPLX_ASSIGN_VALUE(*yIeVce, 0.0, 0.0);
       CMPLX_ASSIGN_VALUE(*yIcVce, 0.0, 0.0);
       CMPLX_ASSIGN_VALUE(*yIeVbe, 0.0, 0.0);
@@ -260,10 +260,10 @@ NBJTadmittance(ONEdevice *pDevice, double omega, SPcomplex *yIeVce,
       if (SORFailed && (AcAnalysisMethod == SOR)) {
 	AcAnalysisMethod = DIRECT;
 	printf("SOR failed at %g Hz, switching to direct-method ac analysis.\n",
-	    omega / (TWO_PI * TNorm) );
+	    omega / (2 * M_PI * TNorm) );
       } else if (SORFailed) {	/* Told to only do SOR, so give up. */
 	printf("SOR failed at %g Hz, returning null admittance.\n",
-	    omega / (TWO_PI * TNorm) );
+	    omega / (2 * M_PI * TNorm) );
 	CMPLX_ASSIGN_VALUE(*yIeVce, 0.0, 0.0);
 	CMPLX_ASSIGN_VALUE(*yIcVce, 0.0, 0.0);
 	CMPLX_ASSIGN_VALUE(*yIeVbe, 0.0, 0.0);

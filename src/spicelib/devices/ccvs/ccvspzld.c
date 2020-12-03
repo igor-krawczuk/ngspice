@@ -28,17 +28,17 @@ CCVSpzLoad(GENmodel *inModel, CKTcircuit *ckt, SPcomplex *s)
     NG_IGNORE(s);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->CCVSnextModel ) {
+    for( ; model != NULL; model = CCVSnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->CCVSinstances; here != NULL ;
-                here=here->CCVSnextInstance) {
+        for (here = CCVSinstances(model); here != NULL ;
+                here=CCVSnextInstance(here)) {
             
-            *(here->CCVSposIbrptr) += 1.0 ;
-            *(here->CCVSnegIbrptr) -= 1.0 ;
-            *(here->CCVSibrPosptr) += 1.0 ;
-            *(here->CCVSibrNegptr) -= 1.0 ;
-            *(here->CCVSibrContBrptr) += here->CCVScoeff ;
+            *(here->CCVSposIbrPtr) += 1.0 ;
+            *(here->CCVSnegIbrPtr) -= 1.0 ;
+            *(here->CCVSibrPosPtr) += 1.0 ;
+            *(here->CCVSibrNegPtr) -= 1.0 ;
+            *(here->CCVSibrContBrPtr) += here->CCVScoeff ;
         }
     }
     return(OK);

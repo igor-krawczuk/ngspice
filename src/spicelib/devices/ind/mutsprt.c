@@ -17,7 +17,6 @@ This function is obsolete (was used by an old sensitivity analysis)
 #include "ngspice/suffix.h"
 
 
-#ifdef MUTUAL
 /* ARGSUSED */
 void
 MUTsPrint(GENmodel *inModel, CKTcircuit* ckt)
@@ -29,13 +28,13 @@ MUTsPrint(GENmodel *inModel, CKTcircuit* ckt)
 
     printf("MUTUAL INDUCTORS-----------------\n");
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->MUTnextModel ) {
+    for( ; model != NULL; model = MUTnextModel(model)) {
 
         printf("Model name:%s\n",model->MUTmodName);
 
         /* loop through all the instances of the model */
-        for (here = model->MUTinstances; here != NULL ;
-                here=here->MUTnextInstance) {
+        for (here = MUTinstances(model); here != NULL ;
+                here=MUTnextInstance(here)) {
 
             printf("    Instance name:%s\n",here->MUTname);
             printf("      Mutual Inductance: %g ",here->MUTcoupling);
@@ -48,4 +47,3 @@ MUTsPrint(GENmodel *inModel, CKTcircuit* ckt)
         }
     }
 }
-#endif /* MUTUAL */

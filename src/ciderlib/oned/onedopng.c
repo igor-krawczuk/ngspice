@@ -36,7 +36,7 @@ ONEdopingValue(DOPprofile *pProfile, DOPtable *pTable, double x)
     if (pTable == NULL) {
       fprintf(stderr, "Error: unknown impurity profile %d\n",
 	  ((int)pProfile->IMPID));
-      exit(1);
+      controlled_exit(1);
     }
   }
   /* Find distances */
@@ -77,6 +77,7 @@ ONEdopingValue(DOPprofile *pProfile, DOPtable *pTable, double x)
     } else {
       value = pProfile->PEAK_CONC * exp(-argP);
     }
+    break;
   case EXP:
     argP = ABS(argP);
     if (argP > 80.0) {
@@ -90,7 +91,7 @@ ONEdopingValue(DOPprofile *pProfile, DOPtable *pTable, double x)
     if (argP > 10.0) {
       value = 0.0;
     } else {
-      value = pProfile->PEAK_CONC * erfc(-argP);
+      value = pProfile->PEAK_CONC * erfc(argP);
     }
     break;
   case LOOKUP:

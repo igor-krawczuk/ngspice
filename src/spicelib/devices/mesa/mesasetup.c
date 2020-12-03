@@ -27,7 +27,7 @@ MESAsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
 
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->MESAnextModel ) {
+    for( ; model != NULL; model = MESAnextModel(model)) {
         if( (model->MESAtype != NMF) ) {
             fprintf(stderr, "Only nmf model type supported, set to nmf\n");
             model->MESAtype = NMF;
@@ -227,8 +227,8 @@ MESAsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         model->MESAvcrit = 0.; /* until model has changed */
 
         /* loop through all the instances of the model */
-        for (here = model->MESAinstances; here != NULL ;
-                here=here->MESAnextInstance) {
+        for (here = MESAinstances(model); here != NULL ;
+                here=MESAnextInstance(here)) {
          
             if(!here->MESAlengthGiven) {
                 here->MESAlength = 1e-6;
@@ -251,7 +251,7 @@ MESAsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
 
 
             here->MESAstate = *states;
-            *states += 20;
+            *states += MESAnumStates;
 
             if(model->MESAsourceResist != 0) {
                 if(here->MESAsourcePrimeNode == 0) {
@@ -414,41 +414,36 @@ MESAunsetup(GENmodel *inModel, CKTcircuit *ckt)
     MESAinstance *here;
  
     for (model = (MESAmodel *)inModel; model != NULL;
-            model = model->MESAnextModel)
+            model = MESAnextModel(model))
     {
-        for (here = model->MESAinstances; here != NULL;
-                here=here->MESAnextInstance)
+        for (here = MESAinstances(model); here != NULL;
+                here=MESAnextInstance(here))
         {
-            if (here->MESAdrainPrimeNode
-                    && here->MESAdrainPrimeNode != here->MESAdrainNode)
-            {
-                CKTdltNNum(ckt, here->MESAdrainPrimeNode);
-                here->MESAdrainPrimeNode = 0;
-            }
-            if (here->MESAsourcePrimeNode
-                    && here->MESAsourcePrimeNode != here->MESAsourceNode)
-            {
-                CKTdltNNum(ckt, here->MESAsourcePrimeNode);
-                here->MESAsourcePrimeNode = 0;
-            }
-            if (here->MESAgatePrimeNode
-                    && here->MESAgatePrimeNode != here->MESAgateNode)
-            {
-                CKTdltNNum(ckt, here->MESAgatePrimeNode);
-                here->MESAgatePrimeNode = 0;
-            }          
-            if (here->MESAsourcePrmPrmNode
-                    && here->MESAsourcePrmPrmNode != here->MESAsourcePrimeNode)
-            {
-                CKTdltNNum(ckt, here->MESAsourcePrmPrmNode);
-                here->MESAsourcePrmPrmNode = 0;
-            }
-            if (here->MESAdrainPrmPrmNode
+            if (here->MESAdrainPrmPrmNode > 0
                     && here->MESAdrainPrmPrmNode != here->MESAdrainPrimeNode)
-            {
                 CKTdltNNum(ckt, here->MESAdrainPrmPrmNode);
-                here->MESAdrainPrmPrmNode = 0;
-            }
+            here->MESAdrainPrmPrmNode = 0;
+
+            if (here->MESAsourcePrmPrmNode > 0
+                    && here->MESAsourcePrmPrmNode != here->MESAsourcePrimeNode)
+                CKTdltNNum(ckt, here->MESAsourcePrmPrmNode);
+            here->MESAsourcePrmPrmNode = 0;
+
+            if (here->MESAgatePrimeNode > 0
+                    && here->MESAgatePrimeNode != here->MESAgateNode)
+                CKTdltNNum(ckt, here->MESAgatePrimeNode);
+            here->MESAgatePrimeNode = 0;
+
+            if (here->MESAdrainPrimeNode > 0
+                    && here->MESAdrainPrimeNode != here->MESAdrainNode)
+                CKTdltNNum(ckt, here->MESAdrainPrimeNode);
+            here->MESAdrainPrimeNode = 0;
+
+            if (here->MESAsourcePrimeNode > 0
+                    && here->MESAsourcePrimeNode != here->MESAsourceNode)
+                CKTdltNNum(ckt, here->MESAsourcePrimeNode);
+            here->MESAsourcePrimeNode = 0;
+
         
         }
     }

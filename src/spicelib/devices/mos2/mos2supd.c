@@ -51,11 +51,11 @@ MOS2sUpdate(GENmodel *inModel, CKTcircuit *ckt)
     dummy2 = 0;
 
     /*  loop through all the MOS2 models */
-    for( ; model != NULL; model = model->MOS2nextModel ) {
+    for( ; model != NULL; model = MOS2nextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->MOS2instances; here != NULL ;
-                here=here->MOS2nextInstance) {
+        for (here = MOS2instances(model); here != NULL ;
+                here=MOS2nextInstance(here)) {
 
 #ifdef SENSDEBUG
             printf("senupdate instance name %s\n",here->MOS2name);
@@ -95,7 +95,8 @@ MOS2sUpdate(GENmodel *inModel, CKTcircuit *ckt)
                     sxpgb += *(here->MOS2dphigb_dl);
                 }
                 if(here->MOS2sens_w && 
-                        (iparmno == (here->MOS2senParmNo+here->MOS2sens_l))){
+                        (iparmno == (here->MOS2senParmNo +
+                            (int) here->MOS2sens_l))){
                     sxpgs += *(here->MOS2dphigs_dw);
                     sxpgd += *(here->MOS2dphigd_dw);
                     sxpbs += *(here->MOS2dphibs_dw);

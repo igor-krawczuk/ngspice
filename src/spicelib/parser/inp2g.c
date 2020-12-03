@@ -11,7 +11,7 @@ Author: 1988 Thomas L. Quarles
 #include "ngspice/fteext.h"
 #include "inpxx.h"
 
-void INP2G(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2G(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
 /* Gname <node> <node> <node> <node> <val> */
@@ -40,7 +40,7 @@ void INP2G(CKTcircuit *ckt, INPtables * tab, card * current)
 	return;
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);
     INPtermInsert(ckt, &nname1, tab, &node1);

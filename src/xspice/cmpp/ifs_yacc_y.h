@@ -3,11 +3,10 @@ FILE  ifs_yacc.h
 
 MEMBER OF process cmpp
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -41,10 +40,10 @@ NON-STANDARD FEATURES
 #include "cmpp.h"
 
 typedef struct {
-   Boolean_t	has_value;
+   bool	has_value;
    Data_Type_t	kind;
    union {
-      Boolean_t   bvalue;
+      bool   bvalue;
       int         ivalue;
       double      rvalue;
       Complex_t   cvalue;
@@ -53,12 +52,12 @@ typedef struct {
 } My_Value_t;
 
 typedef struct {
-   Boolean_t	has_bound;
+   bool	has_bound;
    My_Value_t	bound;
 } Bound_t;
 
 typedef struct {
-   Boolean_t is_named;
+   bool is_named;
    union {
       char *name;
       struct {

@@ -3,11 +3,10 @@ FILE    MIFgetValue.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -117,6 +116,7 @@ MIFgetValue (
     /* initialize stuff if array */
     if(is_array) {
         token = MIFget_token(line, &token_type);
+        tfree(token);
         if(token_type != MIF_LARRAY_TOK) {
             *err = "Array parameter expected - No array delimiter found";
             return(NULL);
@@ -335,7 +335,10 @@ static IFcomplex MIFget_complex(char *token, Mif_Token_Type_t token_type,
         return(ctemp);
     }
 
-    /* get the real part */
+    /* the incoming 'token' is the opening < delimiter 
+       and will not handled furthermore */
+
+   /* get the real part */
     token = MIFget_token(line, &token_type);
     if(token_type != MIF_STRING_TOK) {
         *err = msg;

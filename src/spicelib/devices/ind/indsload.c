@@ -28,7 +28,6 @@ INDsLoad(GENmodel *inModel, CKTcircuit *ckt)
     double    tag1;
     SENstruct *info;
 
-#ifdef MUTUAL
     MUTinstance *muthere;
     MUTmodel *mutmodel;
     double   cind1;
@@ -39,7 +38,6 @@ INDsLoad(GENmodel *inModel, CKTcircuit *ckt)
     int itype;
     int IND1_brEq;
     int IND2_brEq;
-#endif
 
     info = ckt->CKTsenInfo;
 
@@ -59,23 +57,22 @@ INDsLoad(GENmodel *inModel, CKTcircuit *ckt)
     }
 
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->INDnextModel ) {
+    for( ; model != NULL; model = INDnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->INDinstances; here != NULL ;
-                here=here->INDnextInstance) {
+        for (here = INDinstances(model); here != NULL ;
+                here=INDnextInstance(here)) {
 
-#ifdef MUTUAL
         }
     }
     ktype = CKTtypelook("mutual");
     mutmodel = (MUTmodel *)(ckt->CKThead[ktype]);
     /*  loop through all the mutual inductor models */
-    for( ; mutmodel != NULL; mutmodel = mutmodel->MUTnextModel ) {
+    for( ; mutmodel != NULL; mutmodel = MUTnextModel(mutmodel)) {
 
         /* loop through all the instances of the model */
-        for (muthere = mutmodel->MUTinstances; muthere != NULL ;
-            muthere=muthere->MUTnextInstance) {
+        for (muthere = MUTinstances(mutmodel); muthere != NULL ;
+             muthere=MUTnextInstance(muthere)) {
 
             if(muthere->MUTsenParmNo ||
                 muthere->MUTind1->INDsenParmNo ||
@@ -117,12 +114,11 @@ INDsLoad(GENmodel *inModel, CKTcircuit *ckt)
     itype = CKTtypelook("Inductor");
     model = (INDmodel *)(ckt->CKThead[itype]);
     /*  loop through all the inductor models */
-    for( ; model != NULL; model = model->INDnextModel ) {
+    for( ; model != NULL; model = INDnextModel(model)) {
         /* loop through all the instances of the model */
-        for (here = model->INDinstances; here != NULL ;
-                here=here->INDnextInstance) {
+        for (here = INDinstances(model); here != NULL ;
+                here=INDnextInstance(here)) {
 
-#endif /* MUTUAL */
             cind = *(ckt->CKTrhsOld + here->INDbrEq);
 #ifdef SENSDEBUG
             fprintf(stdout,"\n cind=%.5e\n",cind);

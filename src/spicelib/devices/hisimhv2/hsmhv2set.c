@@ -124,7 +124,7 @@ int HSMHV2setup(
   
   
   /*  loop through all the HSMHV2 device models */
-  for ( ;model != NULL ;model = model->HSMHV2nextModel ) {
+  for ( ;model != NULL ;model = HSMHV2nextModel(model)) {
     /* Default value Processing for HVMOS Models */
     if ( !model->HSMHV2_type_Given )
       model->HSMHV2_type = NMOS ;
@@ -138,14 +138,14 @@ int HSMHV2setup(
       printf("HiSIM_HV(%s): 2.20 is selected for VERSION. (default) \n",model->HSMHV2modName);
       model->HSMHV2_subversion = 2 ;
     } else {
-      if (strcmp(model->HSMHV2_version,"2.20") == 0 ) {
+      if (strncmp(model->HSMHV2_version,"2.20", 4) == 0 ) {
         printf("HiSIM_HV(%s): 2.20 is selected for VERSION. (default) \n",model->HSMHV2modName);
         model->HSMHV2_subversion = 2 ;
-      } else if (strcmp(model->HSMHV2_version,"2.2") == 0 ) {
+      } else if (strncmp(model->HSMHV2_version,"2.2", 3) == 0 ) {
         printf("HiSIM_HV(%s): 2.20 is selected for VERSION. (default) \n",model->HSMHV2modName);
         model->HSMHV2_subversion = 2 ;
       } else {
-        printf("warning(HiSIM_HV(%s)): invalid version %s is specified, reseted 2.20 \n",
+        printf("warning(HiSIM_HV(%s)): invalid version %s is specified, reset to 2.20 \n",
         model->HSMHV2modName,model->HSMHV2_version);
         model->HSMHV2_subversion = 2 ;
       }
@@ -188,7 +188,7 @@ int HSMHV2setup(
     if ( !model->HSMHV2_codep_Given ) model->HSMHV2_codep = 0 ;
     if ( model->HSMHV2_codep_Given ) {
       if( model->HSMHV2_codep != 0 && model->HSMHV2_codep != 1 ) {
-        printf("warning(HiSIM_HV(%s)): Invalid model parameter CODEP  (= %d) was specified, resetted to 0.\n",model->HSMHV2modName,model->HSMHV2_codep);
+        printf("warning(HiSIM_HV(%s)): Invalid model parameter CODEP  (= %d) was specified, reset to 0.\n",model->HSMHV2modName,model->HSMHV2_codep);
         model->HSMHV2_codep = 0 ;
       }
     }
@@ -196,7 +196,7 @@ int HSMHV2setup(
     if ( !model->HSMHV2_coddlt_Given ) model->HSMHV2_coddlt = 1 ;
     if ( model->HSMHV2_coddlt_Given ) {
       if( model->HSMHV2_coddlt != 0 && model->HSMHV2_coddlt != 1 ) {
-        printf("warning(HiSIM_HV(%s)): Invalid model parameter CODDLT  (= %d) was specified, resetted to 1.\n",model->HSMHV2modName,model->HSMHV2_coddlt);
+        printf("warning(HiSIM_HV(%s)): Invalid model parameter CODDLT  (= %d) was specified, reset to 1.\n",model->HSMHV2modName,model->HSMHV2_coddlt);
         model->HSMHV2_coddlt = 1 ;
       }
     }
@@ -961,6 +961,11 @@ int HSMHV2setup(
     if (!model->HSMHV2vdsMaxGiven) model->HSMHV2vdsMax = 1e99;
     if (!model->HSMHV2vbsMaxGiven) model->HSMHV2vbsMax = 1e99;
     if (!model->HSMHV2vbdMaxGiven) model->HSMHV2vbdMax = 1e99;
+    if (!model->HSMHV2vgsrMaxGiven) model->HSMHV2vgsrMax = 1e99;
+    if (!model->HSMHV2vgdrMaxGiven) model->HSMHV2vgdrMax = 1e99;
+    if (!model->HSMHV2vgbrMaxGiven) model->HSMHV2vgbrMax = 1e99;
+    if (!model->HSMHV2vbsrMaxGiven) model->HSMHV2vbsrMax = 1e99;
+    if (!model->HSMHV2vbdrMaxGiven) model->HSMHV2vbdrMax = 1e99;
 
     /* For Symmetrical Device */
     if (  model->HSMHV2_cosym ) {
@@ -994,8 +999,8 @@ int HSMHV2setup(
     modelMKS = &model->modelMKS ;
 
     /* loop through all the instances of the model */
-    for ( here = model->HSMHV2instances ;here != NULL ;
-         here = here->HSMHV2nextInstance ) {
+    for ( here = HSMHV2instances(model);here != NULL ;
+         here = HSMHV2nextInstance(here)) {
       /* allocate a chunk of the state vector */
       here->HSMHV2states = *states;
       if (model->HSMHV2_conqs)
@@ -1138,6 +1143,9 @@ int HSMHV2setup(
       } else {
 	here->HSMHV2dbNode = here->HSMHV2bNodePrime = here->HSMHV2sbNode = here->HSMHV2bNode;
       }
+
+      here->HSMHV2tempNode = here->HSMHV2tempNodeExt;
+      here->HSMHV2subNode = here->HSMHV2subNodeExt;
 
       if ( here->HSMHV2_cosubnode == 0 && here->HSMHV2subNode >= 0 ) {
         if ( here->HSMHV2tempNode >= 0 ) {
@@ -1641,7 +1649,7 @@ do { if((here->ptr = SMPmakeElt(matrix,here->first,here->second))==NULL){\
     
     if( model->HSMHV2_codep == 1 && model->HSMHV2_coerrrep ) {
       if( model->HSMHV2_copprv == 1 ) {
-        printf("warning(HiSIM_HV(%s)): COPPRV is not supported yet in Depletion mode mode, resetted to 0.\n",model->HSMHV2modName);
+        printf("warning(HiSIM_HV(%s)): COPPRV is not supported yet in Depletion mode mode, reset to 0.\n",model->HSMHV2modName);
       }
       if( model->HSMHV2_coisti == 1 ) { 
         printf("warning(HiSIM_HV(%s)): STI leak model is not supported yet in Depletion mode model, skipped\n",model->HSMHV2modName);
@@ -1731,47 +1739,56 @@ HSMHV2unsetup(
     HSMHV2instance *here;
  
     for (model = (HSMHV2model *)inModel; model != NULL;
-            model = model->HSMHV2nextModel)
+            model = HSMHV2nextModel(model))
     {
-        for (here = model->HSMHV2instances; here != NULL;
-                here=here->HSMHV2nextInstance)
+        for (here = HSMHV2instances(model); here != NULL;
+                here=HSMHV2nextInstance(here))
         {
-            if (here->HSMHV2dNodePrime
-                    && here->HSMHV2dNodePrime != here->HSMHV2dNode)
-            {
-                CKTdltNNum(ckt, here->HSMHV2dNodePrime);
-                here->HSMHV2dNodePrime = 0;
-            }
-            if (here->HSMHV2sNodePrime
-                    && here->HSMHV2sNodePrime != here->HSMHV2sNode)
-            {
-                CKTdltNNum(ckt, here->HSMHV2sNodePrime);
-                here->HSMHV2sNodePrime = 0;
-            }
-            if (here->HSMHV2gNodePrime
-                    && here->HSMHV2gNodePrime != here->HSMHV2gNode)
-            {
-                CKTdltNNum(ckt, here->HSMHV2gNodePrime);
-                here->HSMHV2gNodePrime = 0;
-            }
-            if (here->HSMHV2bNodePrime
-                    && here->HSMHV2bNodePrime != here->HSMHV2bNode)
-            {
-                CKTdltNNum(ckt, here->HSMHV2bNodePrime);
-                here->HSMHV2bNodePrime = 0;
-            }
-            if (here->HSMHV2dbNode
-                    && here->HSMHV2dbNode != here->HSMHV2bNode)
-            {
-                CKTdltNNum(ckt, here->HSMHV2dbNode);
-                here->HSMHV2dbNode = 0;
-            }
-            if (here->HSMHV2sbNode
+            if (here->HSMHV2tempNode > 0 &&
+                here->HSMHV2tempNode != here->HSMHV2tempNodeExt &&
+                here->HSMHV2tempNode != here->HSMHV2subNodeExt)
+                CKTdltNNum(ckt, here->HSMHV2tempNode);
+            here->HSMHV2tempNode = 0;
+
+            here->HSMHV2subNode = 0;
+
+            if (here->HSMHV2qbNode > 0)
+                CKTdltNNum(ckt, here->HSMHV2qbNode);
+            here->HSMHV2qbNode = 0;
+
+            if (here->HSMHV2qiNode > 0)
+                CKTdltNNum(ckt, here->HSMHV2qiNode);
+            here->HSMHV2qiNode = 0;
+
+            if (here->HSMHV2sbNode > 0
                     && here->HSMHV2sbNode != here->HSMHV2bNode)
-            {
                 CKTdltNNum(ckt, here->HSMHV2sbNode);
-                here->HSMHV2sbNode = 0;
-            }
+            here->HSMHV2sbNode = 0;
+
+            if (here->HSMHV2bNodePrime > 0
+                    && here->HSMHV2bNodePrime != here->HSMHV2bNode)
+                CKTdltNNum(ckt, here->HSMHV2bNodePrime);
+            here->HSMHV2bNodePrime = 0;
+
+            if (here->HSMHV2dbNode > 0
+                    && here->HSMHV2dbNode != here->HSMHV2bNode)
+                CKTdltNNum(ckt, here->HSMHV2dbNode);
+            here->HSMHV2dbNode = 0;
+
+            if (here->HSMHV2gNodePrime > 0
+                    && here->HSMHV2gNodePrime != here->HSMHV2gNode)
+                CKTdltNNum(ckt, here->HSMHV2gNodePrime);
+            here->HSMHV2gNodePrime = 0;
+
+            if (here->HSMHV2sNodePrime > 0
+                    && here->HSMHV2sNodePrime != here->HSMHV2sNode)
+                CKTdltNNum(ckt, here->HSMHV2sNodePrime);
+            here->HSMHV2sNodePrime = 0;
+
+            if (here->HSMHV2dNodePrime > 0
+                    && here->HSMHV2dNodePrime != here->HSMHV2dNode)
+                CKTdltNNum(ckt, here->HSMHV2dNodePrime);
+            here->HSMHV2dNodePrime = 0;
         }
     }
 #endif

@@ -3,10 +3,10 @@
 
 FILE d_state/cfunc.mod
 
-Copyright 1991
-Georgia Tech Research Corporation, Atlanta, Ga. 30332
-All Rights Reserved
+Public Domain
 
+Georgia Tech Research Corporation
+Atlanta, Georgia 30332
 PROJECT A-8503-405
                
 
@@ -1879,7 +1879,9 @@ void cm_d_state(ARGS)
 
         LOAD(clk) = PARAM(clk_load);
 
-        LOAD(reset) = PARAM(reset_load);
+        if ( !PORT_NULL(reset) ) {
+            LOAD(reset) = PARAM(reset_load);
+        }
 
     }
     else {  /**** Retrieve previous values ****/

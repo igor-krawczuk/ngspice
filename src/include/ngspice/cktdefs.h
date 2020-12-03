@@ -53,10 +53,11 @@ struct CKTnode {
 };
 
 /* defines for node parameters */
-#define PARM_NS        1
-#define PARM_IC        2
-#define PARM_NODETYPE  3
-
+enum {
+    PARM_NS = 1,
+    PARM_IC,
+    PARM_NODETYPE,
+};
 
 struct CKTcircuit {
 
@@ -87,11 +88,11 @@ struct CKTcircuit {
 #define CKTstate5 CKTstates[5]
 #define CKTstate6 CKTstates[6]
 #define CKTstate7 CKTstates[7]
-    double CKTtime;             /* ??? */
-    double CKTdelta;            /* ??? */
-    double CKTdeltaOld[7];      /* Memory for ??? */
-    double CKTtemp;             /* Actual temperature of CKT */
-    double CKTnomTemp;          /* Reference temperature 27 C ? */
+    double CKTtime;             /* Current transient simulation time */
+    double CKTdelta;            /* next time step in transient simulation */
+    double CKTdeltaOld[7];      /* Memory for the 7 most recent CKTdelta */
+    double CKTtemp;             /* Actual temperature of CKT, initialzed to 300.15 K in cktinit.c*/
+    double CKTnomTemp;          /* Reference temperature 300.15 K set in cktinit.c */
     double CKTvt;               /* Thernmal voltage at CKTtemp */
     double CKTag[7];            /* the gear variable coefficient matrix */
 #ifdef PREDICTOR
@@ -102,6 +103,7 @@ struct CKTcircuit {
     int CKTmaxOrder;            /* maximum integration method order */
     int CKTintegrateMethod;     /* the integration method to be used */
     double CKTxmu;              /* for trapezoidal method */
+    int CKTindverbosity;        /* control check of inductive couplings */
 
 /* known integration methods */
 #define TRAPEZOIDAL 1
@@ -151,6 +153,7 @@ struct CKTcircuit {
 
     CKTnode *CKTnodes;          /* ??? */
     CKTnode *CKTlastNode;       /* ??? */
+    CKTnode *prev_CKTlastNode;  /* just before model setup */
 
     /* This define should be somewhere else ??? */
 #define NODENAME(ckt,nodenum) CKTnodName(ckt,nodenum)
@@ -290,6 +293,8 @@ struct CKTcircuit {
     int CKTsoaCheck;    /* flag to indicate that in certain device models
                            a safe operating area (SOA) check is executed */
     int CKTsoaMaxWarns; /* specifies the maximum number of SOA warnings */
+
+    double CKTepsmin; /* minimum argument value for some log functions, e.g. diode saturation current*/
 
     NGHASHPTR DEVnameHash;
     NGHASHPTR MODnameHash;
@@ -446,6 +451,8 @@ extern int NIpred(CKTcircuit *ckt);
 #endif
 
 extern IFfrontEnd *SPfrontEnd;
-extern bool expr_w_temper;
+
+struct circ;
+extern void inp_evaluate_temper(struct circ *ckt);
 
 #endif

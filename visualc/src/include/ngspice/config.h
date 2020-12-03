@@ -120,9 +120,6 @@
 /* Define to 1 if you have the `endpwent' function. */
 /* #undef HAVE_ENDPWENT */
 
-/* Define to 1 if you have the `erfc' function. */
-#define HAVE_ERFC 1
-
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -437,31 +434,10 @@
 /* Do not trigger unwanted traps by default */
 /* #undef NEWTRUNC */
 
-#ifdef NGDEBUG
-#ifdef CONFIG64
 /* Define the directory for executables */
-#define NGSPICEBINDIR "C:/Spice64d/bin"
+#define NGSPICEBINDIR "../bin"
 /* Define the directory for architecture independent data files */
-#define NGSPICEDATADIR "C:/Spice64d/share/ngspice"
-#else
-/* Define the directory for executables */
-#define NGSPICEBINDIR "C:/Spiced/bin"
-/* Define the directory for architecture independent data files */
-#define NGSPICEDATADIR "C:/Spiced/share/ngspice"
-#endif
-#else
-#ifdef CONFIG64
-/* Define the directory for executables */
-#define NGSPICEBINDIR "C:/Spice64/bin"
-/* Define the directory for architecture independent data files */
-#define NGSPICEDATADIR "C:/Spice64/share/ngspice"
-#else
-/* Define the directory for executables */
-#define NGSPICEBINDIR "C:/Spice/bin"
-/* Define the directory for architecture independent data files */
-#define NGSPICEDATADIR "C:/Spice/share/ngspice"
-#endif
-#endif
+#define NGSPICEDATADIR "../share/ngspice"
 
 /* Define if we want NOBYPASS */
 /* #undef NOBYPASS */
@@ -472,20 +448,23 @@
 /* Name of package */
 #define PACKAGE "ngspice"
 
+/* Version number of package */
+#define VERSION "33" //" Built on " __DATE__ " at " __TIME__
+
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "http://ngspice.sourceforge.net/bugrep.html"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "ngspice"
+#define PACKAGE_NAME PACKAGE
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ngspice 26"
+#define PACKAGE_STRING PACKAGE " " VERSION
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "ngspice"
+#define PACKAGE_TARNAME PACKAGE
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "26"
+#define PACKAGE_VERSION VERSION
 
 /* Define if we want predictor algorithm */
 /* #undef PREDICTOR */
@@ -539,9 +518,6 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 /* #undef TM_IN_SYS_TIME */
 
-/* Version number of package */
-#define VERSION "26"
-
 /* Define if we want spice2 sensitivity analysis */
 /* #undef WANT_SENSE2 */
 
@@ -575,3 +551,7 @@
 
 /* Define as `fork' if `vfork' does not work. */
 #define vfork fork
+
+#define HAVE_XFT
+
+//#define EXT_ASC

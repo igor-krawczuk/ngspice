@@ -32,7 +32,7 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CKTnode *tmp;
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->BJTnextModel ) {
+    for( ; model != NULL; model = BJTnextModel(model)) {
 
         if(model->BJTtype != NPN && model->BJTtype != PNP) {
             model->BJTtype = NPN;
@@ -139,6 +139,19 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         }
         if(!model->BJTemissionCoeffSGiven) {
             model->BJTemissionCoeffS = 1.0;
+        }
+        if((!model->BJTintCollResistGiven)
+           ||(model->BJTintCollResist<0.01)) {
+            model->BJTintCollResist = 0.01;
+        }
+        if(!model->BJTepiSatVoltageGiven) {
+            model->BJTepiSatVoltage = 10.0;
+        }
+        if(!model->BJTepiDopingGiven) {
+            model->BJTepiDoping = 1.0e-11;
+        }
+        if(!model->BJTepiChargeGiven) {
+            model->BJTepiCharge = 0.0;
         }
         if(!model->BJTtlevGiven) {
             model->BJTtlev = 0;
@@ -322,6 +335,24 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         if(!model->BJTtisc2Given) {
             model->BJTtisc2 = 0.0;
         }
+        if(!model->BJTquasimodGiven) {
+            model->BJTquasimod = 0;
+        }
+        if(!model->BJTenergyGapQSGiven) {
+            model->BJTenergyGapQS = 1.206;
+        }
+        if(!model->BJTtempExpRCIGiven) {
+            if (model->BJTtype == NPN)
+                model->BJTtempExpRCI = 2.42;
+            else
+                model->BJTtempExpRCI = 2.2;
+        }
+        if(!model->BJTtempExpVOGiven) {
+            if (model->BJTtype == NPN)
+                model->BJTtempExpVO = 0.87;
+            else
+                model->BJTtempExpVO = 0.52;
+        }
         if(!model->BJTvbeMaxGiven) {
             model->BJTvbeMax = 1e99;
         }
@@ -345,8 +376,8 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
  */
 
         /* loop through all the instances of the model */
-        for (here = model->BJTinstances; here != NULL ;
-                here=here->BJTnextInstance) {
+        for (here = BJTinstances(model); here != NULL ;
+                here=BJTnextInstance(here)) {
             CKTnode *tmpNode;
             IFuid tmpName;
 
@@ -366,11 +397,19 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
             here->BJTstate = *states;
             *states += BJTnumStates;
             if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                *states += 8 * (ckt->CKTsenInfo->SENparms);
+                *states += BJTnumSenStates * (ckt->CKTsenInfo->SENparms);
             }
 
             if(model->BJTcollectorResist == 0) {
-                here->BJTcolPrimeNode = here->BJTcolNode;
+                here->BJTcollCXNode = here->BJTcolNode;
+            } else if(here->BJTcollCXNode == 0) {
+                error = CKTmkVolt(ckt, &tmp, here->BJTname, "collCX");
+                if(error) return(error);
+                here->BJTcollCXNode = tmp->number;  
+            }
+
+            if(!model->BJTintCollResistGiven) {
+                here->BJTcolPrimeNode = here->BJTcollCXNode;
             } else if(here->BJTcolPrimeNode == 0) {
                 error = CKTmkVolt(ckt,&tmp,here->BJTname,"collector");
                 if(error) return(error);
@@ -432,10 +471,11 @@ BJTsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
 do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
-            TSTALLOC(BJTcolColPrimePtr,BJTcolNode,BJTcolPrimeNode);
+
+            TSTALLOC(BJTcollCollCXPtr,BJTcolNode,BJTcollCXNode);
             TSTALLOC(BJTbaseBasePrimePtr,BJTbaseNode,BJTbasePrimeNode);
             TSTALLOC(BJTemitEmitPrimePtr,BJTemitNode,BJTemitPrimeNode);
-            TSTALLOC(BJTcolPrimeColPtr,BJTcolPrimeNode,BJTcolNode);
+            TSTALLOC(BJTcollCXCollPtr,BJTcollCXNode,BJTcolNode);
             TSTALLOC(BJTcolPrimeBasePrimePtr,BJTcolPrimeNode,BJTbasePrimeNode);
             TSTALLOC(BJTcolPrimeEmitPrimePtr,BJTcolPrimeNode,BJTemitPrimeNode);
             TSTALLOC(BJTbasePrimeBasePtr,BJTbasePrimeNode,BJTbaseNode);
@@ -462,6 +502,15 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
             TSTALLOC(BJTsubstSubstConPtr,BJTsubstNode,BJTsubstConNode);
             TSTALLOC(BJTbaseColPrimePtr,BJTbaseNode,BJTcolPrimeNode);
             TSTALLOC(BJTcolPrimeBasePtr,BJTcolPrimeNode,BJTbaseNode);
+
+            TSTALLOC(BJTcollCXcollCXPtr,BJTcollCXNode,BJTcollCXNode);
+
+            if(model->BJTintCollResistGiven) {
+                TSTALLOC(BJTcollCXBasePrimePtr,BJTcollCXNode,BJTbasePrimeNode);
+                TSTALLOC(BJTbasePrimeCollCXPtr,BJTbasePrimeNode,BJTcollCXNode);
+                TSTALLOC(BJTcolPrimeCollCXPtr,BJTcolPrimeNode,BJTcollCXNode);
+                TSTALLOC(BJTcollCXColPrimePtr,BJTcollCXNode,BJTcolPrimeNode);
+            }
         }
     }
     return(OK);
@@ -476,29 +525,30 @@ BJTunsetup(
     BJTinstance *here;
 
     for (model = (BJTmodel *)inModel; model != NULL;
-        model = model->BJTnextModel)
+        model = BJTnextModel(model))
     {
-        for (here = model->BJTinstances; here != NULL;
-                here=here->BJTnextInstance)
+        for (here = BJTinstances(model); here != NULL;
+                here=BJTnextInstance(here))
         {
-           if (here->BJTcolPrimeNode
-               && here->BJTcolPrimeNode != here->BJTcolNode)
-           {
-                CKTdltNNum(ckt, here->BJTcolPrimeNode);
-                here->BJTcolPrimeNode = 0;
-           }
-           if (here->BJTbasePrimeNode
-               && here->BJTbasePrimeNode != here->BJTbaseNode)
-           {
-                CKTdltNNum(ckt, here->BJTbasePrimeNode);
-                here->BJTbasePrimeNode = 0;
-           }
-           if (here->BJTemitPrimeNode
-               && here->BJTemitPrimeNode != here->BJTemitNode)
-           {
+            if (here->BJTemitPrimeNode > 0
+                && here->BJTemitPrimeNode != here->BJTemitNode)
                 CKTdltNNum(ckt, here->BJTemitPrimeNode);
-                here->BJTemitPrimeNode = 0;
-            }
+            here->BJTemitPrimeNode = 0;
+
+            if (here->BJTbasePrimeNode > 0
+                && here->BJTbasePrimeNode != here->BJTbaseNode)
+                CKTdltNNum(ckt, here->BJTbasePrimeNode);
+            here->BJTbasePrimeNode = 0;
+
+            if (here->BJTcolPrimeNode > 0
+                && here->BJTcolPrimeNode != here->BJTcollCXNode)
+                CKTdltNNum(ckt, here->BJTcolPrimeNode);
+            here->BJTcolPrimeNode = 0;
+
+            if (here->BJTcollCXNode > 0
+                && here->BJTcollCXNode != here->BJTcolNode)
+                CKTdltNNum(ckt, here->BJTcollCXNode);
+            here->BJTcollCXNode = 0;
         }
     }
     return OK;

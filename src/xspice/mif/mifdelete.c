@@ -3,11 +3,10 @@ FILE    MIFdelete.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -50,8 +49,8 @@ NON-STANDARD FEATURES
 #endif
 
 #include "ngspice/suffix.h"
-
 #include "ngspice/devdefs.h"
+
 
 /*
 MIFdelete
@@ -61,21 +60,9 @@ of instance structures, freeing all dynamically allocated memory
 used by the instance structure.
 */
 
-
 int
-MIFdelete(
-    GENmodel    *inModel,   /* The head of the model list */
-    IFuid       name,       /* The name of the instance to delete */
-    GENinstance **inst      /* The instance structure to delete */
-)
+MIFdelete(GENinstance *gen_inst)
 {
-    MIFmodel    *model;
-    MIFinstance **fast;
-    MIFinstance **prev;
-    MIFinstance *here=NULL;
-
-    Mif_Boolean_t  found;
-
     int         i;
     int         j;
     int         k;
@@ -84,36 +71,26 @@ MIFdelete(
     int         num_port;
     int         num_inst_var;
 
-
-    /* Convert generic pointers in arg list to MIF specific pointers */
-    model = (MIFmodel *) inModel;
-    fast  = (MIFinstance **) inst;
+    MIFinstance *here = (MIFinstance *) gen_inst;
 
     /*******************************************/
-    /* Cut the instance out of the linked list */
+    /* instance->callback(..., MIF_CB_DESTROY) */
     /*******************************************/
 
-    /* Loop through all models */
-    for(found = MIF_FALSE; model; model = model->MIFnextModel) {
-        prev = &(model->MIFinstances);
-        /* Loop through all instances of this model */
-        for(here = *prev; here; here = here->MIFnextInstance) {
-            /* If name or pointer matches, cut it out and mark that its found */
-            if(here->MIFname == name || (fast && here == *fast) ) {
-                *prev= here->MIFnextInstance;
-                found = MIF_TRUE;
-                break;
-            }
-            prev = &(here->MIFnextInstance);
-        }
-        if(found)
-            break;
+    if (here->callback) {
+        Mif_Private_t cm_data;
+
+        /* Prepare the structure to be passed to the code model */
+        cm_data.num_conn = here->num_conn;
+        cm_data.conn = here->conn;
+        cm_data.num_param = here->num_param;
+        cm_data.param = here->param;
+        cm_data.num_inst_var = here->num_inst_var;
+        cm_data.inst_var = here->inst_var;
+        cm_data.callback = &(here->callback);
+
+        here->callback(&cm_data, MIF_CB_DESTROY);
     }
-
-    /* Return error if not found */
-    if(!found)
-        return(E_NODEV);
-
 
     /*******************************/
     /* Free the instance structure */
@@ -124,26 +101,26 @@ MIFdelete(
     /* in MIFinit_inst, MIFget_port, and MIFsetup   */
 
     num_conn = here->num_conn;
-    for(i = 0; i < num_conn; i++) {
+    for (i = 0; i < num_conn; i++) {
 
         /* If connection never used, skip it */
-        if(here->conn[i]->is_null)
+        if (here->conn[i]->is_null)
             continue;
 
         /* If analog output, lots to free... */
-        if(here->conn[i]->is_output && here->analog) {
+        if (here->conn[i]->is_output && here->analog) {
             num_port = here->conn[i]->size;
             /* For each port on the connector */
-            for(j = 0; j < num_port; j++) {
+            for (j = 0; j < num_port; j++) {
                 /* Free the partial/ac_gain/smp stuff allocated in MIFsetup */
-                for(k = 0; k < num_conn; k++) {
-                    if((here->conn[k]->is_null) || (! here->conn[k]->is_input) )
+                for (k = 0; k < num_conn; k++) {
+                    if ((here->conn[k]->is_null) || (! here->conn[k]->is_input))
                         continue;
-                    if(here->conn[i]->port[j]->partial)
+                    if (here->conn[i]->port[j]->partial)
                         FREE(here->conn[i]->port[j]->partial[k].port);
-                    if(here->conn[i]->port[j]->ac_gain)
+                    if (here->conn[i]->port[j]->ac_gain)
                         FREE(here->conn[i]->port[j]->ac_gain[k].port);
-                    if(here->conn[i]->port[j]->smp_data.input)
+                    if (here->conn[i]->port[j]->smp_data.input)
                         FREE(here->conn[i]->port[j]->smp_data.input[k].port);
                 }
                 FREE(here->conn[i]->port[j]->partial);
@@ -156,15 +133,18 @@ MIFdelete(
         }
         /* Free the basic port structure allocated in MIFget_port */
         num_port = here->conn[i]->size;
-        for(j = 0; j < num_port; j++)
+        for (j = 0; j < num_port; j++) {
+            /* Memory allocated in mif_inp2.c */
+            FREE(here->conn[i]->port[j]->type_str);
             FREE(here->conn[i]->port[j]);
+        }
         FREE(here->conn[i]->port);
     }
 
     /* Free the connector stuff allocated in MIFinit_inst */
     /* Don't free name/description!  They are not owned */
     /* by the instance */
-    for(i = 0; i < num_conn; i++) {
+    for (i = 0; i < num_conn; i++) {
         FREE(here->conn[i]);
     }
     FREE(here->conn);
@@ -173,15 +153,15 @@ MIFdelete(
     /* and free stuff */
 
     num_inst_var = here->num_inst_var;
-    for(i = 0; i < num_inst_var; i++) {
-        if(here->inst_var[i]->element != NULL) {
+    for (i = 0; i < num_inst_var; i++) {
+        if (here->inst_var[i]->element != NULL) {
     /* Do not delete inst_var[i]->element if MS Windows and is_array==1.
        Memory is then allocated in the code model dll, and it cannot be
        guaranteed that it can be freed safely here! A small memory leak is created.
        FIXME
        Finally one has to free the memory in the same module where allocated. */
 #if defined(_MSC_VER) || defined(__MINGW32__)
-            if(!DEVices[here->MIFmodPtr->MIFmodType]->DEVpublic.inst_var[i].is_array)
+            if (!DEVices[MIFmodPtr(here)->MIFmodType]->DEVpublic.inst_var[i].is_array)
 #endif
                 FREE(here->inst_var[i]->element);
         }
@@ -198,16 +178,12 @@ MIFdelete(
 
     /* Free the stuff used by the cm_... functions */
 
-    if(here->num_state && here->state)
+    if (here->num_state && here->state)
         FREE(here->state);
-    if(here->num_intgr && here->intgr)
+    if (here->num_intgr && here->intgr)
         FREE(here->intgr);
-    if(here->num_conv && here->conv)
+    if (here->num_conv && here->conv)
         FREE(here->conv);
 
-
-    /* Finally, free the instance struct itself */
-    FREE(here);
-
-    return(OK);
+    return OK;
 }

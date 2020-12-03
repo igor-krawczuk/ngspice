@@ -1,27 +1,62 @@
-/**** BSIM4.8.0 Released by Navid Paydavosi 11/01/2013 ****/
+/* ******************************************************************************
+   *  BSIM4 4.8.1 released by Chetan Kumar Dabhi 2/15/2017                      *
+   *  BSIM4 Model Equations                                                     *
+   ******************************************************************************
 
-/**********
- * Copyright 2006 Regents of the University of California. All rights reserved.
- * File: b4temp.c of BSIM4.7.0.
- * Author: 2000 Weidong Liu
- * Authors: 2001- Xuemei Xi, Mohan Dunga, Ali Niknejad, Chenming Hu.
- * Authors: 2006- Mohan Dunga, Ali Niknejad, Chenming Hu
- * Authors: 2007- Mohan Dunga, Wenwei Yang, Ali Niknejad, Chenming Hu
-  * Authors: 2008- Wenwei Yang, Ali Niknejad, Chenming Hu
- * Project Director: Prof. Chenming Hu.
- * Modified by Xuemei Xi, 04/06/2001.
- * Modified by Xuemei Xi, 10/05/2001.
- * Modified by Xuemei Xi, 11/15/2002.
- * Modified by Xuemei Xi, 05/09/2003.
- * Modified by Xuemei Xi, 03/04/2004.
- * Modified by Xuemei Xi, Mohan Dunga, 07/29/2005.
- * Modified by Mohan Dunga, 12/13/2006.
- * Modified by Mohan Dunga, Wenwei Yang, 05/18/2007.
- * Modified by Wenwei Yang, 07/31/2008.
- * Modified by Tanvir Morshed, Darsen Lu 03/27/2011
- * Modified by Pankaj Kumar Thakur, 07/23/2012
- **********/
+   ******************************************************************************
+   *  Copyright 2017 Regents of the University of California.                   *
+   *  All rights reserved.                                                      *
+   *                                                                            *
+   *  Project Director: Prof. Chenming Hu.                                      *
+   *  Authors: Gary W. Ng, Weidong Liu, Xuemei Xi, Mohan Dunga, Wenwei Yang     *
+   *           Ali Niknejad, Shivendra Singh Parihar, Chetan Kumar Dabhi        *
+   *           Yogesh Singh Chauhan, Sayeef Salahuddin, Chenming Hu             *
+   ******************************************************************************
 
+   ******************************************************************************
+   *                          CMC In-Code Statement                             *
+   *                                                                            *
+   *  The Developer agrees that the following statement will appear in the      *
+   *  model code that has been adopted as a CMC Standard.                       *
+   *                                                                            *
+   *  Software is distributed as is, completely without warranty or service     *
+   *  support. The University of California and its employees are not liable    *
+   *  for the condition or performance of the software.                         *
+   *                                                                            *
+   *  The University of California owns the copyright and grants users a        *
+   *  perpetual, irrevocable, worldwide, non-exclusive, royalty-free license    *
+   *  with respect to the software as set forth below.                          *
+   *                                                                            *
+   *  The University of California hereby disclaims all implied warranties.     *
+   *                                                                            *
+   *  The University of California grants the users the right to modify,        *
+   *  copy, and redistribute the software and documentation, both within        *
+   *  the user's organization and externally, subject to the following          *
+   *  restrictions:                                                             *
+   *                                                                            *
+   *  1. The users agree not to charge for the University of California code    *
+   *     itself but may charge for additions, extensions, or support.           *
+   *                                                                            *
+   *  2. In any product based on the software, the users agree to               *
+   *     acknowledge the University of California that developed the            *
+   *     software. This acknowledgment shall appear in the product              *
+   *     documentation.                                                         *
+   *                                                                            *
+   *  3. Redistributions to others of source code and documentation must        *
+   *     retain the copyright notice, disclaimer, and list of conditions.       *
+   *                                                                            *
+   *  4. Redistributions to others in binary form must reproduce the            *
+   *     copyright notice, disclaimer, and list of conditions in the            *
+   *     documentation and/or other materials provided with the                 *
+   *     distribution.                                                          *
+   *                                                                            *
+   *  Agreed to on ______Feb. 15, 2017______________                            *
+   *                                                                            *
+   *  By: ____University of California, Berkeley___                             *
+   *      ____Chenming Hu__________________________                             *
+   *      ____Professor in Graduate School ________                             *
+   *                                                                            *
+   ****************************************************************************** */
 
 #include "ngspice/ngspice.h"
 #include "ngspice/smpdefs.h"
@@ -93,7 +128,7 @@ double vtfbphi2eot, phieot, TempRatioeot, Vtm0eot, Vtmeot,vbieot;
 int Size_Not_Found, i;
 
     /*  loop through all the BSIM4 device models */
-    for (; model != NULL; model = model->BSIM4nextModel)
+    for (; model != NULL; model = BSIM4nextModel(model))
     {    Temp = ckt->CKTtemp;
          if (model->BSIM4SbulkJctPotential < 0.1)
          {   model->BSIM4SbulkJctPotential = 0.1;
@@ -185,6 +220,13 @@ int Size_Not_Found, i;
          }
          if (!model->BSIM4cgboGiven)
              model->BSIM4cgbo = 2.0 * model->BSIM4dwc * model->BSIM4coxe;
+
+         struct bsim4SizeDependParam *p = model->pSizeDependParamKnot;
+         while (p) {
+             struct bsim4SizeDependParam *next_p = p->pNext;
+             FREE(p);
+             p = next_p;
+         }
          model->pSizeDependParamKnot = NULL;
          pLastKnot = NULL;
 
@@ -407,8 +449,8 @@ int Size_Not_Found, i;
 
 
          /* loop through all the instances of the model */
-         for (here = model->BSIM4instances; here != NULL;
-              here = here->BSIM4nextInstance)
+         for (here = BSIM4instances(model); here != NULL;
+              here = BSIM4nextInstance(here))
          {
               pSizeDependParamKnot = model->pSizeDependParamKnot;
               Size_Not_Found = 1;
@@ -1349,10 +1391,32 @@ int Size_Not_Found, i;
                                             / pParam->BSIM4poxedge / pParam->BSIM4poxedge;
                   pParam->BSIM4Aechvb = (model->BSIM4type == NMOS) ? 4.97232e-7 : 3.42537e-7;
                   pParam->BSIM4Bechvb = (model->BSIM4type == NMOS) ? 7.45669e11 : 1.16645e12;
-                  pParam->BSIM4AechvbEdgeS = pParam->BSIM4Aechvb * pParam->BSIM4weff
-                                          * model->BSIM4dlcig * pParam->BSIM4ToxRatioEdge;
-                  pParam->BSIM4AechvbEdgeD = pParam->BSIM4Aechvb * pParam->BSIM4weff
-                                          * model->BSIM4dlcigd * pParam->BSIM4ToxRatioEdge;
+
+                  if ((strcmp(model->BSIM4version, "4.8.1")) && (strncmp(model->BSIM4version, "4.81", 4)))
+                  {
+                      pParam->BSIM4AechvbEdgeS = pParam->BSIM4Aechvb * pParam->BSIM4weff
+                                              * model->BSIM4dlcig * pParam->BSIM4ToxRatioEdge;
+                      pParam->BSIM4AechvbEdgeD = pParam->BSIM4Aechvb * pParam->BSIM4weff
+                                              * model->BSIM4dlcigd * pParam->BSIM4ToxRatioEdge;
+                  }
+                  else
+                  {
+                      if (model->BSIM4dlcig < 0.0)
+                      {
+                          printf("Warning: dlcig = %g is negative. Set to zero.\n", model->BSIM4dlcig);
+                          model->BSIM4dlcig = 0.0;
+                      }
+                      pParam->BSIM4AechvbEdgeS = pParam->BSIM4Aechvb * pParam->BSIM4weff
+                          * model->BSIM4dlcig * pParam->BSIM4ToxRatioEdge;
+                      if (model->BSIM4dlcigd < 0.0)
+                      {
+                          printf("Warning: dlcigd = %g is negative. Set to zero.\n", model->BSIM4dlcigd);
+                          model->BSIM4dlcigd = 0.0;
+                      }
+                      pParam->BSIM4AechvbEdgeD = pParam->BSIM4Aechvb * pParam->BSIM4weff
+                          * model->BSIM4dlcigd * pParam->BSIM4ToxRatioEdge;
+                  }
+
                   pParam->BSIM4BechvbEdge = -pParam->BSIM4Bechvb
                                           * toxe * pParam->BSIM4poxedge;
                   pParam->BSIM4Aechvb *= pParam->BSIM4weff * pParam->BSIM4leff
@@ -1562,7 +1626,7 @@ int Size_Not_Found, i;
                   /*high k*/
                   /*Calculate VgsteffVth for mobMod=3*/
                   if(model->BSIM4mobMod==3)
-                  {	/*Calculate n @ Vbs=Vds=0*/
+                  {        /*Calculate n @ Vbs=Vds=0*/
                       lt1 = model->BSIM4factor1* pParam->BSIM4sqrtXdep0;
                       T0 = pParam->BSIM4dvt1 * pParam->BSIM4leff / lt1;
                       if (T0 < EXP_THRESHOLD)
@@ -1813,14 +1877,14 @@ int Size_Not_Found, i;
                       }
 
                     /*rbpbx =  exp( log(model->BSIM4rbpbx0) + model->BSIM4rbpbxl * lnl +
-                      	model->BSIM4rbpbxw * lnw + model->BSIM4rbpbxnf * lnnf );
+                              model->BSIM4rbpbxw * lnw + model->BSIM4rbpbxnf * lnnf );
                     rbpby =  exp( log(model->BSIM4rbpby0) + model->BSIM4rbpbyl * lnl +
-                      	model->BSIM4rbpbyw * lnw + model->BSIM4rbpbynf * lnnf );
+                              model->BSIM4rbpbyw * lnw + model->BSIM4rbpbynf * lnnf );
                             */
                             rbpbx =  model->BSIM4rbpbx0 * exp(  model->BSIM4rbpbxl * lnl +
-                      	model->BSIM4rbpbxw * lnw + model->BSIM4rbpbxnf * lnnf );
+                              model->BSIM4rbpbxw * lnw + model->BSIM4rbpbxnf * lnnf );
                     rbpby =  model->BSIM4rbpby0 * exp(  model->BSIM4rbpbyl * lnl +
-                      	model->BSIM4rbpbyw * lnw + model->BSIM4rbpbynf * lnnf );
+                              model->BSIM4rbpbyw * lnw + model->BSIM4rbpbynf * lnnf );
 
                     here->BSIM4rbpb = rbpbx*rbpby/(rbpbx + rbpby);
                   }
@@ -2289,8 +2353,6 @@ int Size_Not_Found, i;
 
                     /* Calculate n */
                     tmp1 = epssub / pParam->BSIM4Xdep0;
-                    here->BSIM4nstar = Vtmeot / Charge_q *
-                      (model->BSIM4coxe        + tmp1 + pParam->BSIM4cit);
                     tmp2 = pParam->BSIM4nfactor * tmp1;
                     tmp3 = (tmp2 + pParam->BSIM4cdsc * Theta0 + pParam->BSIM4cit) / model->BSIM4coxe;
                     if (tmp3 >= -0.5)
@@ -2337,7 +2399,7 @@ int Size_Not_Found, i;
                         niter++;
                       } while ((niter<=4)&&(ABS(toxpf-toxpi)>1e-12));
                       here->BSIM4toxp = toxpf;
-                      here->BSIM4coxp = epsrox * EPS0 / model->BSIM4toxp;
+                      here->BSIM4coxp = epsrox * EPS0 / here->BSIM4toxp;
                 } else {
                     here->BSIM4toxp = model->BSIM4toxp;
                     here->BSIM4coxp = model->BSIM4coxp;
@@ -2345,7 +2407,7 @@ int Size_Not_Found, i;
 
               if (BSIM4checkModel(model, here, ckt))
               {
-                  SPfrontEnd->IFerrorf (ERR_FATAL, "Fatal error(s) detected during BSIM4.6.0 parameter checking for %s in model %s", model->BSIM4modName, here->BSIM4name);
+                  SPfrontEnd->IFerrorf (ERR_FATAL, "Fatal error(s) detected during BSIM4.8.1 parameter checking for %s in model %s", model->BSIM4modName, here->BSIM4name);
                   return(E_BADPARM);
               }
          } /* End instance */

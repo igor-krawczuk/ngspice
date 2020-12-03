@@ -18,15 +18,18 @@ Author: 1990 Jaijeet S. Roychowdhury
 /* information used to describe a single instance */
 
 typedef struct sLTRAinstance {
-    struct sLTRAmodel *LTRAmodPtr;    /* backpointer to model */
-    struct sLTRAinstance *LTRAnextInstance;   /* pointer to next instance of 
-                                             * current model*/
-    IFuid LTRAname;      /* pointer to character string naming this instance */
-    int LTRAstate;	 /* not used */
-    int LTRAposNode1;    /* number of positive node of end 1 of t. line */
-    int LTRAnegNode1;    /* number of negative node of end 1 of t. line */
-    int LTRAposNode2;    /* number of positive node of end 2 of t. line */
-    int LTRAnegNode2;    /* number of negative node of end 2 of t. line */
+
+    struct GENinstance gen;
+
+#define LTRAmodPtr(inst) ((struct sLTRAmodel *)((inst)->gen.GENmodPtr))
+#define LTRAnextInstance(inst) ((struct sLTRAinstance *)((inst)->gen.GENnextInstance))
+#define LTRAname gen.GENname
+#define LTRAstate gen.GENstate
+
+    const int LTRAposNode1;    /* number of positive node of end 1 of t. line */
+    const int LTRAnegNode1;    /* number of negative node of end 1 of t. line */
+    const int LTRAposNode2;    /* number of positive node of end 2 of t. line */
+    const int LTRAnegNode2;    /* number of negative node of end 2 of t. line */
 
     int LTRAbrEq1;       /* number of branch equation for end 1 of t. line */
     int LTRAbrEq2;       /* number of branch equation for end 2 of t. line */
@@ -73,14 +76,13 @@ typedef struct sLTRAinstance {
 /* per model data */
 
 typedef struct sLTRAmodel {       /* model structure for a transmission lines */
-    int LTRAmodType; /* type index of this device type */
-    struct sLTRAmodel *LTRAnextModel; /* pointer to next possible model in 
-                                     * linked list */
-    LTRAinstance * LTRAinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid LTRAmodName;       /* pointer to character string naming this model */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define LTRAmodType gen.GENmodType
+#define LTRAnextModel(inst) ((struct sLTRAmodel *)((inst)->gen.GENnextModel))
+#define LTRAinstances(inst) ((LTRAinstance *)((inst)->gen.GENinstances))
+#define LTRAmodName gen.GENmodName
 
 	double LTRAh1dashFirstVal; /* first needed value of h1dasg at 
 									current timepoint */
@@ -179,59 +181,61 @@ typedef struct sLTRAmodel {       /* model structure for a transmission lines */
 } LTRAmodel;
 
 /* device parameters */
-#define LTRA_MOD_LTRA	0
-#define LTRA_MOD_R 1
-#define LTRA_MOD_L 2
-#define LTRA_MOD_G 3
-#define LTRA_MOD_C 4
-#define LTRA_MOD_LEN 5
-#define LTRA_V1 6
-#define LTRA_I1 7
-#define LTRA_V2 8
-#define LTRA_I2 9
-#define LTRA_IC 10
-#define LTRA_MOD_RELTOL 11
-#define LTRA_MOD_ABSTOL 12
-#define LTRA_POS_NODE1 13
-#define LTRA_NEG_NODE1 14
-#define LTRA_POS_NODE2 15
-#define LTRA_NEG_NODE2 16
-#define LTRA_INPUT1 17
-#define LTRA_INPUT2 18
-#define LTRA_DELAY 19
-#define LTRA_BR_EQ1 20
-#define LTRA_BR_EQ2 21
-#define LTRA_MOD_NL 22
-#define LTRA_MOD_FREQ 23
-#define LTRA_MOD_Z0 24
-#define LTRA_MOD_TD 25
+enum {
+    LTRA_MOD_LTRA = 0,
+    LTRA_MOD_R,
+    LTRA_MOD_L,
+    LTRA_MOD_G,
+    LTRA_MOD_C,
+    LTRA_MOD_LEN,
+    LTRA_V1,
+    LTRA_I1,
+    LTRA_V2,
+    LTRA_I2,
+    LTRA_IC,
+    LTRA_MOD_RELTOL,
+    LTRA_MOD_ABSTOL,
+    LTRA_POS_NODE1,
+    LTRA_NEG_NODE1,
+    LTRA_POS_NODE2,
+    LTRA_NEG_NODE2,
+    LTRA_INPUT1,
+    LTRA_INPUT2,
+    LTRA_DELAY,
+    LTRA_BR_EQ1,
+    LTRA_BR_EQ2,
+    LTRA_MOD_NL,
+    LTRA_MOD_FREQ,
+    LTRA_MOD_Z0,
+    LTRA_MOD_TD,
+    LTRA_MOD_FULLCONTROL,
+    LTRA_MOD_HALFCONTROL,
+    LTRA_MOD_NOCONTROL,
+    LTRA_MOD_PRINT,
+    LTRA_MOD_NOPRINT,
+};
 
-#define LTRA_MOD_FULLCONTROL 26
-#define LTRA_MOD_HALFCONTROL 27
-#define LTRA_MOD_NOCONTROL 28
-#define LTRA_MOD_PRINT 29
-#define LTRA_MOD_NOPRINT 30
 /*
 #define LTRA_MOD_RONLY 31
 */
-#define LTRA_MOD_STEPLIMIT	32
-#define LTRA_MOD_NOSTEPLIMIT 33
-#define LTRA_MOD_LININTERP 34
-#define LTRA_MOD_QUADINTERP 35
-#define LTRA_MOD_MIXEDINTERP 36
-#define LTRA_MOD_RLC	37
-#define LTRA_MOD_RC	38
-#define LTRA_MOD_RG 39
-#define LTRA_MOD_LC 40
-#define LTRA_MOD_RL 41
-#define LTRA_MOD_STLINEREL 42
-#define LTRA_MOD_STLINEABS 43
-#define LTRA_MOD_CHOPREL 44
-#define LTRA_MOD_CHOPABS 45
-#define LTRA_MOD_TRUNCNR 46
-#define LTRA_MOD_TRUNCDONTCUT	47
-
-
+enum {
+    LTRA_MOD_STEPLIMIT = 32,
+    LTRA_MOD_NOSTEPLIMIT,
+    LTRA_MOD_LININTERP,
+    LTRA_MOD_QUADINTERP,
+    LTRA_MOD_MIXEDINTERP,
+    LTRA_MOD_RLC,
+    LTRA_MOD_RC,
+    LTRA_MOD_RG,
+    LTRA_MOD_LC,
+    LTRA_MOD_RL,
+    LTRA_MOD_STLINEREL,
+    LTRA_MOD_STLINEABS,
+    LTRA_MOD_CHOPREL,
+    LTRA_MOD_CHOPABS,
+    LTRA_MOD_TRUNCNR,
+    LTRA_MOD_TRUNCDONTCUT,
+};
 
 /* model parameters */
 

@@ -1,6 +1,6 @@
 /**********
 Copyright 1991 Regents of the University of California.  All rights reserved.
-Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
+Author: 1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 **********/
 
 /*
@@ -10,28 +10,18 @@ Author:	1987 Kartikeya Mayaram, U. C. Berkeley CAD Group
 
 #include "ngspice/ngspice.h"
 #include "numosdef.h"
+#include "../../../ciderlib/twod/twoddefs.h"
+#include "../../../ciderlib/twod/twodext.h"
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
+
 int
-NUMOSdelete(GENmodel *inModel, IFuid name, GENinstance **kill)
+NUMOSdelete(GENinstance *gen_inst)
 {
+    NUMOSinstance *inst = (NUMOSinstance *) gen_inst;
 
-  NUMOSmodel *model = (NUMOSmodel *) inModel;
-  NUMOSinstance **fast = (NUMOSinstance **) kill;
-  NUMOSinstance **prev = NULL;
-  NUMOSinstance *inst;
+    TWOdestroy(inst->NUMOSpDevice);
 
-  for (; model; model = model->NUMOSnextModel) {
-    prev = &(model->NUMOSinstances);
-    for (inst = *prev; inst; inst = *prev) {
-      if (inst->NUMOSname == name || (fast && inst == *fast)) {
-	*prev = inst->NUMOSnextInstance;
-	FREE(inst);
-	return (OK);
-      }
-      prev = &(inst->NUMOSnextInstance);
-    }
-  }
-  return (E_NODEV);
+    return OK;
 }

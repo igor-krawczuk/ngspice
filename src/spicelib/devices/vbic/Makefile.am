@@ -8,8 +8,6 @@ libvbic_la_SOURCES =	\
 	vbicask.c	\
 	vbicconv.c	\
 	vbicdefs.h	\
-	vbicdel.c	\
-	vbicdest.c	\
 	vbicext.h	\
 	vbicgetic.c	\
 	vbicinit.c	\
@@ -17,7 +15,6 @@ libvbic_la_SOURCES =	\
 	vbicitf.h	\
 	vbicload.c	\
 	vbicmask.c	\
-	vbicmdel.c	\
 	vbicmpar.c	\
 	vbicnoise.c	\
 	vbicparam.c	\

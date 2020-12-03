@@ -38,7 +38,7 @@ ISRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
 
     NG_IGNORE(select);
 
-    switch(param) {
+    switch (param) {
 
         case ISRC_DC:
             here->ISRCdcValue = value->rValue;
@@ -63,13 +63,17 @@ ISRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
             break;
 
         case ISRC_AC:
-            switch(value->v.numValue) {
+            /* FALLTHROUGH added to suppress GCC warning due to
+             * -Wimplicit-fallthrough flag */
+            switch (value->v.numValue) {
                 case 2:
                     here->ISRCacPhase = *(value->v.vec.rVec+1);
                     here->ISRCacPGiven = TRUE;
+                    /* FALLTHROUGH */
                 case 1:
                     here->ISRCacMag = *(value->v.vec.rVec);
                     here->ISRCacMGiven = TRUE;
+                    /* FALLTHROUGH */
                 case 0:
                     here->ISRCacGiven = TRUE;
                     break;
@@ -206,7 +210,9 @@ ISRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
 
             if (here->ISRCfunctionOrder > 6 && RTSAM != 0.0)
                 RTSEMT = here->ISRCcoeffs[6]; // RTS trap emission time
-
+            /* after an 'alter' command to the TRNOISE voltage source the state gets re-written
+               with the new parameters. So free the old state first. */
+            trnoise_state_free(here->ISRCtrnoise_state);
             here->ISRCtrnoise_state =
                 trnoise_state_init(NA, TS, NALPHA, NAMP, RTSAM, RTSCAPT, RTSEMT);
         }
@@ -233,6 +239,9 @@ ISRCparam(int param, IFvalue *value, GENinstance *inst, IFvalue *select)
             if (here->ISRCfunctionOrder > 4)
                 PARAM2 = here->ISRCcoeffs[4]; // second parameter
 
+            /* after an 'alter' command to the TRRANDOM voltage source the state gets re-written
+               with the new parameters. So free the old state first. */
+            tfree(here->ISRCtrrandom_state);
             here->ISRCtrrandom_state =
                 trrandom_state_init(rndtype, TS, TD, PARAM1, PARAM2);
         }

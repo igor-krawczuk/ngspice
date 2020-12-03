@@ -93,11 +93,11 @@ MOS2sLoad(GENmodel *inModel, CKTcircuit *ckt)
     }
 
     /*  loop through all the models */
-    for( ; model != NULL; model = model->MOS2nextModel ) {
+    for( ; model != NULL; model = MOS2nextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->MOS2instances; here != NULL ;
-                here=here->MOS2nextInstance) {
+        for (here = MOS2instances(model); here != NULL ;
+                here=MOS2nextInstance(here)) {
 
 #ifdef SENSDEBUG
             printf("senload instance name %s\n",here->MOS2name);
@@ -536,8 +536,9 @@ next1:
                     Osxpbd -= tag0 * *(here->MOS2dphibd_dl);
                     Osxpgb -= tag0 * *(here->MOS2dphigb_dl);
                 }
-                if(here->MOS2sens_w && 
-                        (iparmno == (here->MOS2senParmNo + here->MOS2sens_l))){
+                if(here->MOS2sens_w &&
+                        (iparmno == (here->MOS2senParmNo +
+                            (int) here->MOS2sens_l))){
                     Osxpgs -= tag0 * *(here->MOS2dphigs_dw);
                     Osxpgd -= tag0 * *(here->MOS2dphigd_dw);
                     Osxpbs -= tag0 * *(here->MOS2dphibs_dw);

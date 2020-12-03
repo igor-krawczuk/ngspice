@@ -1,8 +1,4 @@
-
-extern double drand(void);
-extern double exprand(double);
-extern int poisson(double);
-extern double gauss0(void);
+#include "ngspice/randnumb.h"
 
 void f_alpha(int n_pts, int n_exp, double X[], double Q_d,
 double alpha);
@@ -20,6 +16,8 @@ struct trnoise_state
 
     double *oneof;
     size_t oneof_length;
+
+    bool timezero;
 
     double RTScapTime, RTSemTime;
     bool RTS;
@@ -57,7 +55,7 @@ trnoise_state_get(struct trnoise_state *this, CKTcircuit *ckt, size_t index)
     if(index + TRNOISE_STATE_MEM_LEN < this->top) {
         fprintf(stderr, "ouch, trying to fetch from the past %d %d\n",
                 (int)index, (int)this->top);
-        exit(1);
+        controlled_exit(1);
     }
 
     return this->points[index % TRNOISE_STATE_MEM_LEN];

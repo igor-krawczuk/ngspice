@@ -296,33 +296,60 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
         break;
 
     case PT_POWER:
-        if (p->right->type == PT_CONSTANT) {
-            /*
-             * D(f^C) = C * f^(C-1) * D(f)
-             */
-            arg1 = PTdifferentiate(p->left, varnum);
-
-            newp = mkb(PT_TIMES, mkb(PT_TIMES,
-                                     mkcon(p->right->constant),
-                                     mkb(PT_POWER, p->left,
-                                         mkcon(p->right->constant - 1))),
+        /*
+         * ^ : a^b -> |a| math^ b
+         *
+         * D(pow(a,b))
+         *   = D(exp(b*log(abs(a))))
+         *   = exp(b*log(abs(a))) * D(b*log(abs(a)))
+         *   = pow(a,b) * (D(b)*log(abs(a)) + b*D(abs(a))/abs(a))
+         *   = pow(a,b) * (D(b)*log(abs(a)) + b*sgn(a)*D(a)/abs(a))
+         *   = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+         *
+         * when D(b) == 0, then
+         *
+         * D(pow(a,b))
+         *    = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+         *    = pow(a,b) * b * D(a)/a
+         *    = pow(a,b) * b * D(a)/(signum(a) * abs(a))
+         *    = pow(a, b-1) * b * D(a) / signum(a)
+         *    = pwr(a, b-1) * b * D(a)
+         *
+         * when D(a) == 0, then
+         *
+         * D(pow(a,b))
+         *    = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+         *    = pow(a,b) * D(b)*log(abs(a))
+         */
+#define a  p->left
+#define b  p->right
+        if (b->type == PT_CONSTANT) {
+            arg1 = PTdifferentiate(a, varnum);
+            newp = mkb(PT_TIMES,
+                       mkb(PT_TIMES,
+                           mkcon(b->constant),
+                           mkf(PTF_PWR,
+                               mkb(PT_COMMA, a, mkcon(b->constant - 1.0)))),
                        arg1);
-        } else {
-            /*
-             * D(f^g) = D(exp(g*log(f)))
-             *              = exp(g*log(f)) * D(g*log(f))
-             *              = exp(g*log(f)) * (D(g)*log(f) + g*D(f)/f)
-             */
-            arg1 = PTdifferentiate(p->left, varnum);
-            arg2 = PTdifferentiate(p->right, varnum);
-            newp = mkb(PT_TIMES, mkf(PTF_EXP, mkb(PT_TIMES,
-                                                  p->right, mkf(PTF_LOG,
-                                                                p->left))),
-                       mkb(PT_PLUS,
-                           mkb(PT_TIMES, p->right,
-                               mkb(PT_DIVIDE, arg1, p->left)),
-                           mkb(PT_TIMES, arg2, mkf(PTF_LOG, p->left))));
         }
+        else if (a->type == PT_CONSTANT){
+            arg2 = PTdifferentiate(b, varnum);
+            newp = mkb(PT_TIMES,
+                       mkf(PTF_POW, mkb(PT_COMMA, a, b)),
+                           mkb(PT_TIMES, arg2, mkf(PTF_LOG, mkf(PTF_ABS, a))));
+        }
+        else {
+            arg1 = PTdifferentiate(a, varnum);
+            arg2 = PTdifferentiate(b, varnum);
+            newp = mkb(PT_TIMES,
+                       mkf(PTF_POW, mkb(PT_COMMA, a, b)),
+                       mkb(PT_PLUS,
+                           mkb(PT_TIMES, b,
+                               mkb(PT_DIVIDE, arg1, a)),
+                           mkb(PT_TIMES, arg2, mkf(PTF_LOG, mkf(PTF_ABS, a)))));
+        }
+#undef b
+#undef a
         break;
 
     case PT_TERN: /* ternary_fcn(cond,exp1,exp2) */
@@ -420,8 +447,18 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
             arg1 = mkf(PTF_SINH, p->left);
             break;
 
-        case PTF_EXP:                /* exp(u) */
-            arg1 = mkf(PTF_EXP, p->left);
+        case PTF_EXP:                /* u > EXPARGMAX -> EXPMAX, that is exp(EXPARGMAX), else exp(u) */
+            arg1 = mkb(PT_TERN,
+                mkf(PTF_GT0, mkb(PT_MINUS, p->left, mkcon(EXPARGMAX))),
+                mkb(PT_COMMA,
+                    mkcon(EXPMAX),
+                    mkf(PTF_EXP, p->left)));
+
+#ifdef TRACE1
+            printf("debug exp, %s, returns; ", __func__);
+            printTree(arg1);
+            printf("\n");
+#endif
             break;
 
         case PTF_LOG:               /* 1 / u */
@@ -447,16 +484,16 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
                                                              p->left)));
             break;
 
-        case PTF_TAN:                /* 1 / (cos(u) ^ 2) */
-            arg1 = mkb(PT_DIVIDE, mkcon(1.0), mkb(PT_POWER,
-                                                         mkf(PTF_COS,
+        case PTF_TAN:                /* 1 + (tan(u) ^ 2) */
+            arg1 = mkb(PT_PLUS, mkcon(1.0), mkb(PT_POWER,
+                                                         mkf(PTF_TAN,
                                                              p->left),
                                                          mkcon(2.0)));
             break;
 
-        case PTF_TANH:                /* 1 / (cosh(u) ^ 2) */
-            arg1 = mkb(PT_DIVIDE, mkcon(1.0), mkb(PT_POWER,
-                                                         mkf(PTF_COSH,
+        case PTF_TANH:                /* 1 - (tanh(u) ^ 2) */
+            arg1 = mkb(PT_MINUS, mkcon(1.0), mkb(PT_POWER,
+                                                         mkf(PTF_TANH,
                                                              p->left),
                                                          mkcon(2.0)));
             break;
@@ -520,7 +557,7 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
             INPparseNode *a = p->left->left;
             INPparseNode *b = p->left->right;
             int comparison = (p->funcnum == PTF_MIN) ? PTF_LT0 : PTF_GT0;
-#ifdef TRACE
+#ifdef TRACE1
             printf("debug: %s, PTF_MIN: ", __func__);
             printTree(p);
             printf("\n");
@@ -536,7 +573,7 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
                        mkb(PT_COMMA,
                            PTdifferentiate(a, varnum),
                            PTdifferentiate(b, varnum)));
-#ifdef TRACE
+#ifdef TRACE1
             printf("debug, %s, returns; ", __func__);
             printTree(newp);
             printf("\n");
@@ -547,50 +584,99 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
         break;
 
         case PTF_POW:
+            /*
+             * pow : pow(a,b) -> |a| math^ b
+             *
+             * D(pow(a,b))
+             *   = D(exp(b*log(abs(a))))
+             *   = exp(b*log(abs(a))) * D(b*log(abs(a)))
+             *   = pow(a,b) * (D(b)*log(abs(a)) + b*D(abs(a))/abs(a))
+             *   = pow(a,b) * (D(b)*log(abs(a)) + b*sgn(a)*D(a)/abs(a))
+             *   = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *
+             * when D(b) == 0, then
+             *
+             * D(pow(a,b))
+             *    = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *    = pow(a,b) * b * D(a)/a
+             *    = pow(a,b) * b * D(a)/(signum(a) * abs(a))
+             *    = pow(a, b-1) * b * D(a) / signum(a)
+             *    = pwr(a, b-1) * b * D(a)
+             *
+             * when D(a) == 0, then
+             *
+             * D(pow(a,b))
+             *    = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *    = pow(a,b) * D(b)*log(abs(a))
+             */
         {
         /*
         pow(a,b)
         p->left: ','    p->left->left: a       p->left->right: b
         */
+#define a  p->left->left
+#define b  p->left->right
 
-            if (p->left->right->type == PT_CONSTANT) {
-                /*
-                 * D(f^C) = C * f^(C-1) * D(f)
-                 */
-                arg1 = PTdifferentiate(p->left->left, varnum);
+            if (b->type == PT_CONSTANT) {
+                arg1 = PTdifferentiate(a, varnum);
+                newp = mkb(PT_TIMES,
+                           mkb(PT_TIMES,
+                               mkcon(b->constant),
+                               mkf(PTF_PWR,
+                                   mkb(PT_COMMA, a, mkcon(b->constant - 1)))),
+                           arg1);
+            } else if (a->type == PT_CONSTANT) {
+                arg2 = PTdifferentiate(b, varnum);
+                newp = mkb(PT_TIMES,
+                    mkf(PTF_POW, mkb(PT_COMMA, a, b)),
+                    mkb(PT_TIMES, arg2, mkf(PTF_LOG, mkf(PTF_ABS, a))));
 
-                newp = mkb(PT_TIMES, mkb(PT_TIMES,
-                                     mkcon(p->left->right->constant),
-                                     mkb(PT_POWER, p->left->left,
-                                         mkcon(p->left->right->constant - 1))),
-                             arg1);
+            } else {
+                arg1 = PTdifferentiate(a, varnum);
+                arg2 = PTdifferentiate(b, varnum);
+                newp = mkb(PT_TIMES,
+                           mkf(PTF_POW, mkb(PT_COMMA, a, b)),
+                           mkb(PT_PLUS,
+                               mkb(PT_TIMES,
+                                   b,
+                                   mkb(PT_DIVIDE, arg1, a)),
+                               mkb(PT_TIMES,
+                                   arg2,
+                                   mkf(PTF_LOG, mkf(PTF_ABS, a)))));
+            }
 #ifdef TRACE
-            printf("pow, %s, returns; ", __func__);
+            printf("debug pow, %s, returns; ", __func__);
             printTree(newp);
             printf("\n");
 #endif
-            } else {
-            /*
-             * D(f^g) = D(exp(g*log(f)))
-             *              = exp(g*log(f)) * D(g*log(f))
-             *              = exp(g*log(f)) * (D(g)*log(f) + g*D(f)/f)
-             */
-             arg1 = PTdifferentiate(p->left->left, varnum);
-             arg2 = PTdifferentiate(p->left->right, varnum);
-             newp = mkb(PT_TIMES, mkf(PTF_EXP, mkb(PT_TIMES,
-                                                p->left->right, mkf(PTF_LOG,
-                                                p->left->left))),
-                                mkb(PT_PLUS,
-                                    mkb(PT_TIMES, p->left->right,
-                                    mkb(PT_DIVIDE, arg1, p->left->left)),
-                                    mkb(PT_TIMES, arg2, mkf(PTF_LOG, p->left->left))));
-            }
             return mkfirst(newp, p);
+#undef b
+#undef a
         }
 
         break;
 
         case PTF_PWR:
+            /*
+             * pwr : pwr(a,b) -> signum(a) * (|a| math^ b)
+             *                -> signum(a) * pow(a, b)
+             *
+             * Note:
+             *   D(pow(a,b)) = pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *
+             * D(pwr(a,b))
+             *   = D(signum(a) * pow(a,b))
+             *   = D(signum(a)) * pow(a,b) + signum(a) * D(pow(a,b))
+             *   = 0 + signum(a) * pow(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *   = pwr(a,b) * (D(b)*log(abs(a)) + b*D(a)/a)
+             *
+             * with D(b) == 0
+             *
+             * D(pwr(a,b))
+             *   = pwr(a,b) * b * D(a)/a
+             *   = signum(a) * pow(a,b) * b * D(a)/(signum(a) * abs(a))
+             *   = pow(a, b-1) * b * D(a)
+             */
         {
         /*
         pwr(a,b)
@@ -599,63 +685,29 @@ static INPparseNode *PTdifferentiate(INPparseNode * p, int varnum)
 #define a  p->left->left
 #define b  p->left->right
             if (b->type == PT_CONSTANT) {
-                /* b is a constant
-                 *
-                 * f(a,b) = signum(a) * abs(a)^b
-                 *        = signum(a) * exp(b*log(abs(a)))
-                 * D(f)   = signum(a) * D(exp(b*log(abs(a))))
-                 *        = signum(a) * exp(b*log(abs(a))) * D(b*log(abs(a)))
-                 *        = signum(a) * abs(a)^b * D(b*log(abs(a)))
-                 *        = signum(a) * abs(a)^b * b * 1/abs(a) * D(abs(a))
-                 *        = signum(a) * abs(a)^(b-1) * b * D(abs(a))
-                 *        = signum(a) * abs(a)^(b-1) * b * signum(a) * D(a)
-                 *        = abs(a)^(b-1) * b * D(a)
-                 */
                 arg1 = PTdifferentiate(a, varnum);
 
                 newp = mkb(PT_TIMES,
                            mkb(PT_TIMES,
                                mkcon(b->constant),
-                               mkb(PT_POWER,
-                                   mkf(PTF_ABS, a),
-                                   mkcon(b->constant - 1.0))),
+                               mkf(PTF_POW,
+                                   mkb(PT_COMMA, a, mkcon(b->constant - 1.0)))),
                            arg1);
-#ifdef TRACE
-            printf("pwr, %s, returns; ", __func__);
-            printTree(newp);
-            printf("\n");
-#endif
+
             } else {
-            /* b is a function
-             *
-             * f(a,b) = signum(a) * abs(a)^b
-             *        = signum(a) * exp(b*log(abs(a)))
-             * D(f)   = signum(a) * D(exp(b*log(abs(a))))
-             *        = signum(a) * exp(b*log(abs(a))) * D(b*log(abs(a)))
-             *        = signum(a) * exp(b*log(abs(a))) * (D(b) * log(abs(a)) + b * D(log(abs(a))))
-             *        = signum(a) * exp(b*log(abs(a))) * (D(b) * log(abs(a)) + b * 1/abs(a) * D(abs(a)))
-             *        = signum(a) * exp(b*log(abs(a))) * (D(b) * log(abs(a)) + b * 1/abs(a) * signum(a)*D(a))
-             *        = signum(a) * exp(b*log(abs(a))) * (D(b) * log(abs(a)) + b/a*D(a))
-             *        = signum(a) * exp(b*log(abs(a))) * D(b) * log(abs(a) + signum(a) * exp(b*log(abs(a))) / a * b * D(a)
-             *        = signum(a) * exp(b*log(abs(a))) * D(b) * log(abs(a) + abs(a)^(b-1) * b * D(a)
-             */
-             arg1 = PTdifferentiate(a, varnum);
-             arg2 = PTdifferentiate(b, varnum);
-             newp = mkb(PT_PLUS,
-                        mkb(PT_TIMES,
-                            mkf(PTF_SGN, a),
-                            mkb(PT_TIMES,
-                                mkb(PT_POWER, mkf(PTF_ABS, a), b),
-                                mkb(PT_TIMES, arg2,
-                                    mkf(PTF_LOG, mkf(PTF_ABS, a))))),
-                        mkb(PT_TIMES,
-                            mkb(PT_TIMES,
-                                mkb(PT_POWER,
-                                    mkf(PTF_ABS, a),
-                                    mkb(PT_MINUS, b, mkcon(1.0))),
-                                b),
-                            arg1));
+                arg1 = PTdifferentiate(a, varnum);
+                arg2 = PTdifferentiate(b, varnum);
+                newp = mkb(PT_TIMES,
+                           mkf(PTF_PWR, mkb(PT_COMMA, a, b)),
+                           mkb(PT_PLUS,
+                               mkb(PT_TIMES, b, mkb(PT_DIVIDE, arg1, a)),
+                               mkb(PT_TIMES, arg2, mkf(PTF_LOG, mkf(PTF_ABS, a)))));
             }
+#ifdef TRACE
+                printf("debug pwr, %s, returns; ", __func__);
+                printTree(newp);
+                printf("\n");
+#endif
             return mkfirst(newp, p);
 #undef b
 #undef a
@@ -1425,6 +1477,8 @@ void free_tree(INPparseNode *pt)
         controlled_exit(1);
     }
 
+    /* FALLTHROUGH added to suppress GCC warning due to
+     * -Wimplicit-fallthrough flag */
     switch (pt->type) {
     case PT_TIME:
     case PT_TEMPERATURE:
@@ -1441,6 +1495,7 @@ void free_tree(INPparseNode *pt)
     case PT_COMMA:
     case PT_TERN:
         dec_usage(pt->right);
+        /* FALLTHROUGH */
     case PT_FUNCTION:
         dec_usage(pt->left);
         break;

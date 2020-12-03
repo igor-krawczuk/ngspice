@@ -24,7 +24,8 @@ asubst(wordlist *wlist)
 
     word = wlist->wl_word;
     if (*word == '\\') {
-        wlist->wl_word++;       /* FIXME !!!, free() will fail !!! */
+        while ((word[0] = word[1]) != '\0')
+            word++;
         return (NULL);
     }
 
@@ -151,7 +152,6 @@ cp_setalias(char *word, wordlist *wlist)
 
     al->al_name = copy(word);
     al->al_text = wl_copy(wlist);
-    cp_striplist(al->al_text);
     /* We can afford to not worry about the bits, because before the
      * keyword lookup is done the alias is evaluated.  Make everything
      * file completion, just in case...  */

@@ -22,20 +22,21 @@ Authors: 1987 Karti Mayaram, 1991 David Gates
 
 /* information needed per instance */
 typedef struct sNUMDinstance {
-  struct sNUMDmodel *NUMDmodPtr;/* back pointer to model */
-  struct sNUMDinstance *NUMDnextInstance;	/* pointer to next instance
-						 * of current model */
-  IFuid NUMDname;		/* pointer to character string naming this
-				 * instance */
-  int NUMDstate;		/* pointer to start of state vector for diode */
+
+  struct GENinstance gen;
+
+#define NUMDmodPtr(inst) ((struct sNUMDmodel *)((inst)->gen.GENmodPtr))
+#define NUMDnextInstance(inst) ((struct sNUMDinstance *)((inst)->gen.GENnextInstance))
+#define NUMDname gen.GENname
+#define NUMDstate gen.GENstate
 
 #define NUMDvoltage NUMDstate
 #define NUMDid NUMDstate+1
 #define NUMDconduct NUMDstate+2
 #define NUMDnumStates 3
 
-  int NUMDposNode;		/* number of positive node of diode */
-  int NUMDnegNode;		/* number of negative node of diode */
+  const int NUMDposNode;	/* number of positive node of diode */
+  const int NUMDnegNode;	/* number of negative node of diode */
   ONEdevice *NUMDpDevice;
   GLOBvalues NUMDglobals;	/* Temp.-Dep. Global Parameters */
   int NUMDtype;			/* device type pn or np */
@@ -68,17 +69,14 @@ typedef struct sNUMDinstance {
 /* per model data */
 
 typedef struct sNUMDmodel {	/* model structure for a diode */
-  int NUMDmodType;		/* type index of this device type */
-  struct sNUMDmodel *NUMDnextModel;	/* pointer to next possible model in
-					 * linked list */
-  NUMDinstance *NUMDinstances;	/* pointer to list of instances that have
-				 * this model */
-  IFuid NUMDmodName;		/* pointer to character string naming this
-				 * model */
 
-  /* --- end of generic struct GENmodel --- */
+  struct GENmodel gen;
 
-  /* Everything below here is numerical-device-specific */
+#define NUMDmodType gen.GENmodType
+#define NUMDnextModel(inst) ((struct sNUMDmodel *)((inst)->gen.GENnextModel))
+#define NUMDinstances(inst) ((NUMDinstance *)((inst)->gen.GENinstances))
+#define NUMDmodName gen.GENmodName
+
   MESHcard *NUMDxMeshes;	/* list of xmesh cards */
   MESHcard *NUMDyMeshes;	/* list of ymesh cards */
   DOMNcard *NUMDdomains;	/* list of domain cards */
@@ -103,26 +101,27 @@ typedef struct sNUMDmodel {	/* model structure for a diode */
 #define NP -1
 
 /* device parameters */
-#define NUMD_AREA 1
-#define NUMD_IC_FILE 2
-#define NUMD_OFF 3
-#define NUMD_PRINT 4
-#define NUMD_TEMP 5
-#define NUMD_VD 6
-#define NUMD_ID 7
-
-#define NUMD_G11 8
-#define NUMD_C11 9
-#define NUMD_Y11 10
-#define NUMD_G12 11
-#define NUMD_C12 12
-#define NUMD_Y12 13
-#define NUMD_G21 14
-#define NUMD_C21 15
-#define NUMD_Y21 16
-#define NUMD_G22 17
-#define NUMD_C22 18
-#define NUMD_Y22 19
+enum {
+    NUMD_AREA = 1,
+    NUMD_IC_FILE,
+    NUMD_OFF,
+    NUMD_PRINT,
+    NUMD_TEMP,
+    NUMD_VD,
+    NUMD_ID,
+    NUMD_G11,
+    NUMD_C11,
+    NUMD_Y11,
+    NUMD_G12,
+    NUMD_C12,
+    NUMD_Y12,
+    NUMD_G21,
+    NUMD_C21,
+    NUMD_Y21,
+    NUMD_G22,
+    NUMD_C22,
+    NUMD_Y22,
+};
 
 /* model parameters */
 /* NOTE: all true model parameters have been moved to IFcardInfo structures */

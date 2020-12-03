@@ -16,7 +16,7 @@ University of Science and Technology of China
 #include "ngspice/fteext.h"
 #include "inpxx.h"
 
-void INP2N(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2N(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 /* parse a numerical device  card */
 /* Nname <node> <node> [<node> ...] [<mname>] */
@@ -63,7 +63,7 @@ void INP2N(CKTcircuit *ckt, INPtables * tab, card * current)
     line=saveline;
     term=(term-2)/2;
     if (term > 7) {
-	LITERR("Numerical device has too much nodes, the limitation is 7\n");
+	LITERR("Numerical device has too many nodes, the limitation is 7\n");
 	return;
     }
     for(i=0;i<term;i++) {   
@@ -74,14 +74,13 @@ void INP2N(CKTcircuit *ckt, INPtables * tab, card * current)
 
     saveline = line;		/* save then old pointer */
 
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
           
     if (*model) {
 	/* token isn't null */
 	if (INPlookMod(model)) {
 	    /* If this is a valid model connect it */
 	    INPinsert(&model, tab);
-	    thismodel = NULL;
 	    current->error = INPgetMod(ckt, model, &thismodel, tab);
 	    if (thismodel != NULL) {
 		if (mytype != thismodel->INPmodType) {

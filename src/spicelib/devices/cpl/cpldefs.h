@@ -16,12 +16,13 @@ reserved.
 /* information used to describe a single instance */
 
 typedef struct sCPLinstance {
-    struct sCPLmodel *CPLmodPtr;    /* backpointer to model */
-    struct sCPLinstance *CPLnextInstance;   /* pointer to next instance of 
-                                             * current model*/
 
-    IFuid CPLname;  /* pointer to character string naming this instance */
-    int CPLstate;   /* not used */
+    struct GENinstance gen;
+
+#define CPLmodPtr(inst) ((struct sCPLmodel *)((inst)->gen.GENmodPtr))
+#define CPLnextInstance(inst) ((struct sCPLinstance *)((inst)->gen.GENnextInstance))
+#define CPLname gen.GENname
+#define CPLstate gen.GENstate
 
 	int *CPLposNodes;
 	int *CPLnegNodes;
@@ -35,22 +36,22 @@ typedef struct sCPLinstance {
 	char **in_node_names;
 	char **out_node_names;
 
-	double **CPLibr1Ibr1;
-	double **CPLibr2Ibr2;
-	double **CPLposIbr1;
-	double **CPLnegIbr2;
+	double **CPLibr1Ibr1Ptr;
+	double **CPLibr2Ibr2Ptr;
+	double **CPLposIbr1Ptr;
+	double **CPLnegIbr2Ptr;
 	/* trial */
-	double **CPLposPos;
-	double **CPLnegNeg;
-	double **CPLposNeg;
-	double **CPLnegPos;
+	double **CPLposPosPtr;
+	double **CPLnegNegPtr;
+	double **CPLposNegPtr;
+	double **CPLnegPosPtr;
 
-	double ***CPLibr1Pos;
-	double ***CPLibr2Neg;
-	double ***CPLibr1Neg;
-	double ***CPLibr2Pos;
-	double ***CPLibr1Ibr2;
-	double ***CPLibr2Ibr1;
+	double ***CPLibr1PosPtr;
+	double ***CPLibr2NegPtr;
+	double ***CPLibr1NegPtr;
+	double ***CPLibr2PosPtr;
+	double ***CPLibr1Ibr2Ptr;
+	double ***CPLibr2Ibr1Ptr;
 	
 	unsigned CPLibr1Given   : 1;
 	unsigned CPLibr2Given   : 1;
@@ -63,14 +64,13 @@ typedef struct sCPLinstance {
 /* per model data */
 
 typedef struct sCPLmodel {       /* model structure for a cpl */
-    int CPLmodType; /* type index of this device type */
-    struct sCPLmodel *CPLnextModel; /* pointer to next possible model in 
-                                     * linked list */
-    CPLinstance * CPLinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid CPLmodName;       /* pointer to character string naming this model */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define CPLmodType gen.GENmodType
+#define CPLnextModel(inst) ((struct sCPLmodel *)((inst)->gen.GENnextModel))
+#define CPLinstances(inst) ((CPLinstance *)((inst)->gen.GENinstances))
+#define CPLmodName gen.GENmodName
 
 	double *Rm;
         int Rm_counter;
@@ -90,18 +90,22 @@ typedef struct sCPLmodel {       /* model structure for a cpl */
 } CPLmodel;
 
 /* instance parameters */
-#define CPL_POS_NODE 1
-#define CPL_NEG_NODE 2
-#define CPL_DIM 3
-#define CPL_LENGTH 4
+enum {
+    CPL_POS_NODE = 1,
+    CPL_NEG_NODE,
+    CPL_DIM,
+    CPL_LENGTH,
+};
 
 /* model parameters */
-#define CPL_R 101
-#define CPL_C 102
-#define CPL_G 103
-#define CPL_L 104
-#define CPL_length 105
-#define CPL_MOD_R 106
+enum {
+    CPL_R = 101,
+    CPL_C,
+    CPL_G,
+    CPL_L,
+    CPL_length,
+    CPL_MOD_R,
+};
 
 #include "cplext.h"
 extern VI_list *pool_vi;

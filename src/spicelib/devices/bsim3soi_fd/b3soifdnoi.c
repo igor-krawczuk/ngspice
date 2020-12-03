@@ -103,7 +103,6 @@ NOISEAN *job = (NOISEAN *) ckt->CKTcurJob;
 B3SOIFDmodel *model = (B3SOIFDmodel *)inModel;
 B3SOIFDinstance *here;
 struct b3soifdSizeDependParam *pParam;
-char name[N_MXVLNTH];
 double tempOnoise;
 double tempInoise;
 double noizDens[B3SOIFDNSRCS];
@@ -128,9 +127,9 @@ int i;
 	""                  /* total transistor noise */
     };
 
-    for (; model != NULL; model = model->B3SOIFDnextModel)
-    {    for (here = model->B3SOIFDinstances; here != NULL;
-	      here = here->B3SOIFDnextInstance)
+    for (; model != NULL; model = B3SOIFDnextModel(model))
+    {    for (here = B3SOIFDinstances(model); here != NULL;
+	      here = B3SOIFDnextInstance(here))
 	 {	 
 	      pParam = here->pParam;
 	      switch (operation)
@@ -142,44 +141,13 @@ int i;
 		      {   switch (mode)
 			  {  case N_DENS:
 			          for (i = 0; i < B3SOIFDNSRCS; i++)
-				  {    (void) sprintf(name, "onoise.%s%s",
-					              here->B3SOIFDname,
-						      B3SOIFDnNames[i]);
-                                       data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                                       if (!data->namelist)
-					   return(E_NOMEM);
-		                       SPfrontEnd->IFnewUid (ckt,
-			                  &(data->namelist[data->numPlots++]),
-			                  NULL, name, UID_OTHER,
-					  NULL);
-				       /* we've added one more plot */
+				  {    NOISE_ADD_OUTVAR(ckt, data, "onoise.%s%s", here->B3SOIFDname, B3SOIFDnNames[i]);
 			          }
 			          break;
 		             case INT_NOIZ:
 			          for (i = 0; i < B3SOIFDNSRCS; i++)
-				  {    (void) sprintf(name, "onoise_total.%s%s",
-						      here->B3SOIFDname,
-						      B3SOIFDnNames[i]);
-                                       data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                                       if (!data->namelist)
-					   return(E_NOMEM);
-		                       SPfrontEnd->IFnewUid (ckt,
-			                  &(data->namelist[data->numPlots++]),
-			                  NULL, name, UID_OTHER,
-					  NULL);
-				       /* we've added one more plot */
-
-			               (void) sprintf(name, "inoise_total.%s%s",
-						      here->B3SOIFDname,
-						      B3SOIFDnNames[i]);
-                                       data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-                                       if (!data->namelist)
-					   return(E_NOMEM);
-		                       SPfrontEnd->IFnewUid (ckt,
-			                  &(data->namelist[data->numPlots++]),
-			                  NULL, name, UID_OTHER,
-					  NULL);
-				       /* we've added one more plot */
+				  {    NOISE_ADD_OUTVAR(ckt, data, "onoise_total.%s%s", here->B3SOIFDname, B3SOIFDnNames[i]);
+			               NOISE_ADD_OUTVAR(ckt, data, "inoise_total.%s%s", here->B3SOIFDname, B3SOIFDnNames[i]);
 			          }
 			          break;
 		          }

@@ -21,14 +21,18 @@ struct GENinstance {
                                      * current model*/
     IFuid GENname;  /* pointer to character string naming this instance */
     int GENstate;   /* state index number */
-    int GENnode1;   /* appropriate node numbers */
-    int GENnode2;   /* appropriate node numbers */
-    int GENnode3;   /* appropriate node numbers */
-    int GENnode4;   /* appropriate node numbers */
-    int GENnode5;   /* appropriate node numbers */
-    int GENnode6;   /* added to create body node 01/06/99 */
-    int GENnode7;   /* added to create temp node  2/03/99 */
+
+    /* The actual device instance structs have to place their node elements
+     *   right after the the end of struct GENinstance
+     *   where they will be accessed by generic GENnode()[]
+     * A notable exception is the XSPICE MIF device
+     */
 };
+
+static inline int *
+GENnode(struct GENinstance *inst) {
+    return (int*)(inst + 1);
+}
 
 
 /* per model data */
@@ -40,6 +44,12 @@ struct GENmodel {       /* model structure for a resistor */
     GENinstance *GENinstances;  /* pointer to list of instances that have this
                                  * model */
     IFuid GENmodName;           /* pointer to character string naming this model */
+    struct wordlist *defaults;  /* default instance parameters */
 };
+
+
+void GENinstanceFree(GENinstance *);
+void GENmodelFree(GENmodel *);
+
 
 #endif

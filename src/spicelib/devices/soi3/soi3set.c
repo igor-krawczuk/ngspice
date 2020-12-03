@@ -53,7 +53,7 @@ SOI3setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     /****** the netlist to default values.                            ******/
 
     /*  loop through all the SOI3 device models */
-    for( ; model != NULL; model = model->SOI3nextModel ) {
+    for( ; model != NULL; model = SOI3nextModel(model)) {
 
         if(!model->SOI3typeGiven) {
             model->SOI3type = NSOI3;
@@ -288,8 +288,8 @@ SOI3setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         /****** in the netlist to default values.                         ******/
 
         /* loop through all the instances of the model */
-        for (here = model->SOI3instances; here != NULL ;
-                here=here->SOI3nextInstance) {
+        for (here = SOI3instances(model); here != NULL ;
+                here=SOI3nextInstance(here)) {
 
 
             if(!here->SOI3icVBSGiven) {
@@ -329,7 +329,7 @@ SOI3setup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
             here->SOI3states = *states;
             *states += SOI3numStates;
 /*               if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                   *states += 10 * (ckt->CKTsenInfo->SENparms);
+                   *states += SOI3numSenStates * (ckt->CKTsenInfo->SENparms);
                }
 */
 				/****** Part 4 - check resistance values for internal nodes, ******/
@@ -669,48 +669,41 @@ SOI3unsetup(GENmodel *inModel, CKTcircuit *ckt)
     SOI3instance *here;
 
     for (model = (SOI3model *)inModel; model != NULL;
-	    model = model->SOI3nextModel)
+	    model = SOI3nextModel(model))
     {
-       for (here = model->SOI3instances; here != NULL;
-                here=here->SOI3nextInstance)
+       for (here = SOI3instances(model); here != NULL;
+                here=SOI3nextInstance(here))
 		 {
-	       if (here->SOI3dNodePrime
-             && here->SOI3dNodePrime != here->SOI3dNode)
-          {
-             CKTdltNNum(ckt, here->SOI3dNodePrime);
-		       here->SOI3dNodePrime= 0;
-	       }
-	       if (here->SOI3sNodePrime
-		       && here->SOI3sNodePrime != here->SOI3sNode)
-	       {
-		       CKTdltNNum(ckt, here->SOI3sNodePrime);
-		       here->SOI3sNodePrime= 0;
-	       }
-	       if (here->SOI3branch)
-	       {
-		       CKTdltNNum(ckt, here->SOI3branch);
-		       here->SOI3branch=0;
-	       }
-	       if (here->SOI3tout1Node)
-	       {
-             CKTdltNNum(ckt, here->SOI3tout1Node);
-		       here->SOI3tout1Node = 0;
-	       }
-	       if (here->SOI3tout2Node)
-	       {
-		       CKTdltNNum(ckt, here->SOI3tout2Node);
-		       here->SOI3tout2Node = 0;
-	       }
-	       if (here->SOI3tout3Node)
-	       {
-             CKTdltNNum(ckt, here->SOI3tout3Node);
-		       here->SOI3tout3Node = 0;
-	       }
-	       if (here->SOI3tout4Node)
-	       {
+	       if (here->SOI3tout4Node > 0)
 		       CKTdltNNum(ckt, here->SOI3tout4Node);
-		       here->SOI3tout4Node = 0;
-	       }
+               here->SOI3tout4Node = 0;
+
+	       if (here->SOI3tout3Node > 0)
+             CKTdltNNum(ckt, here->SOI3tout3Node);
+               here->SOI3tout3Node = 0;
+
+	       if (here->SOI3tout2Node > 0)
+		       CKTdltNNum(ckt, here->SOI3tout2Node);
+               here->SOI3tout2Node = 0;
+
+	       if (here->SOI3tout1Node > 0)
+             CKTdltNNum(ckt, here->SOI3tout1Node);
+               here->SOI3tout1Node = 0;
+
+	       if (here->SOI3branch > 0)
+		       CKTdltNNum(ckt, here->SOI3branch);
+               here->SOI3branch=0;
+
+	       if (here->SOI3sNodePrime > 0
+		       && here->SOI3sNodePrime != here->SOI3sNode)
+		       CKTdltNNum(ckt, here->SOI3sNodePrime);
+               here->SOI3sNodePrime= 0;
+
+	       if (here->SOI3dNodePrime > 0
+             && here->SOI3dNodePrime != here->SOI3dNode)
+             CKTdltNNum(ckt, here->SOI3dNodePrime);
+               here->SOI3dNodePrime= 0;
+
 	    }
     }
     return OK;

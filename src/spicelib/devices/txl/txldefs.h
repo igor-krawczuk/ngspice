@@ -11,13 +11,14 @@
 /* information used to describe a single instance */
 
 typedef struct sTXLinstance {
-    struct sTXLmodel *TXLmodPtr;    /* backpointer to model */
-    struct sTXLinstance *TXLnextInstance;   /* pointer to next instance of 
-                                             * current model*/
 
-    IFuid TXLname;  /* pointer to character string naming this instance */
-    
-        int dimensions; /* may we not need this but ... */
+    struct GENinstance gen;
+
+#define TXLmodPtr(inst) ((struct sTXLmodel *)((inst)->gen.GENmodPtr))
+#define TXLnextInstance(inst) ((struct sTXLinstance *)((inst)->gen.GENnextInstance))
+#define TXLname gen.GENname
+#define TXLstates gen.GENstate
+
 	int TXLposNode;
 	int TXLnegNode;
 	double TXLlength;
@@ -29,20 +30,20 @@ typedef struct sTXLinstance {
 	char *out_node_name;
 	int TXLbranch;       /* unused */
 	
-	double *TXLposPosptr;
-	double *TXLposNegptr;
-	double *TXLnegPosptr;
-	double *TXLnegNegptr;
-	double *TXLibr1Posptr;
-	double *TXLibr2Negptr;
-	double *TXLposIbr1ptr;
-	double *TXLnegIbr2ptr;
-	double *TXLibr1Negptr;
-	double *TXLibr2Posptr;
-	double *TXLibr1Ibr1ptr;
-	double *TXLibr2Ibr2ptr;
-	double *TXLibr1Ibr2ptr;
-	double *TXLibr2Ibr1ptr;
+	double *TXLposPosPtr;
+	double *TXLposNegPtr;
+	double *TXLnegPosPtr;
+	double *TXLnegNegPtr;
+	double *TXLibr1PosPtr;
+	double *TXLibr2NegPtr;
+	double *TXLposIbr1Ptr;
+	double *TXLnegIbr2Ptr;
+	double *TXLibr1NegPtr;
+	double *TXLibr2PosPtr;
+	double *TXLibr1Ibr1Ptr;
+	double *TXLibr2Ibr2Ptr;
+	double *TXLibr1Ibr2Ptr;
+	double *TXLibr2Ibr1Ptr;
 	
 	unsigned TXLibr1Given : 1;
 	unsigned TXLibr2Given : 1;
@@ -55,14 +56,13 @@ typedef struct sTXLinstance {
 /* per model data */
 
 typedef struct sTXLmodel {       /* model structure for a txl */
-    int TXLmodType; /* type index of this device type */
-    struct sTXLmodel *TXLnextModel; /* pointer to next possible model in 
-                                     * linked list */
-    TXLinstance * TXLinstances; /* pointer to list of instances that have this
-                                 * model */
-    IFuid TXLmodName;       /* pointer to character string naming this model */
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define TXLmodType gen.GENmodType
+#define TXLnextModel(inst) ((struct sTXLmodel *)((inst)->gen.GENnextModel))
+#define TXLinstances(inst) ((TXLinstance *)((inst)->gen.GENinstances))
+#define TXLmodName gen.GENmodName
 
 	double R;
 	double L;
@@ -78,17 +78,21 @@ typedef struct sTXLmodel {       /* model structure for a txl */
 } TXLmodel;
 
 /* instance parameters */
-#define TXL_IN_NODE 1
-#define TXL_OUT_NODE 2
-#define TXL_LENGTH 3
+enum {
+    TXL_IN_NODE = 1,
+    TXL_OUT_NODE,
+    TXL_LENGTH,
+};
 
 /* model parameters */
-#define TXL_R 101
-#define TXL_C 102
-#define TXL_G 103
-#define TXL_L 104
-#define TXL_length 105
-#define TXL_MOD_R 106
+enum {
+    TXL_R = 101,
+    TXL_C,
+    TXL_G,
+    TXL_L,
+    TXL_length,
+    TXL_MOD_R,
+};
 
 #include "txlext.h"
 extern VI_list_txl *pool_vi_txl;

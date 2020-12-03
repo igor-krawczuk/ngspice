@@ -45,11 +45,11 @@ DIOdSetup(DIOmodel *model, CKTcircuit *ckt)
 	double cjunc1SW,cjunc2SW,cjunc3SW;
 
 	/*  loop through all the diode models */
-	for( ; model != NULL; model = model->DIOnextModel ) {
+	for( ; model != NULL; model = DIOnextModel(model)) {
 
 		/* loop through all the instances of the model */
-		for (here = model->DIOinstances; here != NULL ;
-                here=here->DIOnextInstance) {
+		for (here = DIOinstances(model); here != NULL ;
+		     here=DIOnextInstance(here)) {
 
                       /*
                 *  this routine loads diodes for dc and transient analyses.
@@ -100,13 +100,12 @@ DIOdSetup(DIOmodel *model, CKTcircuit *ckt)
 				/* why using csat instead of breakdowncurrent? */
 				evrev=exp(-(here->DIOtBrkdwnV+vd)/vt);
 				cd = -csat*evrev;
-                                gd = csat*evrev/vte;
+				gd = csat*evrev/vt;
 				/*
                       * cd = -csat*(evrev-1+here->DIOtBrkdwnV/vt);
                       */
 				/* should there be a minus here above? 
 		      */
-				gd=csat*evrev/vt;
 				g2 = -gd/2/vt;
 				g3 = -g2/3/vt;
 				cdiff3 = cdiff2 = 0;

@@ -25,11 +25,11 @@ CCVSsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     NG_IGNORE(states);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->CCVSnextModel ) {
+    for( ; model != NULL; model = CCVSnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->CCVSinstances; here != NULL ;
-                here=here->CCVSnextInstance) {
+        for (here = CCVSinstances(model); here != NULL ;
+                here=CCVSnextInstance(here)) {
             
             if(here->CCVSposNode == here->CCVSnegNode) {
                 SPfrontEnd->IFerrorf (ERR_FATAL,
@@ -55,11 +55,11 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(CCVSposIbrptr, CCVSposNode, CCVSbranch);
-            TSTALLOC(CCVSnegIbrptr, CCVSnegNode, CCVSbranch);
-            TSTALLOC(CCVSibrNegptr, CCVSbranch, CCVSnegNode);
-            TSTALLOC(CCVSibrPosptr, CCVSbranch, CCVSposNode);
-            TSTALLOC(CCVSibrContBrptr, CCVSbranch, CCVScontBranch);
+            TSTALLOC(CCVSposIbrPtr, CCVSposNode, CCVSbranch);
+            TSTALLOC(CCVSnegIbrPtr, CCVSnegNode, CCVSbranch);
+            TSTALLOC(CCVSibrNegPtr, CCVSbranch, CCVSnegNode);
+            TSTALLOC(CCVSibrPosPtr, CCVSbranch, CCVSposNode);
+            TSTALLOC(CCVSibrContBrPtr, CCVSbranch, CCVScontBranch);
         }
     }
     return(OK);
@@ -72,10 +72,10 @@ CCVSunsetup(GENmodel *inModel, CKTcircuit *ckt)
     CCVSinstance *here;
 
     for (model = (CCVSmodel *)inModel; model != NULL;
-	    model = model->CCVSnextModel)
+	    model = CCVSnextModel(model))
     {
-        for (here = model->CCVSinstances; here != NULL;
-                here=here->CCVSnextInstance)
+        for (here = CCVSinstances(model); here != NULL;
+                here=CCVSnextInstance(here))
 	{
 	    if (here->CCVSbranch) {
 		CKTdltNNum(ckt, here->CCVSbranch);

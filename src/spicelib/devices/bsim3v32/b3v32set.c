@@ -14,6 +14,7 @@
 #include "bsim3v32def.h"
 #include "ngspice/const.h"
 #include "ngspice/sperror.h"
+#include "ngspice/devdefs.h"
 #include "ngspice/suffix.h"
 
 #define MAX_EXP 5.834617425e14
@@ -44,7 +45,7 @@ BSIM3v32instance **InstArray;
 #endif
 
     /*  loop through all the BSIM3v32 device models */
-    for( ; model != NULL; model = model->BSIM3v32nextModel )
+    for( ; model != NULL; model = BSIM3v32nextModel(model))
     {
 /* Default value Processing for BSIM3v32 MOSFET Models */
         if (!model->BSIM3v32typeGiven)
@@ -82,13 +83,13 @@ BSIM3v32instance **InstArray;
          * is faster than comparing strings.
          * Paolo Nenzi 2002
          */
-        if ((!strcmp(model->BSIM3v32version, "3.2.4"))||(!strcmp(model->BSIM3v32version, "3.24")))
+        if ((!strcmp(model->BSIM3v32version, "3.2.4"))||(!strncmp(model->BSIM3v32version, "3.24", 4)))
                 model->BSIM3v32intVersion = BSIM3v32V324;
-        else if ((!strcmp(model->BSIM3v32version, "3.2.3"))||(!strcmp(model->BSIM3v32version, "3.23")))
+        else if ((!strcmp(model->BSIM3v32version, "3.2.3"))||(!strncmp(model->BSIM3v32version, "3.23", 4)))
                 model->BSIM3v32intVersion = BSIM3v32V323;
-        else if ((!strcmp(model->BSIM3v32version, "3.2.2"))||(!strcmp(model->BSIM3v32version, "3.22")))
+        else if ((!strcmp(model->BSIM3v32version, "3.2.2"))||(!strncmp(model->BSIM3v32version, "3.22", 4)))
                 model->BSIM3v32intVersion = BSIM3v32V322;
-        else if ((!strcmp(model->BSIM3v32version, "3.2"))||(!strcmp(model->BSIM3v32version, "3.20")))
+        else if ((!strncmp(model->BSIM3v32version, "3.2", 3))||(!strncmp(model->BSIM3v32version, "3.20", 4)))
                 model->BSIM3v32intVersion = BSIM3v32V32;
         else
                 model->BSIM3v32intVersion = BSIM3v32V3OLD;
@@ -457,7 +458,7 @@ BSIM3v32instance **InstArray;
             model->BSIM3v32wcdsc = 0.0;
         if (!model->BSIM3v32wcdscbGiven)
             model->BSIM3v32wcdscb = 0.0;
-            if (!model->BSIM3v32wcdscdGiven)
+        if (!model->BSIM3v32wcdscdGiven)
             model->BSIM3v32wcdscd = 0.0;
         if (!model->BSIM3v32wcitGiven)
             model->BSIM3v32wcit = 0.0;
@@ -923,10 +924,20 @@ BSIM3v32instance **InstArray;
             model->BSIM3v32vbsMax = 1e99;
         if (!model->BSIM3v32vbdMaxGiven)
             model->BSIM3v32vbdMax = 1e99;
+        if (!model->BSIM3v32vgsrMaxGiven)
+            model->BSIM3v32vgsrMax = 1e99;
+        if (!model->BSIM3v32vgdrMaxGiven)
+            model->BSIM3v32vgdrMax = 1e99;
+        if (!model->BSIM3v32vgbrMaxGiven)
+            model->BSIM3v32vgbrMax = 1e99;
+        if (!model->BSIM3v32vbsrMaxGiven)
+            model->BSIM3v32vbsrMax = 1e99;
+        if (!model->BSIM3v32vbdrMaxGiven)
+            model->BSIM3v32vbdrMax = 1e99;
 
         /* loop through all the instances of the model */
-        for (here = model->BSIM3v32instances; here != NULL ;
-             here=here->BSIM3v32nextInstance)
+        for (here = BSIM3v32instances(model); here != NULL ;
+             here=BSIM3v32nextInstance(here))
         {
             /* allocate a chunk of the state vector */
             here->BSIM3v32states = *states;
@@ -982,13 +993,46 @@ BSIM3v32instance **InstArray;
             if (!here->BSIM3v32mGiven)
                 here->BSIM3v32m = 1;
 
+            /* process source/drain series resistance */
+            /* ACM model */
+
+            double DrainResistance, SourceResistance;
+
+            if (model->BSIM3v32acmMod == 0)
+            {
+                DrainResistance = model->BSIM3v32sheetResistance
+                    * here->BSIM3v32drainSquares;
+                SourceResistance = model->BSIM3v32sheetResistance
+                    * here->BSIM3v32sourceSquares;
+            }
+            else /* ACM > 0 */
+            {
+                error = ACM_SourceDrainResistances(
+                    model->BSIM3v32acmMod,
+                    model->BSIM3v32ld,
+                    model->BSIM3v32ldif,
+                    model->BSIM3v32hdif,
+                    model->BSIM3v32wmlt,
+                    here->BSIM3v32w,
+                    model->BSIM3v32xw,
+                    model->BSIM3v32sheetResistance,
+                    here->BSIM3v32drainSquaresGiven,
+                    model->BSIM3v32rd,
+                    model->BSIM3v32rdc,
+                    here->BSIM3v32drainSquares,
+                    here->BSIM3v32sourceSquaresGiven,
+                    model->BSIM3v32rs,
+                    model->BSIM3v32rsc,
+                    here->BSIM3v32sourceSquares,
+                    &DrainResistance,
+                    &SourceResistance
+                    );
+                if (error)
+                    return(error);
+            }
+
             /* process drain series resistance */
-            if (  ((model->BSIM3v32sheetResistance > 0.0) && (here->BSIM3v32drainSquares > 0.0))
-                ||((model->BSIM3v32sheetResistance > 0.0) && (model->BSIM3v32hdif > 0.0))
-                ||((model->BSIM3v32rd > 0.0) && (model->BSIM3v32ldif > 0.0))
-                ||((model->BSIM3v32rd > 0.0) && (model->BSIM3v32ld > 0.0))
-                ||((model->BSIM3v32rdc > 0.0))
-               )
+            if (DrainResistance != 0)
             {
                if(here->BSIM3v32dNodePrime == 0) {
                  error = CKTmkVolt(ckt,&tmp,here->BSIM3v32name,"drain");
@@ -1009,12 +1053,7 @@ BSIM3v32instance **InstArray;
             }
 
             /* process source series resistance */
-            if (  ((model->BSIM3v32sheetResistance > 0.0) && (here->BSIM3v32sourceSquares > 0.0))
-                ||((model->BSIM3v32sheetResistance > 0.0) && (model->BSIM3v32hdif > 0.0))
-                ||((model->BSIM3v32rs > 0.0) && (model->BSIM3v32ldif > 0.0))
-                ||((model->BSIM3v32rs > 0.0) && (model->BSIM3v32ld > 0.0))
-                ||((model->BSIM3v32rsc > 0.0))
-               )
+            if (SourceResistance != 0)
             {
                if(here->BSIM3v32sNodePrime == 0) {
                  error = CKTmkVolt(ckt,&tmp,here->BSIM3v32name,"source");
@@ -1102,30 +1141,32 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     /* loop through all the BSIM3 device models
     to count the number of instances */
 
-    for (; model != NULL; model = model->BSIM3v32nextModel)
+    for (; model != NULL; model = BSIM3v32nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->BSIM3v32instances; here != NULL;
-            here = here->BSIM3v32nextInstance)
+        for (here = BSIM3v32instances(model); here != NULL;
+             here = BSIM3v32nextInstance(here))
         {
             InstCount++;
         }
+        model->BSIM3v32InstCount = 0;
+        model->BSIM3v32InstanceArray = NULL;
     }
     InstArray = TMALLOC(BSIM3v32instance*, InstCount);
     model = (BSIM3v32model*)inModel;
+    /* store this in the first model only */
+    model->BSIM3v32InstCount = InstCount;
+    model->BSIM3v32InstanceArray = InstArray;
     idx = 0;
-    for (; model != NULL; model = model->BSIM3v32nextModel)
+    for (; model != NULL; model = BSIM3v32nextModel(model))
     {
         /* loop through all the instances of the model */
-        for (here = model->BSIM3v32instances; here != NULL;
-            here = here->BSIM3v32nextInstance)
+        for (here = BSIM3v32instances(model); here != NULL;
+             here = BSIM3v32nextInstance(here))
         {
             InstArray[idx] = here;
             idx++;
         }
-        /* set the array pointer and instance count into each model */
-        model->BSIM3v32InstCount = InstCount;
-        model->BSIM3v32InstanceArray = InstArray;
     }
 
 #endif
@@ -1140,24 +1181,30 @@ BSIM3v32unsetup(
     BSIM3v32model *model;
     BSIM3v32instance *here;
 
+#ifdef USE_OMP
+    model = (BSIM3v32model*)inModel;
+    tfree(model->BSIM3v32InstanceArray);
+#endif
+
     for (model = (BSIM3v32model *)inModel; model != NULL;
-            model = model->BSIM3v32nextModel)
+            model = BSIM3v32nextModel(model))
     {
-        for (here = model->BSIM3v32instances; here != NULL;
-                here=here->BSIM3v32nextInstance)
+        for (here = BSIM3v32instances(model); here != NULL;
+                here=BSIM3v32nextInstance(here))
         {
-            if (here->BSIM3v32dNodePrime
-                    && here->BSIM3v32dNodePrime != here->BSIM3v32dNode)
-            {
-                CKTdltNNum(ckt, here->BSIM3v32dNodePrime);
-                here->BSIM3v32dNodePrime = 0;
-            }
-            if (here->BSIM3v32sNodePrime
+            if (here->BSIM3v32qNode > 0)
+                CKTdltNNum(ckt, here->BSIM3v32qNode);
+            here->BSIM3v32qNode = 0;
+
+            if (here->BSIM3v32sNodePrime > 0
                     && here->BSIM3v32sNodePrime != here->BSIM3v32sNode)
-            {
                 CKTdltNNum(ckt, here->BSIM3v32sNodePrime);
-                here->BSIM3v32sNodePrime = 0;
-            }
+            here->BSIM3v32sNodePrime = 0;
+
+            if (here->BSIM3v32dNodePrime > 0
+                    && here->BSIM3v32dNodePrime != here->BSIM3v32dNode)
+                CKTdltNNum(ckt, here->BSIM3v32dNodePrime);
+            here->BSIM3v32dNodePrime = 0;
         }
     }
     return OK;

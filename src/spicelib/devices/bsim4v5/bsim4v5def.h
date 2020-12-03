@@ -20,14 +20,18 @@ File: bsim4v5def.h
 
 typedef struct sBSIM4v5instance
 {
-    struct sBSIM4v5model *BSIM4v5modPtr;
-    struct sBSIM4v5instance *BSIM4v5nextInstance;
-    IFuid BSIM4v5name;
-    int BSIM4v5states;     /* index into state table for this device */
-    int BSIM4v5dNode;
-    int BSIM4v5gNodeExt;
-    int BSIM4v5sNode;
-    int BSIM4v5bNode;
+
+    struct GENinstance gen;
+
+#define BSIM4v5modPtr(inst) ((struct sBSIM4v5model *)((inst)->gen.GENmodPtr))
+#define BSIM4v5nextInstance(inst) ((struct sBSIM4v5instance *)((inst)->gen.GENnextInstance))
+#define BSIM4v5name gen.GENname
+#define BSIM4v5states gen.GENstate
+
+    const int BSIM4v5dNode;
+    const int BSIM4v5gNodeExt;
+    const int BSIM4v5sNode;
+    const int BSIM4v5bNode;
     int BSIM4v5dNodePrime;
     int BSIM4v5gNodePrime;
     int BSIM4v5gNodeMid;
@@ -774,12 +778,13 @@ struct bsim4v5SizeDependParam
 
 typedef struct sBSIM4v5model 
 {
-    int BSIM4v5modType;
-    struct sBSIM4v5model *BSIM4v5nextModel;
-    BSIM4v5instance *BSIM4v5instances;
-    IFuid BSIM4v5modName; 
 
-    /* --- end of generic struct GENmodel --- */
+    struct GENmodel gen;
+
+#define BSIM4v5modType gen.GENmodType
+#define BSIM4v5nextModel(inst) ((struct sBSIM4v5model *)((inst)->gen.GENnextModel))
+#define BSIM4v5instances(inst) ((BSIM4v5instance *)((inst)->gen.GENinstances))
+#define BSIM4v5modName gen.GENmodName
 
     int BSIM4v5type;
 
@@ -1598,6 +1603,11 @@ typedef struct sBSIM4v5model
     double BSIM4v5vdsMax;
     double BSIM4v5vbsMax;
     double BSIM4v5vbdMax;
+    double BSIM4v5vgsrMax;
+    double BSIM4v5vgdrMax;
+    double BSIM4v5vgbrMax;
+    double BSIM4v5vbsrMax;
+    double BSIM4v5vbdrMax;
 
     struct bsim4v5SizeDependParam *pSizeDependParamKnot;
 
@@ -2332,6 +2342,11 @@ typedef struct sBSIM4v5model
     unsigned  BSIM4v5vdsMaxGiven  :1;
     unsigned  BSIM4v5vbsMaxGiven  :1;
     unsigned  BSIM4v5vbdMaxGiven  :1;
+    unsigned  BSIM4v5vgsrMaxGiven  :1;
+    unsigned  BSIM4v5vgdrMaxGiven  :1;
+    unsigned  BSIM4v5vgbrMaxGiven  :1;
+    unsigned  BSIM4v5vbsrMaxGiven  :1;
+    unsigned  BSIM4v5vbdrMaxGiven  :1;
 
     unsigned  BSIM4v5LintGiven   :1;
     unsigned  BSIM4v5LlGiven   :1;
@@ -3305,12 +3320,17 @@ typedef struct sBSIM4v5model
 #define BSIM4v5_MOD_RBSDBYW             1125
 #define BSIM4v5_MOD_RBSDBYNF            1126
 
-#define BSIM4v5_MOD_VGS_MAX            1201
-#define BSIM4v5_MOD_VGD_MAX            1202
-#define BSIM4v5_MOD_VGB_MAX            1203
-#define BSIM4v5_MOD_VDS_MAX            1204
-#define BSIM4v5_MOD_VBS_MAX            1205
-#define BSIM4v5_MOD_VBD_MAX            1206
+#define BSIM4v5_MOD_VGS_MAX             1201
+#define BSIM4v5_MOD_VGD_MAX             1202
+#define BSIM4v5_MOD_VGB_MAX             1203
+#define BSIM4v5_MOD_VDS_MAX             1204
+#define BSIM4v5_MOD_VBS_MAX             1205
+#define BSIM4v5_MOD_VBD_MAX             1206
+#define BSIM4v5_MOD_VGSR_MAX            1207
+#define BSIM4v5_MOD_VGDR_MAX            1208
+#define BSIM4v5_MOD_VGBR_MAX            1209
+#define BSIM4v5_MOD_VBSR_MAX            1210
+#define BSIM4v5_MOD_VBDR_MAX            1211
 
 #include "bsim4v5ext.h"
 

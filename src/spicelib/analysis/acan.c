@@ -82,10 +82,18 @@ ACan(CKTcircuit *ckt, int restart)
         switch (job->ACstepType) {
 
         case DECADE:
+            if (job->ACstartFreq <= 0) {
+                fprintf(stderr, "ERROR: AC startfreq <= 0\n");
+                return E_PARMVAL;
+            }
             job->ACfreqDelta =
                 exp(log(10.0)/job->ACnumberSteps);
             break;
         case OCTAVE:
+            if (job->ACstartFreq <= 0) {
+                fprintf(stderr, "ERROR: AC startfreq <= 0\n");
+                return E_PARMVAL;
+            }
             job->ACfreqDelta =
                 exp(log(2.0)/job->ACnumberSteps);
             break;
@@ -157,7 +165,7 @@ ACan(CKTcircuit *ckt, int restart)
                                    NULL, IF_REAL,
                                    numNames, nameList, IF_REAL,
                                    &acPlot);
-        tfree(nameList);
+        txfree(nameList);
 
         ipc_send_dcop_prefix();
         CKTdump(ckt, 0.0, acPlot);

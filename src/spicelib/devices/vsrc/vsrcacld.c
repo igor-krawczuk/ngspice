@@ -16,11 +16,11 @@ VSRCacLoad(GENmodel *inModel, CKTcircuit *ckt)
     VSRCmodel *model = (VSRCmodel *) inModel;
     VSRCinstance *here;
 
-    for( ; model != NULL; model = model->VSRCnextModel ) {
+    for( ; model != NULL; model = VSRCnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->VSRCinstances; here != NULL ;
-                here=here->VSRCnextInstance) {
+        for (here = VSRCinstances(model); here != NULL ;
+                here=VSRCnextInstance(here)) {
 
             double acReal, acImag;
 
@@ -37,10 +37,10 @@ VSRCacLoad(GENmodel *inModel, CKTcircuit *ckt)
                 acImag = here->VSRCacImag;
             }
 
-            *(here->VSRCposIbrptr) += 1.0 ;
-            *(here->VSRCnegIbrptr) -= 1.0 ;
-            *(here->VSRCibrPosptr) += 1.0 ;
-            *(here->VSRCibrNegptr) -= 1.0 ;
+            *(here->VSRCposIbrPtr) += 1.0 ;
+            *(here->VSRCnegIbrPtr) -= 1.0 ;
+            *(here->VSRCibrPosPtr) += 1.0 ;
+            *(here->VSRCibrNegPtr) -= 1.0 ;
             *(ckt->CKTrhs + (here->VSRCbranch)) += acReal;
             *(ckt->CKTirhs + (here->VSRCbranch)) += acImag;
         }

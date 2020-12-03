@@ -97,15 +97,15 @@ B2load(GENmodel *inModel, CKTcircuit *ckt)
     double cgdb;
     double cgsb;
     double cbdb;
-    double cdgb;
-    double cddb;
-    double cdsb;
+    double cdgb = 0.0;
+    double cddb = 0.0;
+    double cdsb = 0.0;
     double cggb;
     double cbgb;
     double cbsb;
-    double csgb;
-    double cssb;
-    double csdb;
+    double csgb = 0.0;
+    double cssb = 0.0;
+    double csdb = 0.0;
     double PhiB;
     double PhiBSW;
     double MJ;
@@ -130,11 +130,11 @@ B2load(GENmodel *inModel, CKTcircuit *ckt)
 
 
     /*  loop through all the B2 device models */
-    for( ; model != NULL; model = model->B2nextModel ) {
+    for( ; model != NULL; model = B2nextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->B2instances; here != NULL ;
-                here=here->B2nextInstance) {
+        for (here = B2instances(model); here != NULL ;
+                here=B2nextInstance(here)) {
         
             EffectiveLength=here->B2l - model->B2deltaL * 1.e-6;/* m */
             DrainArea = here->B2drainArea;

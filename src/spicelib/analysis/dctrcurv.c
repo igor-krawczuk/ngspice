@@ -13,6 +13,7 @@ Modified: 1999 Paolo Nenzi
 #include "ngspice/cktdefs.h"
 #include "ngspice/const.h"
 #include "ngspice/sperror.h"
+#include "ngspice/fteext.h"
 
 #ifdef XSPICE
 #include "ngspice/evt.h"
@@ -26,8 +27,6 @@ Modified: 1999 Paolo Nenzi
 #ifdef HAS_PROGREP
 static double actval, actdiff;
 #endif
-
-extern void inp_evaluate_temper(void);
 
 
 int
@@ -91,8 +90,8 @@ DCtrCurv(CKTcircuit *ckt, int restart)
             RESinstance *here;
             RESmodel *model;
 
-            for (model = (RESmodel *)ckt->CKThead[rcode]; model; model = model->RESnextModel)
-                for (here = model->RESinstances; here; here = here->RESnextInstance)
+            for (model = (RESmodel *)ckt->CKThead[rcode]; model; model = RESnextModel(model))
+                for (here = RESinstances(model); here; here = RESnextInstance(here))
                     if (here->RESname == job->TRCVvName[i]) {
                         job->TRCVvElt[i]  = (GENinstance *)here;
                         job->TRCVvSave[i] = here->RESresist;
@@ -110,8 +109,8 @@ DCtrCurv(CKTcircuit *ckt, int restart)
             VSRCinstance *here;
             VSRCmodel *model;
 
-            for (model = (VSRCmodel *)ckt->CKThead[vcode]; model; model = model->VSRCnextModel)
-                for (here = model->VSRCinstances; here; here = here->VSRCnextInstance)
+            for (model = (VSRCmodel *)ckt->CKThead[vcode]; model; model = VSRCnextModel(model))
+                for (here = VSRCinstances(model); here; here = VSRCnextInstance(here))
                     if (here->VSRCname == job->TRCVvName[i]) {
                         job->TRCVvElt[i]  = (GENinstance *)here;
                         job->TRCVvSave[i] = here->VSRCdcValue;
@@ -128,8 +127,8 @@ DCtrCurv(CKTcircuit *ckt, int restart)
             ISRCinstance *here;
             ISRCmodel *model;
 
-            for (model = (ISRCmodel *)ckt->CKThead[icode]; model; model = model->ISRCnextModel)
-                for (here = model->ISRCinstances; here; here = here->ISRCnextInstance)
+            for (model = (ISRCmodel *)ckt->CKThead[icode]; model; model = ISRCnextModel(model))
+                for (here = ISRCinstances(model); here; here = ISRCnextInstance(here))
                     if (here->ISRCname == job->TRCVvName[i]) {
                         job->TRCVvElt[i]  = (GENinstance *)here;
                         job->TRCVvSave[i] = here->ISRCdcValue;
@@ -141,18 +140,19 @@ DCtrCurv(CKTcircuit *ckt, int restart)
                     }
         }
 
-        if (!strcmp(job->TRCVvName[i], "temp")) {
+        if (cieq(job->TRCVvName[i], "temp")) {
             job->TRCVvSave[i] = ckt->CKTtemp; /* Saves the old circuit temperature */
             job->TRCVvType[i] = TEMP_CODE;    /* Set the sweep type code */
             ckt->CKTtemp = job->TRCVvStart[i] + CONSTCtoK; /* Set the new circuit temp */
-            if (expr_w_temper)
-                inp_evaluate_temper();
+            inp_evaluate_temper(ft_curckt);
             CKTtemp(ckt);
             goto found;
         }
 
         SPfrontEnd->IFerrorf (ERR_FATAL,
-                              "DCtrCurv: source / resistor %s not in circuit", job->TRCVvName[i]);
+                "DC Transfer Function: Voltage source, current source, or "
+                "resistor named \"%s\" is not in the circuit",
+                job->TRCVvName[i]);
         return(E_NODEV);
 
     found:;
@@ -181,15 +181,13 @@ DCtrCurv(CKTcircuit *ckt, int restart)
     if (error)
         return(error);
 
-    i = job->TRCVnestLevel;
-
-    if (job->TRCVvType[i] == vcode)
+    if (job->TRCVvType[0] == vcode)
         SPfrontEnd->IFnewUid (ckt, &varUid, NULL, "v-sweep", UID_OTHER, NULL);
-    else if (job->TRCVvType[i] == icode)
+    else if (job->TRCVvType[0] == icode)
         SPfrontEnd->IFnewUid (ckt, &varUid, NULL, "i-sweep", UID_OTHER, NULL);
-    else if (job->TRCVvType[i] == TEMP_CODE)
+    else if (job->TRCVvType[0] == TEMP_CODE)
         SPfrontEnd->IFnewUid (ckt, &varUid, NULL, "temp-sweep", UID_OTHER, NULL);
-    else if (job->TRCVvType[i] == rcode)
+    else if (job->TRCVvType[0] == rcode)
         SPfrontEnd->IFnewUid (ckt, &varUid, NULL, "res-sweep", UID_OTHER, NULL);
     else
         SPfrontEnd->IFnewUid (ckt, &varUid, NULL, "?-sweep", UID_OTHER, NULL);
@@ -217,9 +215,9 @@ DCtrCurv(CKTcircuit *ckt, int restart)
     for (;;) {
 
         if (job->TRCVvType[i] == vcode) { /* voltage source */
-            if ((((VSRCinstance*)(job->TRCVvElt[i]))->VSRCdcValue) *
-                SIGN(1.0, job->TRCVvStep[i]) -
-                SIGN(1.0, job->TRCVvStep[i]) * job->TRCVvStop[i] >
+            if (SGN(job->TRCVvStep[i]) *
+                (((VSRCinstance*)(job->TRCVvElt[i]))->VSRCdcValue -
+                 job->TRCVvStop[i]) >
                 DBL_EPSILON * 1e+03)
             {
                 i++;
@@ -230,9 +228,9 @@ DCtrCurv(CKTcircuit *ckt, int restart)
                 goto nextstep;
             }
         } else if (job->TRCVvType[i] == icode) { /* current source */
-            if ((((ISRCinstance*)(job->TRCVvElt[i]))->ISRCdcValue) *
-                SIGN(1.0, job->TRCVvStep[i]) -
-                SIGN(1.0, job->TRCVvStep[i]) * job->TRCVvStop[i] >
+            if (SGN(job->TRCVvStep[i]) *
+                (((ISRCinstance*)(job->TRCVvElt[i]))->ISRCdcValue -
+                 job->TRCVvStop[i]) >
                 DBL_EPSILON * 1e+03)
             {
                 i++;
@@ -243,9 +241,9 @@ DCtrCurv(CKTcircuit *ckt, int restart)
                 goto nextstep;
             }
         } else if (job->TRCVvType[i] == rcode) { /* resistance */
-            if ((((RESinstance*)(job->TRCVvElt[i]))->RESresist) *
-                SIGN(1.0, job->TRCVvStep[i]) -
-                SIGN(1.0, job->TRCVvStep[i]) * job->TRCVvStop[i] >
+            if (SGN(job->TRCVvStep[i]) *
+                (((RESinstance*)(job->TRCVvElt[i]))->RESresist -
+                 job->TRCVvStop[i]) >
                 DBL_EPSILON * 1e+03)
             {
                 i++;
@@ -256,8 +254,8 @@ DCtrCurv(CKTcircuit *ckt, int restart)
                 goto nextstep;
             }
         } else if (job->TRCVvType[i] == TEMP_CODE) { /* temp sweep */
-            if (((ckt->CKTtemp) - CONSTCtoK) * SIGN(1.0, job->TRCVvStep[i]) -
-                SIGN(1.0, job->TRCVvStep[i]) * job->TRCVvStop[i] >
+            if (SGN(job->TRCVvStep[i]) *
+                ((ckt->CKTtemp - CONSTCtoK) - job->TRCVvStop[i]) >
                 DBL_EPSILON * 1e+03)
             {
                 i++;
@@ -278,15 +276,12 @@ DCtrCurv(CKTcircuit *ckt, int restart)
                     job->TRCVvStart[i];
             } else if (job->TRCVvType[i] == TEMP_CODE) {
                 ckt->CKTtemp = job->TRCVvStart[i] + CONSTCtoK;
-                if (expr_w_temper)
-                    inp_evaluate_temper();
+                inp_evaluate_temper(ft_curckt);
                 CKTtemp(ckt);
             } else if (job->TRCVvType[i] == rcode) {
                 ((RESinstance *)(job->TRCVvElt[i]))->RESresist =
                     job->TRCVvStart[i];
-                /* RESload() needs conductance as well */
-                ((RESinstance *)(job->TRCVvElt[i]))->RESconduct =
-                    1 / (((RESinstance *)(job->TRCVvElt[i]))->RESresist);
+                RESupdate_conduct((RESinstance *)(job->TRCVvElt[i]), FALSE);
                 DEVices[rcode]->DEVload(job->TRCVvElt[i]->GENmodPtr, ckt);
             }
 
@@ -381,7 +376,7 @@ DCtrCurv(CKTcircuit *ckt, int restart)
         /* If first time through, call CKTdump to output Operating Point info */
         /* for Mspice compatibility */
 
-        if (g_ipc.enabled && firstTime) {
+        if (((g_ipc.enabled) || wantevtdata) && firstTime) {
             ipc_send_dcop_prefix();
             CKTdump(ckt, 0.0, plot);
             ipc_send_dcop_suffix();
@@ -466,14 +461,11 @@ DCtrCurv(CKTcircuit *ckt, int restart)
         } else if (job->TRCVvType[i] == rcode) { /* resistance */
             ((RESinstance*)(job->TRCVvElt[i]))->RESresist +=
                 job->TRCVvStep[i];
-            /* RESload() needs conductance as well */
-            ((RESinstance*)(job->TRCVvElt[i]))->RESconduct =
-                1 / (((RESinstance*)(job->TRCVvElt[i]))->RESresist);
+            RESupdate_conduct((RESinstance *)(job->TRCVvElt[i]), FALSE);
             DEVices[rcode]->DEVload(job->TRCVvElt[i]->GENmodPtr, ckt);
         } else if (job->TRCVvType[i] == TEMP_CODE) { /* temperature */
             ckt->CKTtemp += job->TRCVvStep[i];
-            if (expr_w_temper)
-                inp_evaluate_temper();
+            inp_evaluate_temper(ft_curckt);
             CKTtemp(ckt);
         }
 
@@ -503,15 +495,12 @@ DCtrCurv(CKTcircuit *ckt, int restart)
             ((ISRCinstance*)(job->TRCVvElt[i]))->ISRCdcGiven = (job->TRCVgSave[i] != 0);
         } else  if (job->TRCVvType[i] == rcode) { /* Resistance */
             ((RESinstance*)(job->TRCVvElt[i]))->RESresist = job->TRCVvSave[i];
-            /* RESload() needs conductance as well */
-            ((RESinstance*)(job->TRCVvElt[i]))->RESconduct =
-                1 / (((RESinstance*)(job->TRCVvElt[i]))->RESresist);
             ((RESinstance*)(job->TRCVvElt[i]))->RESresGiven = (job->TRCVgSave[i] != 0);
+            RESupdate_conduct((RESinstance *)(job->TRCVvElt[i]), TRUE);
             DEVices[rcode]->DEVload(job->TRCVvElt[i]->GENmodPtr, ckt);
         } else if (job->TRCVvType[i] == TEMP_CODE) {
             ckt->CKTtemp = job->TRCVvSave[i];
-            if (expr_w_temper)
-                inp_evaluate_temper();
+            inp_evaluate_temper(ft_curckt);
             CKTtemp(ckt);
         }
 

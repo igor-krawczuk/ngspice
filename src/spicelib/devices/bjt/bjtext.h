@@ -10,12 +10,10 @@ Modified: 2000 AlansFixes
 extern int BJTacLoad(GENmodel *,CKTcircuit*);
 extern int BJTask(CKTcircuit *,GENinstance*,int,IFvalue*,IFvalue*);
 extern int BJTconvTest(GENmodel*,CKTcircuit*);
-extern int BJTdelete(GENmodel*,IFuid,GENinstance**);
-extern void BJTdestroy(GENmodel**);
+extern int BJTdelete(GENinstance*);
 extern int BJTgetic(GENmodel*,CKTcircuit*);
 extern int BJTload(GENmodel*,CKTcircuit*);
 extern int BJTmAsk(CKTcircuit*,GENmodel*,int,IFvalue*);
-extern int BJTmDelete(GENmodel**,IFuid,GENmodel*);
 extern int BJTmParam(int,IFvalue*,GENmodel*);
 extern int BJTparam(int,IFvalue*,GENinstance*,IFvalue*);
 extern int BJTpzLoad(GENmodel*,CKTcircuit*,SPcomplex*);

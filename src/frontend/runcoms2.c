@@ -27,10 +27,16 @@ Author: 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 
 #include "ngspice/inpdefs.h"
 
-#define RAWBUF_SIZE 32768
-extern char rawfileBuf[RAWBUF_SIZE];
-extern void line_free_x(struct line * deck, bool recurse);
+#if defined(XSPICE) && defined(SIMULATOR)
+#include "ngspice/evtproto.h"
+#endif
+
+extern void line_free_x(struct card *deck, bool recurse);
 extern INPmodel *modtab;
+
+#ifdef SHARED_MODULE
+extern void exec_controls(wordlist *newcontrols);
+#endif
 
 #define line_free(line, flag)                   \
     do {                                        \
@@ -91,7 +97,7 @@ com_resume(wordlist *wl)
     if (last_used_rawfile)
         dofile = TRUE;
 
-    if (cp_getvar("filetype", CP_STRING, buf)) {
+    if (cp_getvar("filetype", CP_STRING, buf, sizeof(buf))) {
         if (eq(buf, "binary"))
             ascii = FALSE;
         else if (eq(buf, "ascii"))
@@ -108,14 +114,12 @@ com_resume(wordlist *wl)
         /* ask if binary or ASCII, open file with w or wb   hvogt 15.3.2000 */
         else if (ascii) {
             if ((rawfileFp = fopen(last_used_rawfile, "a")) == NULL) {
-                setvbuf(rawfileFp, rawfileBuf, _IOFBF, RAWBUF_SIZE);
                 perror(last_used_rawfile);
                 ft_setflag = FALSE;
                 return;
             }
         } else if (!ascii) {
             if ((rawfileFp = fopen(last_used_rawfile, "ab")) == NULL) {
-                setvbuf(rawfileFp, rawfileBuf, _IOFBF, RAWBUF_SIZE);
                 perror(last_used_rawfile);
                 ft_setflag = FALSE;
                 return;
@@ -124,7 +128,6 @@ com_resume(wordlist *wl)
         /*---------------------------------------------------------------------------*/
 #else
         else if (!(rawfileFp = fopen(last_used_rawfile, "a"))) {
-            setvbuf(rawfileFp, rawfileBuf, _IOFBF, RAWBUF_SIZE);
             perror(last_used_rawfile);
             ft_setflag = FALSE;
             return;
@@ -164,32 +167,18 @@ com_resume(wordlist *wl)
 }
 
 
-/* Throw out the circuit struct and recreate it from the deck.  This command
- * should be obsolete.
- */
-
+/* Throw out the circuit struct and recreate it from the deck. */
 void
 com_rset(wordlist *wl)
 {
-    struct variable *v, *next;
-
     NG_IGNORE(wl);
 
     if (ft_curckt == NULL) {
         fprintf(cp_err, "Error: there is no circuit loaded.\n");
         return;
     }
-    INPkillMods();
-
-    if_cktfree(ft_curckt->ci_ckt, ft_curckt->ci_symtab);
-    for (v = ft_curckt->ci_vars; v; v = next) {
-        next = v->va_next;
-        tfree(v);
-    }
-    ft_curckt->ci_vars = NULL;
-
-    inp_dodeck(ft_curckt->ci_deck, ft_curckt->ci_name, NULL,
-               TRUE, ft_curckt->ci_options, ft_curckt->ci_filename);
+    com_remcirc(NULL);
+    inp_source_recent();
 }
 
 
@@ -198,11 +187,8 @@ void
 com_remcirc(wordlist *wl)
 {
     struct variable *v, *next;
-    struct line *dd;     /*in: the spice deck */
+    struct card *dd;     /*in: the spice deck */
     struct circ *p, *prev = NULL;
-#ifdef SHARED_MODULE
-    TRANan *job;
-#endif
 
     NG_IGNORE(wl);
 
@@ -211,17 +197,10 @@ com_remcirc(wordlist *wl)
         return;
     }
 
-#ifdef SHARED_MODULE
-    /* This may happen only with shared ngspice during transient analysis,
-       if simulation is stopped with 'bg_halt'
-       and then circuit shall be removed prematurely. */
-    job = (TRANan *) ft_curckt->ci_ckt->CKTcurJob;
-    if (job && (job->JOBtype == 4) && (job->TRANplot))
-        SPfrontEnd->OUTendPlot (job->TRANplot);
-#endif
-
     /* delete numparam data structure dicoS */
     nupa_del_dicoS();
+    /* delete entry in dicoslist */
+    nupa_rem_dicoslist(ft_curckt->ci_dicos);
 
     dbfree(ft_curckt->ci_dbs);
     ft_curckt->ci_dbs = NULL;
@@ -230,10 +209,18 @@ com_remcirc(wordlist *wl)
     /* The next lines stem from com_rset */
     INPkillMods();
 
+#if defined(XSPICE) && defined(SIMULATOR)
+    /* remove event queues, if XSPICE and not nutmeg */
+    if (ft_curckt->ci_ckt)
+        EVTunsetup(ft_curckt->ci_ckt);
+#endif
+
     if_cktfree(ft_curckt->ci_ckt, ft_curckt->ci_symtab);
     for (v = ft_curckt->ci_vars; v; v = next) {
         next = v->va_next;
         tfree(v->va_name);
+        if (v->va_type == CP_STRING)
+            tfree(v->va_string);
         tfree(v);
     }
     ft_curckt->ci_vars = NULL;
@@ -243,6 +230,8 @@ com_remcirc(wordlist *wl)
     dd = ft_curckt->ci_param;
     line_free(dd, TRUE);
     dd = ft_curckt->ci_options;
+    line_free(dd, TRUE);
+    dd = ft_curckt->ci_meas;
     line_free(dd, TRUE);
 
     wl_free(ft_curckt->ci_commands);
@@ -257,6 +246,10 @@ com_remcirc(wordlist *wl)
         tfree(ft_curckt->ci_name);
     if (ft_curckt->ci_filename)
         tfree(ft_curckt->ci_filename);
+    rem_tlist(ft_curckt->devtlist);
+    rem_tlist(ft_curckt->modtlist);
+
+    inp_mc_free();
 
     /* delete the actual circuit entry from ft_circuits */
     for (p = ft_circuits; p; p = p->ci_next) {
@@ -281,5 +274,6 @@ com_remcirc(wordlist *wl)
     if (ft_curckt) {
         modtab = ft_curckt->ci_modtab;
         dbs = ft_curckt->ci_dbs;
+        nupa_set_dicoslist(ft_curckt->ci_dicos);
     }
 }

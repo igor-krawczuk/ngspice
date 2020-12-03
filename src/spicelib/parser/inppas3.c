@@ -21,11 +21,11 @@ extern IFsimulator *ft_sim;
  * warning.  */
 
 void
-INPpas3(CKTcircuit *ckt, card *data, INPtables *tab, TSKtask *task,
+INPpas3(CKTcircuit *ckt, struct card *data, INPtables *tab, TSKtask *task,
         IFparm *nodeParms, int numNodeParms)
 {
 
-    card *current;
+    struct card *current;
     int error;			/* used by the macros defined above */
     char *line;			/* the part of the current line left
                                    to parse */
@@ -89,7 +89,7 @@ INPpas3(CKTcircuit *ckt, card *data, INPtables *tab, TSKtask *task,
                 if( (*name == 'V' || *name == 'v') && !name[1] ) {
                     /* looks like V - must be V(xx) - get xx now*/
                     char *nodename;
-                    INPgetTok(&line,&nodename,1);
+                    INPgetNetTok(&line,&nodename,1);
                     if (INPtermInsert(ckt,&nodename,tab,&node1)!=E_EXISTS)
                         fprintf(stderr,
                                 "Warning : Nodeset on non-existant node - %s\n", nodename);
@@ -130,7 +130,7 @@ INPpas3(CKTcircuit *ckt, card *data, INPtables *tab, TSKtask *task,
                 if( (*name == 'V' || *name == 'v') && !name[1] ) {
                     /* looks like V - must be V(xx) - get xx now*/
                     char *nodename;
-                    INPgetTok(&line,&nodename,1);
+                    INPgetNetTok(&line,&nodename,1);
                     if (INPtermInsert(ckt,&nodename,tab,&node1)!=E_EXISTS)
                         fprintf(stderr,
                                 "Warning : IC on non-existant node - %s\n", nodename);

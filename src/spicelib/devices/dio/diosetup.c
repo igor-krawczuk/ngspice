@@ -25,7 +25,7 @@ DIOsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
     CKTnode *tmp;
 
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->DIOnextModel ) {
+    for( ; model != NULL; model = DIOnextModel(model)) {
 
         if(!model->DIOlevelGiven) {
             model->DIOlevel = 1;
@@ -159,10 +159,16 @@ DIOsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
         if(!model->DIObv_maxGiven) {
             model->DIObv_max = 1e99;
         }
+        if(!model->DIOrecEmissionCoeffGiven) {
+            model->DIOrecEmissionCoeff = 1;
+        }
+        if(!model->DIOrecSatCurGiven) {
+            model->DIOrecSatCur = 1e-14;
+        }
 
         /* loop through all the instances of the model */
-        for (here = model->DIOinstances; here != NULL ;
-                here=here->DIOnextInstance) {
+        for (here = DIOinstances(model); here != NULL ;
+                here=DIOnextInstance(here)) {
 
             if(!here->DIOareaGiven) {
                 if((!here->DIOwGiven) && (!here->DIOlGiven))  {
@@ -196,9 +202,9 @@ DIOsetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt, int *states)
             here->DIOjunctionSWCap = model->DIOjunctionSWCap * here->DIOpj;
 
             here->DIOstate = *states;
-            *states += 5;
+            *states += DIOnumStates;
             if(ckt->CKTsenInfo && (ckt->CKTsenInfo->SENmode & TRANSEN) ){
-                *states += 2 * (ckt->CKTsenInfo->SENparms);
+                *states += DIOnumSenStates * (ckt->CKTsenInfo->SENparms);
             }
 
             if(model->DIOresist == 0) {
@@ -250,18 +256,16 @@ DIOunsetup(
     DIOinstance *here;
 
     for (model = (DIOmodel *)inModel; model != NULL;
-        model = model->DIOnextModel)
+        model = DIOnextModel(model))
     {
-        for (here = model->DIOinstances; here != NULL;
-                here=here->DIOnextInstance)
+        for (here = DIOinstances(model); here != NULL;
+                here=DIOnextInstance(here))
         {
 
-            if (here->DIOposPrimeNode
+            if (here->DIOposPrimeNode > 0
               && here->DIOposPrimeNode != here->DIOposNode)
-            {
                 CKTdltNNum(ckt, here->DIOposPrimeNode);
-                here->DIOposPrimeNode = 0;
-            }
+            here->DIOposPrimeNode = 0;
         }
     }
     return OK;

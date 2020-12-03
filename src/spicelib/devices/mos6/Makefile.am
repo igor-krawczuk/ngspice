@@ -7,7 +7,7 @@ libmos6_la_SOURCES =	\
 	mos6ask.c	\
 	mos6conv.c	\
 	mos6defs.h	\
-	mos6dest.c	\
+	mos6del.c	\
 	mos6ext.h	\
 	mos6ic.c	\
 	mos6init.c	\

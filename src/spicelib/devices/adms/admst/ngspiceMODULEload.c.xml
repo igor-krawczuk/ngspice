@@ -187,17 +187,17 @@ int $(module)load(GENmodel *inModel, CKTcircuit *ckt)
       * sparse matrix previously provided 
       */
 {
-  register $(module)model *model = ($(module)model*)inModel;
-  register $(module)instance *here;
+  $(module)model *model = ($(module)model*)inModel;
+  $(module)instance *here;
   int ChargeComputationNeeded =  
                  ((ckt->CKTmode &amp; (MODEAC | MODETRAN | MODEINITSMSIG)) ||
                  ((ckt->CKTmode &amp; MODETRANOP) &amp;&amp; (ckt->CKTmode &amp; MODEUIC)))
                  ? 1 : 0;
 
-  for ( ; model != NULL; model = model->$(module)nextModel )
+  for ( ; model != NULL; model = $(module)nextModel(model) )
   {
     /* loop through all the instances of the model */
-    for (here = model->$(module)instances; here != NULL ; here = here->$(module)nextInstance)
+    for (here = $(module)instances(model); here != NULL ; here = $(module)nextInstance(here))
     {
 {
 <admst:for-each select="jacobian[static='yes']">

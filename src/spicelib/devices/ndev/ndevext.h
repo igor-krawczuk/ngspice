@@ -9,13 +9,11 @@ Author: 1987 Karti Mayaram
 
 extern int NDEVacLoad(GENmodel *, CKTcircuit *);
 extern int NDEVask(CKTcircuit *, GENinstance *, int, IFvalue *, IFvalue *);
-extern int NDEVdelete(GENmodel *, IFuid, GENinstance **);
-extern void NDEVdestroy(GENmodel **);
 extern int NDEVgetic(GENmodel *, CKTcircuit *);
 extern int NDEVload(GENmodel *, CKTcircuit *);
 extern int NDEVaccept(CKTcircuit *, GENmodel *);
 extern int NDEVconvTest(GENmodel *, CKTcircuit *);
-extern int NDEVmDelete(GENmodel **, IFuid, GENmodel *);
+extern int NDEVmDelete(GENmodel *);
 extern int NDEVmParam(int, IFvalue *, GENmodel *);
 extern int NDEVparam(int, IFvalue *, GENinstance *, IFvalue *);
 extern int NDEVpzLoad(GENmodel *, CKTcircuit *, SPcomplex *);

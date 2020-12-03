@@ -24,11 +24,11 @@ VSRCpzSetup(SMPmatrix *matrix, GENmodel *inModel, CKTcircuit *ckt,
     NG_IGNORE(state);
 
     /*  loop through all the voltage source models */
-    for( ; model != NULL; model = model->VSRCnextModel ) {
+    for( ; model != NULL; model = VSRCnextModel(model)) {
 
         /* loop through all the instances of the model */
-        for (here = model->VSRCinstances; here != NULL ;
-	     here = here->VSRCnextInstance) {
+        for (here = VSRCinstances(model); here != NULL ;
+	     here = VSRCnextInstance(here)) {
             
             if (here->VSRCbranch == 0) {
                 error = CKTmkCur(ckt,&tmp,here->VSRCname,"branch");
@@ -42,11 +42,11 @@ do { if((here->ptr = SMPmakeElt(matrix, here->first, here->second)) == NULL){\
     return(E_NOMEM);\
 } } while(0)
 
-            TSTALLOC(VSRCposIbrptr, VSRCposNode, VSRCbranch);
-            TSTALLOC(VSRCnegIbrptr, VSRCnegNode, VSRCbranch);
-            TSTALLOC(VSRCibrNegptr, VSRCbranch, VSRCnegNode);
-            TSTALLOC(VSRCibrPosptr, VSRCbranch, VSRCposNode);
-            TSTALLOC(VSRCibrIbrptr, VSRCbranch, VSRCbranch);
+            TSTALLOC(VSRCposIbrPtr, VSRCposNode, VSRCbranch);
+            TSTALLOC(VSRCnegIbrPtr, VSRCnegNode, VSRCbranch);
+            TSTALLOC(VSRCibrNegPtr, VSRCbranch, VSRCnegNode);
+            TSTALLOC(VSRCibrPosPtr, VSRCbranch, VSRCposNode);
+            TSTALLOC(VSRCibrIbrPtr, VSRCbranch, VSRCbranch);
         }
     }
     return(OK);

@@ -3,7 +3,7 @@
 /**********
  * Copyright 2004 Regents of the University of California. All rights reserved.
  * File: b3mdel.c of BSIM3v3.3.0
- * Author: 1995 Min-Chie Jeng and Mansun Chan. 
+ * Author: 1995 Min-Chie Jeng and Mansun Chan.
  * Author: 1997-1999 Weidong Liu.
  * Author: 2001  Xuemei Xi
  **********/
@@ -13,37 +13,25 @@
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
 
+
 int
-BSIM3mDelete(
-GENmodel **inModel,
-IFuid modname,
-GENmodel *kill)
+BSIM3mDelete(GENmodel *gen_model)
 {
-BSIM3model **model = (BSIM3model**)inModel;
-BSIM3model *modfast = (BSIM3model*)kill;
-BSIM3instance *here;
-BSIM3instance *prev = NULL;
-BSIM3model **oldmod;
+    BSIM3model *model = (BSIM3model*) gen_model;
 
-    oldmod = model;
-    for (; *model ; model = &((*model)->BSIM3nextModel)) 
-    {    if ((*model)->BSIM3modName == modname || 
-             (modfast && *model == modfast))
-	     goto delgot;
-         oldmod = model;
-    }
-    return(E_NOMOD);
+#ifdef USE_OMP
+    FREE(model->BSIM3InstanceArray);
+#endif
 
-delgot:
-    *oldmod = (*model)->BSIM3nextModel; /* cut deleted device out of list */
-    for (here = (*model)->BSIM3instances; here; here = here->BSIM3nextInstance)
-    {    if(prev) FREE(prev);
-         prev = here;
+    struct bsim3SizeDependParam *p = model->pSizeDependParamKnot;
+    while (p) {
+        struct bsim3SizeDependParam *next_p = p->pNext;
+        FREE(p);
+        p = next_p;
     }
-    if(prev) FREE(prev);
-    FREE(*model);
-    return(OK);
+
+    /* model->BSIM3modName to be freed in INPtabEnd() */
+    FREE(model->BSIM3version);
+
+    return OK;
 }
-
-
-

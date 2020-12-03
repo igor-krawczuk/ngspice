@@ -30,7 +30,6 @@ BJTnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
     BJTmodel *firstModel = (BJTmodel *) genmodel;
     BJTmodel *model;
     BJTinstance *inst;
-    char name[N_MXVLNTH];
     double tempOnoise;
     double tempInoise;
     double noizDens[BJTNSRCS];
@@ -51,9 +50,9 @@ BJTnoise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
 	""                  /* total transistor noise */
     };
 
-for (model=firstModel; model != NULL; model=model->BJTnextModel) {
-	for (inst=model->BJTinstances; inst != NULL;
-		inst=inst->BJTnextInstance) {
+for (model=firstModel; model != NULL; model=BJTnextModel(model)) {
+	for (inst=BJTinstances(model); inst != NULL;
+		inst=BJTnextInstance(inst)) {
 
 	    switch (operation) {
 
@@ -67,40 +66,14 @@ for (model=firstModel; model != NULL; model=model->BJTnextModel) {
 
 		    case N_DENS:
 			for (i=0; i < BJTNSRCS; i++) {
-			    (void)sprintf(name,"onoise_%s%s",
-				inst->BJTname,BJTnNames[i]);
-
-
-			data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-			if (!data->namelist) return(E_NOMEM);
-			SPfrontEnd->IFnewUid (ckt,
-			    &(data->namelist[data->numPlots++]),
-			    NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
+			    NOISE_ADD_OUTVAR(ckt, data, "onoise_%s%s", inst->BJTname, BJTnNames[i]);
 			}
 			break;
 
 		    case INT_NOIZ:
 			for (i=0; i < BJTNSRCS; i++) {
-			    (void)sprintf(name,"onoise_total_%s%s",
-				inst->BJTname,BJTnNames[i]);
-
-			data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-			if (!data->namelist) return(E_NOMEM);
-			SPfrontEnd->IFnewUid (ckt,
-			    &(data->namelist[data->numPlots++]),
-			    NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
-
-			    (void)sprintf(name,"inoise_total_%s%s",
-				inst->BJTname,BJTnNames[i]);
-
-data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-if (!data->namelist) return(E_NOMEM);
-		SPfrontEnd->IFnewUid (ckt,
-			&(data->namelist[data->numPlots++]),
-			NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
+			    NOISE_ADD_OUTVAR(ckt, data, "onoise_total_%s%s", inst->BJTname, BJTnNames[i]);
+			    NOISE_ADD_OUTVAR(ckt, data, "inoise_total_%s%s", inst->BJTname, BJTnNames[i]);
 			}
 			break;
 		    }
@@ -112,7 +85,7 @@ if (!data->namelist) return(E_NOMEM);
 
 		case N_DENS:
 		    NevalSrc(&noizDens[BJTRCNOIZ],&lnNdens[BJTRCNOIZ],
-				 ckt,THERMNOISE,inst->BJTcolPrimeNode,inst->BJTcolNode,
+				 ckt,THERMNOISE,inst->BJTcollCXNode,inst->BJTcolNode,
 				 inst->BJTtcollectorConduct * inst->BJTarea * inst->BJTm);
 
 		    NevalSrc(&noizDens[BJTRBNOIZ],&lnNdens[BJTRBNOIZ],

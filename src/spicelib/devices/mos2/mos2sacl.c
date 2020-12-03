@@ -128,9 +128,9 @@ MOS2sAcLoad(GENmodel *inModel, CKTcircuit *ckt)
 #endif /* SENSDEBUG */
     info = ckt->CKTsenInfo;
     info->SENstatus = PERTURBATION;
-    for( ; model != NULL; model = model->MOS2nextModel) {
-        for(here = model->MOS2instances; here!= NULL;
-                here = here->MOS2nextInstance) {
+    for( ; model != NULL; model = MOS2nextModel(model)) {
+        for(here = MOS2instances(model); here!= NULL;
+                here = MOS2nextInstance(here)) {
 
             /* save the unperturbed values in the state vector */
             for(i=0; i <= 16; i++)
@@ -634,7 +634,7 @@ load:
             for(iparmno = 1;iparmno<=info->SENparms;iparmno++){
                 if ((flag == 4) || (iparmno != here->MOS2senParmNo) ) continue;
                 if ((flag == 5) || (iparmno != (here->MOS2senParmNo +
-                        here->MOS2sens_l)) ) continue;
+                        (int) here->MOS2sens_l)) ) continue;
                 switch(flag){
                 case 1: 
                     DvDp = model->MOS2type * 

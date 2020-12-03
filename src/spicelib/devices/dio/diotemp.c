@@ -13,6 +13,7 @@ Modified by Paolo Nenzi 2003 and Dietmar Warning 2012
 #include "ngspice/const.h"
 #include "ngspice/sperror.h"
 #include "ngspice/suffix.h"
+#include "ngspice/cpdefs.h"
 
 int
 DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
@@ -32,18 +33,23 @@ DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
     double factor;
     double tBreakdownVoltage;
 
+    double gclimit;
+
+    if (!cp_getvar("DIOgradingCoeffMax", CP_REAL, &gclimit, 0))
+        gclimit = 0.9;
+
     /*  loop through all the diode models */
-    for( ; model != NULL; model = model->DIOnextModel ) {
+    for( ; model != NULL; model = DIOnextModel(model)) {
         if(!model->DIOnomTempGiven) {
             model->DIOnomTemp = ckt->CKTnomTemp;
         }
         vtnom = CONSTKoverQ * model->DIOnomTemp;
-        /* limit grading coeff to max of .9 */
-        if(model->DIOgradingCoeff>.9) {
+        /* limit grading coeff to max of .9, set new limit with variable DIOgradingCoeffMax */
+        if(model->DIOgradingCoeff>gclimit) {
             SPfrontEnd->IFerrorf (ERR_WARNING,
-                    "%s: grading coefficient too large, limited to 0.9",
-                    model->DIOmodName);
-            model->DIOgradingCoeff=.9;
+                    "%s: grading coefficient too large, limited to %g",
+                    model->DIOmodName, gclimit);
+            model->DIOgradingCoeff=gclimit;
         }
         /* limit activation energy to min of .1 */
         if(model->DIOactivationEnergy<.1) {
@@ -66,6 +72,9 @@ DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
                     model->DIOmodName);
             model->DIOdepletionSWcapCoeff=.95;
         }
+        /* set lower limit of saturation current */
+        if (model->DIOsatCur < ckt->CKTepsmin)
+            model->DIOsatCur = ckt->CKTepsmin;
         if((!model->DIOresistGiven) || (model->DIOresist==0)) {
             model->DIOconductance = 0.0;
         } else {
@@ -74,7 +83,7 @@ DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
         xfc=log(1-model->DIOdepletionCapCoeff);
         xfcs=log(1-model->DIOdepletionSWcapCoeff);
 
-        for(here=model->DIOinstances;here;here=here->DIOnextInstance) {
+        for(here=DIOinstances(model);here;here=DIOnextInstance(here)) {
             double egfet1,arg1,fact1,pbfact1,pbo,gmaold,pboSW,gmaSWold;
             double fact2,pbfact,arg,egfet,gmanew,gmaSWnew;
             /* loop through all the instances */
@@ -92,13 +101,13 @@ DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
             here->DIOtGradingCoeff = model->DIOgradingCoeff * factor;
 
             /* limit temperature adjusted grading coeff
-             * to max of .9
+             * to max of .9, or set new limit with variable DIOgradingCoeffMax
              */
-            if(here->DIOtGradingCoeff>.9) {
+            if(here->DIOtGradingCoeff>gclimit) {
               SPfrontEnd->IFerrorf (ERR_WARNING,
-                    "%s: temperature adjusted grading coefficient too large, limited to 0.9",
-                    here->DIOname);
-              here->DIOtGradingCoeff=.9;
+                    "%s: temperature adjusted grading coefficient too large, limited to %g",
+                    here->DIOname, gclimit);
+              here->DIOtGradingCoeff=gclimit;
             }
 
             vt = CONSTKoverQ * here->DIOtemp;
@@ -169,6 +178,12 @@ DIOtemp(GENmodel *inModel, CKTcircuit *ckt)
                     ((here->DIOtemp/model->DIOnomTemp)-1) *
                     model->DIOtunEGcorrectionFactor*model->DIOactivationEnergy/vt +
                     model->DIOtunSaturationCurrentExp *
+                    log(here->DIOtemp/model->DIOnomTemp) );
+
+            here->DIOtRecSatCur = model->DIOrecSatCur * here->DIOarea * exp(
+                    ((here->DIOtemp/model->DIOnomTemp)-1) *
+                    model->DIOactivationEnergy/(model->DIOrecEmissionCoeff*vt) +
+                    model->DIOsaturationCurrentExp/model->DIOrecEmissionCoeff *
                     log(here->DIOtemp/model->DIOnomTemp) );
 
             /* the defintion of f1, just recompute after temperature adjusting

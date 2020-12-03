@@ -29,7 +29,6 @@ B1noise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
     B1model *firstModel = (B1model *) genmodel;
     B1model *model;
     B1instance *inst;
-    char name[N_MXVLNTH];
     double tempOnoise;
     double tempInoise;
     double noizDens[B1NSRCS];
@@ -46,8 +45,8 @@ B1noise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
 	""                  /* total transistor noise */
     };
 
-    for (model=firstModel; model != NULL; model=model->B1nextModel) {
-	for (inst=model->B1instances; inst != NULL; inst=inst->B1nextInstance) {
+    for (model=firstModel; model != NULL; model=B1nextModel(model)) {
+	for (inst=B1instances(model); inst != NULL; inst=B1nextInstance(inst)) {
         
 	    switch (operation) {
 
@@ -61,45 +60,14 @@ B1noise (int mode, int operation, GENmodel *genmodel, CKTcircuit *ckt,
 
 		    case N_DENS:
 			for (i=0; i < B1NSRCS; i++) {
-			    (void)sprintf(name,"onoise_%s%s",inst->B1name,B1nNames[i]);
-
-
-data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-if (!data->namelist) return(E_NOMEM);
-		SPfrontEnd->IFnewUid (ckt,
-			&(data->namelist[data->numPlots++]),
-			NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
-
-
+			    NOISE_ADD_OUTVAR(ckt, data, "onoise_%s%s", inst->B1name, B1nNames[i]);
 			}
 			break;
 
 		    case INT_NOIZ:
 			for (i=0; i < B1NSRCS; i++) {
-			    (void)sprintf(name,"onoise_total_%s%s",inst->B1name,B1nNames[i]);
-
-
-data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-if (!data->namelist) return(E_NOMEM);
-		SPfrontEnd->IFnewUid (ckt,
-			&(data->namelist[data->numPlots++]),
-			NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
-
-
-			    (void)sprintf(name,"inoise_total_%s%s",inst->B1name,B1nNames[i]);
-
-
-data->namelist = TREALLOC(IFuid, data->namelist, data->numPlots + 1);
-if (!data->namelist) return(E_NOMEM);
-		SPfrontEnd->IFnewUid (ckt,
-			&(data->namelist[data->numPlots++]),
-			NULL, name, UID_OTHER, NULL);
-				/* we've added one more plot */
-
-
-
+			    NOISE_ADD_OUTVAR(ckt, data, "onoise_total_%s%s", inst->B1name, B1nNames[i]);
+			    NOISE_ADD_OUTVAR(ckt, data, "inoise_total_%s%s", inst->B1name, B1nNames[i]);
 			}
 			break;
 		    }
@@ -127,7 +95,7 @@ if (!data->namelist) return(E_NOMEM);
 				 (double)0.0);
 		    noizDens[B1FLNOIZ] *= model->B1fNcoef * inst->B1m *
 				 exp(model->B1fNexp *
-				 log(MAX(fabs(inst->B1cd),N_MINLOG))) /
+				 log(MAX(fabs((double)inst->B1cd),N_MINLOG))) /
 				 (data->freq *
 				 (inst->B1w - model->B1deltaW * 1e-6) *
 				 (inst->B1l - model->B1deltaL * 1e-6) *

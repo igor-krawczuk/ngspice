@@ -12,7 +12,7 @@ Author: 1990 Jaijeet S. Roychowdhury
 #include "inpxx.h"
 
 
-void INP2O(CKTcircuit *ckt, INPtables * tab, card * current)
+void INP2O(CKTcircuit *ckt, INPtables * tab, struct card *current)
 {
 
     /* Oname <node> <node> <node> <node> [IC=<val>,<val>,<val>,<val>] */
@@ -44,7 +44,7 @@ void INP2O(CKTcircuit *ckt, INPtables * tab, card * current)
 	return;
     }
     line = current->line;
-    INPgetTok(&line, &name, 1);
+    INPgetNetTok(&line, &name, 1);
     INPinsert(&name, tab);
     INPgetNetTok(&line, &nname1, 1);
     INPtermInsert(ckt, &nname1, tab, &node1);
@@ -54,7 +54,7 @@ void INP2O(CKTcircuit *ckt, INPtables * tab, card * current)
     INPtermInsert(ckt, &nname3, tab, &node3);
     INPgetNetTok(&line, &nname4, 1);
     INPtermInsert(ckt, &nname4, tab, &node4);
-    INPgetTok(&line, &model, 1);
+    INPgetNetTok(&line, &model, 1);
     if (INPlookMod(model)) {
 	/* do nothing for now */
 	/* no action required */
@@ -62,7 +62,7 @@ void INP2O(CKTcircuit *ckt, INPtables * tab, card * current)
 	/*
 	   nname4 = model;
 	   INPtermInsert(ckt,&nname4,tab,&node4);
-	   INPgetTok(&line,&model,1);
+	   INPgetNetTok(&line, &model, 1);
 	 */
     }
     INPinsert(&model, tab);

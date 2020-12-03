@@ -3,11 +3,10 @@ FILE    MIF_INP2A.c
 
 MEMBER OF process XSPICE
 
-Copyright 1991
+Public Domain
+
 Georgia Tech Research Corporation
 Atlanta, Georgia 30332
-All Rights Reserved
-
 PROJECT A-8503
 
 AUTHORS
@@ -62,7 +61,7 @@ static void  MIFinit_inst(MIFmodel *mdfast, MIFinstance *fast);
 static void  MIFget_port_type(
     CKTcircuit       *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables        *tab,      /* symbol table for node names, etc.            */
-    card             *current,  /* MUST be named 'current' for spice macros     */
+    struct card      *current,  /* MUST be named 'current' for spice macros     */
     char             **line,
     char             **next_token,
     Mif_Token_Type_t *next_token_type,
@@ -75,7 +74,7 @@ static void  MIFget_port_type(
 static void MIFget_port(
     CKTcircuit       *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables        *tab,      /* symbol table for node names, etc.            */
-    card             *current,  /* MUST be named 'current' for spice macros     */
+    struct card      *current,  /* MUST be named 'current' for spice macros     */
     MIFinstance      *fast,     /* pointer to instance struct */
     char             **line,
     char             **next_token,
@@ -87,8 +86,28 @@ static void MIFget_port(
     int              port_num,
     Mif_Status_t     *status);
 
+/** A local garbage collector **
+The functions copy, MIFgettok, and MIFget_token have been used virtuously,
+without caring about memory leaks. This is a test with a local gc.
+Add the list of malloced addresses alltokens.
+Add a function copy_gc to copy and enter the address.
+Add a function MIFgettok_gc like MIFgettok, but entering the address
+Add a function MIFget_token_gc like MIFget_token, but entering the address
+Add a function gc_end to delete all entries in alltokens.
+Beware of addresses deleted elsewhere and use anew by malloc.
+Some tokens should not be deleted here, they need another copying.
+*/
+static char *MIFgettok_gc(char **line);
+static char *MIFget_token_gc(char **s, Mif_Token_Type_t *type);
+static char *copy_gc(char *in);
+static void gc_start(void);
+static void gc_end(void);
 
+#define MIFgettok MIFgettok_gc
+#define MIFget_token MIFget_token_gc
 
+static char *alltokens[BSIZE_SP];
+static int curtoknr = 0;
 
 /* ********************************************************************* */
 
@@ -142,7 +161,7 @@ void
 MIF_INP2A (
     CKTcircuit   *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables    *tab,      /* symbol table for node names, etc.            */
-    card         *current ) /* the card we are to parse                     */
+    struct card  *current ) /* the card we are to parse                     */
 /* Must be called "current" for compatibility   */
 /* with macros                                  */
 {
@@ -183,21 +202,22 @@ MIF_INP2A (
     /* get the line text from the card struct */
     line = current->line;
 
+    /* reset the garbage collector */
+    gc_start();
 
     /* get the name of the instance and add it to the symbol table */
-    name = MIFgettok(&line);
+    name = copy(MIFgettok(&line));
     INPinsert(&name, tab);
 
     /* locate the last token on the line (i.e. model name) and put it into "model" */
     while(*line != '\0') {
-        if (model)
-            tfree(model);
         model = MIFgettok(&line);
     }
 
     /* make sure the model name was there. */
     if(model == NULL) {
         LITERR("Missing model on A type device");
+        gc_end();
         return;
     }
 
@@ -206,6 +226,7 @@ MIF_INP2A (
     /* and return a pointer to its structure in 'thismodel'        */
     current->error = MIFgetMod(ckt, model, &thismodel, tab);
     if(current->error) {
+        gc_end();
         return;
     }
 
@@ -214,6 +235,7 @@ MIF_INP2A (
     type = thismodel->INPmodType;
     if((type >= DEVmaxnum) || DEVicesfl[type] == 0) {
         LITERR("Invalid model type for A type device");
+        gc_end();
         return;
     }
 
@@ -234,7 +256,6 @@ MIF_INP2A (
     line = current->line;
 
     tmp_token = MIFgettok(&line);  /* read instance name again . . . .*/
-    tfree(tmp_token);
 
     /*  OK -- now &line points to the first token after
     the instance name and we are ready to process the connections
@@ -257,6 +278,7 @@ MIF_INP2A (
         /* Check that the line is not finished yet. */
         if(*line == '\0') {
             LITERR("Encountered end of line before all connections were found in model.");
+            gc_end();
             return;
         }
 
@@ -273,8 +295,6 @@ MIF_INP2A (
             Otherwise use default info */
         if(next_token_type == MIF_PERCENT_TOK) {  /*  we found a %  */
             /* get the port type identifier and check it for validity */
-            if (next_token)
-                tfree(next_token);
             next_token = MIFget_token(&line, &next_token_type);
             /* Note that MIFget_port_type eats the next token and advances the token pointer in line */
             MIFget_port_type(ckt,
@@ -287,11 +307,13 @@ MIF_INP2A (
                              &def_port_type_str,
                              conn_info,
                              &status);
-            if(status == MIF_ERROR)
+            if (status == MIF_ERROR) {
+                gc_end();
                 return;
+            }
         } else {   /* use the default port type for this connection */
             def_port_type = conn_info->default_port_type;
-            def_port_type_str = conn_info->default_type;
+            def_port_type_str = copy_gc(conn_info->default_type);
         }
 
         /* At this point, next_token should be either a [ char, or should hold
@@ -314,6 +336,7 @@ MIF_INP2A (
             /* make sure null is allowed */
             if(! conn_info->null_allowed) {
                 LITERR("NULL connection found where not allowed");
+                gc_end();
                 return;
             }
 
@@ -337,11 +360,13 @@ MIF_INP2A (
             if(next_token_type == MIF_LARRAY_TOK) {
                 LITERR("ERROR - Scalar connection expected, [ found");
                 printf("ERROR - Scalar connection expected, [ found.  Returning . . .");
+                gc_end();
                 return;
             }
             if(next_token_type == MIF_RARRAY_TOK) {
                 LITERR("ERROR - Unexpected ]");
                 printf("ERROR - Unexpected ].  Returning . . .");
+                gc_end();
                 return;
             }
 
@@ -362,8 +387,10 @@ MIF_INP2A (
                         0,                  /* port index for scalar connection */
                         &status);
 
-            if(status == MIF_ERROR)
+            if (status == MIF_ERROR) {
+                gc_end();
                 return;
+            }
 
             fast[0]->conn[i]->size = 1;
 
@@ -375,18 +402,16 @@ MIF_INP2A (
             if(next_token_type != MIF_LARRAY_TOK) {
                 LITERR("Missing [, an array connection was expected");
                 printf("Missing [, an array connection was expected.  Returning . . .");
+                gc_end();
                 return;
             } else /* eat the [  */
-                if (next_token)
-                    tfree(next_token);
-            next_token = MIFget_token(&line,&next_token_type);
+                next_token = MIFget_token(&line,&next_token_type);
 
             /*------ get and process ports until ] is encountered ------*/
             for(j = 0;
                     (next_token_type != MIF_RARRAY_TOK) &&
                     (*line != '\0');
                     j++) {
-
                 /********** mhx Friday, August 19, 2011, 15:08 begin ***
                  Now if we had a % token, get actual info about connection type,
                  or else use the port type for this connection that was setup BEFORE the '[' token.
@@ -403,24 +428,29 @@ MIF_INP2A (
                                      &def_port_type_str,
                                      conn_info,
                                      &status);
-                    if(status == MIF_ERROR)
+                    if (status == MIF_ERROR) {
+                        gc_end();
                         return;
+                    }
                 }
                 /* At this point, next_token should be either a [ or ] char (not allowed),
                 or hold a non-null connection (netname) */
                 if(next_token_type == MIF_NULL_TOK) {
                     LITERR("NULL connection found where not allowed");
                     printf("NULL connection found where not allowed. Returning . . .");
+                    gc_end();
                     return;
                 }
                 if(next_token_type == MIF_LARRAY_TOK) {
                     LITERR("ERROR - Unexpected [ - Arrays of arrays not allowed");
                     printf("ERROR - Unexpected [ - Arrays of arrays not allowed. Returning . . .");
+                    gc_end();
                     return;
                 }
                 if(next_token_type == MIF_RARRAY_TOK) {
                     LITERR("ERROR - Unexpected ]");
                     printf("ERROR - Unexpected ]. Returning . . .");
+                    gc_end();
                     return;
                 }
                 /********** mhx Friday, August 19, 2011, 15:08 end ***/
@@ -442,8 +472,10 @@ MIF_INP2A (
                             j,                  /* port index */
                             &status);
 
-                if(status == MIF_ERROR)
+                if (status == MIF_ERROR) {
+                    gc_end();
                     return;
+                }
             } /*------ end of for loop until ] is encountered ------*/
 
             /*  At this point, next_token should hold the next token after the
@@ -454,12 +486,14 @@ MIF_INP2A (
             */
             if(*line == '\0') {
                 LITERR("Missing ] in array connection");
+                gc_end();
                 return;
             }
 
             /* record the number of ports found for this connection */
             if(j < 1) {
                 LITERR("Array connection must have at least one port");
+                gc_end();
                 return;
             }
             fast[0]->conn[i]->size = j;
@@ -468,15 +502,12 @@ MIF_INP2A (
             We'll do that now, since when we enter the loop, we expect next_token
             to hold the next unprocessed token.
             */
-            if (next_token)
-                tfree(next_token);
             next_token = MIFget_token(&line, &next_token_type);
 
         }  /* ======  array connection processing   ====== */
 
         /* be careful about putting stuff here, there is a 'continue' used */
         /* in the processing of NULL connections above                     */
-
         /*  At this point, next_token should hold the next unprocessed token.  */
 
     } /******* for number of connections *******/
@@ -494,11 +525,9 @@ MIF_INP2A (
 
     if(strcmp(next_token, model) != 0) {
         LITERR("Too many connections -- expecting model name but encountered other tokens.");
+        gc_end();
         return;
     }
-
-    tfree(model);
-    tfree(next_token);
 
     /* check connection constraints */
 
@@ -509,12 +538,14 @@ MIF_INP2A (
         if( (fast[0]->conn[i]->is_null) &&
                 (! conn_info->null_allowed) ) {
             LITERR("Null found for connection where not allowed");
+            gc_end();
             return;
         }
 
         if(conn_info->has_lower_bound) {
             if(fast[0]->conn[i]->size < conn_info->lower_bound) {
                 LITERR("Too few ports in connection");
+                gc_end();
                 return;
             }
         }
@@ -522,6 +553,7 @@ MIF_INP2A (
         if(conn_info->has_upper_bound) {
             if(fast[0]->conn[i]->size > conn_info->upper_bound) {
                 LITERR("Too many ports in connection");
+                gc_end();
                 return;
             }
         }
@@ -538,9 +570,11 @@ MIF_INP2A (
         if(mdfast->param[i]->is_null) {
             if(! param_info->has_default) {
                 LITERR("Parameter on model has no default");
+                gc_end();
                 return;
             } else if((param_info->is_array) && (! param_info->has_conn_ref)) {
                 LITERR("Defaulted array parameter must have associated array connection");
+                gc_end();
                 return;
             }
         }
@@ -548,12 +582,13 @@ MIF_INP2A (
             if(param_info->has_conn_ref) {
                 if(fast[0]->conn[param_info->conn_ref]->size != fast[0]->param[i]->size) {
                     LITERR("Array parameter size on model does not match connection size");
+                    gc_end();
                     return;
                 }
             }
         }
     }
-
+    gc_end();
 }
 
 
@@ -652,6 +687,7 @@ static void  MIFinit_inst(
     fast->analog = MIF_FALSE;
     fast->event_driven = MIF_FALSE;
     fast->inst_index = 0;
+    fast->callback = NULL;
 }
 
 
@@ -681,7 +717,7 @@ static void
 MIFget_port_type(
     CKTcircuit       *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables        *tab,      /* symbol table for node names, etc.            */
-    card             *current,  /* MUST be named 'current' for spice macros     */
+    struct card      *current,  /* MUST be named 'current' for spice macros     */
     char             **line,
     char             **next_token,
     Mif_Token_Type_t *next_token_type,
@@ -776,7 +812,7 @@ static void
 MIFget_port(
     CKTcircuit       *ckt,      /* circuit structure to put mod/inst structs in */
     INPtables        *tab,      /* symbol table for node names, etc.            */
-    card             *current,  /* MUST be named 'current' for spice macros     */
+    struct card      *current,  /* MUST be named 'current' for spice macros     */
     MIFinstance      *fast,     /* pointer to instance struct */
     char             **line,
     char             **next_token,
@@ -809,7 +845,7 @@ MIFget_port(
 
     /* store the port type information in the instance struct */
     fast->conn[conn_num]->port[port_num]->type = def_port_type;
-    fast->conn[conn_num]->port[port_num]->type_str = def_port_type_str;
+    fast->conn[conn_num]->port[port_num]->type_str = copy(def_port_type_str);
 
     /* check for a leading tilde on digital ports */
     if(*next_token_type == MIF_TILDE_TOK) {
@@ -877,6 +913,7 @@ MIFget_port(
     case MIF_RESISTANCE:
     case MIF_DIFF_RESISTANCE:
 
+        *next_token = copy(*next_token);
         /* Call the spice3c1 function to put this node in the node list in ckt */
         INPtermInsert(ckt, next_token, tab, pos_node);
 
@@ -888,7 +925,7 @@ MIFget_port(
         break;
 
     case MIF_VSOURCE_CURRENT:
-
+        *next_token = copy(*next_token);
         /* Call the spice3c1 function to put this vsource instance name in */
         /* the symbol table                                                */
         INPinsert(next_token, tab);
@@ -915,8 +952,6 @@ MIFget_port(
             *status = MIF_ERROR;
             return;
         }
-        /* free just the digital ones, the other are still assigned by INPtermInsert */
-        tfree(*next_token);
         break;
 
     default:
@@ -944,8 +979,6 @@ MIFget_port(
 
         *node = '0';    // added by K.A. March 5th 2000
         node[1] ='\0';  // added by K.A. March 5th 2000
-//      node = "0";     // deleted by K.A. March 5th 2000, this is incorrect, it creates a new pointer
-        // that cause a crash in INPtermInsert()
 
         INPtermInsert(ckt, &node, tab, neg_node);
 
@@ -963,6 +996,7 @@ MIFget_port(
             *status = MIF_ERROR;
             return;
         }
+        *next_token = copy(*next_token);
         INPtermInsert(ckt, next_token, tab, neg_node);
         fast->conn[conn_num]->port[port_num]->neg_node_str = *next_token;
         fast->conn[conn_num]->port[port_num]->smp_data.neg_node = neg_node[0]->number;
@@ -980,9 +1014,54 @@ MIFget_port(
 }
 
 
+#undef MIFgettok
+#undef MIFget_token
 
+static
+char *MIFgettok_gc(char **line)
+{
+    char *newtok = MIFgettok(line);
+    alltokens[curtoknr++] = newtok;
+    return newtok;
+}
 
+static
+char *MIFget_token_gc(char **s, Mif_Token_Type_t *type)
+{
+    char *newtok = MIFget_token(s, type);
+    alltokens[curtoknr++] = newtok;
+    return newtok;
+}
 
+static
+void gc_start(void)
+{
+    int i;
+    for (i = 0; i < BSIZE_SP; i++)
+        alltokens[i] = NULL;
+    curtoknr = 0;
+}
+
+static
+void gc_end(void)
+{
+    int i, j;
+    for (i = 0; i < BSIZE_SP; i++) {
+        /* We have multiple entries with the same address */
+        for (j = i + 1; j < curtoknr; j++)
+            if (alltokens[i] == alltokens[j])
+                alltokens[j] = NULL;
+        tfree(alltokens[i]);
+    }
+}
+
+char *
+copy_gc(char* in)
+{
+    char *newtok = copy(in);
+    alltokens[curtoknr++] = newtok;
+    return newtok;
+}
 
 
 
